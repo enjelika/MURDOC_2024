@@ -11,6 +11,9 @@ namespace MURDOC_2024
         public MainWindow()
         {
             InitializeComponent();
+
+            // Create an instance of MainWindowViewModel and set it as the DataContext
+            DataContext = new MainWindowViewModel();
         }
 
         private void LocalizationImage_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
