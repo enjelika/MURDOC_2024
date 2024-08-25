@@ -132,8 +132,6 @@ namespace MURDOC_2024.ViewModel
                 _selectedImage = value;
                 OnPropertyChanged(nameof(SelectedImage));
 
-                // TODO: Reset all Model Traversal Progress circles to empty
-
                 // TODO: Clear all of the Model Traversal Results - except for Input Image
             }
         }
@@ -465,6 +463,11 @@ namespace MURDOC_2024.ViewModel
             IsRunButtonEnabled = false; // Disable Run button initially
 
             _modifiedImageStream = new MemoryStream();
+
+            // Set the default placeholder image
+            SelectedImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            PreviewImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+
             // Create Temporary Folder Location
             Directory.CreateDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp"));
 
