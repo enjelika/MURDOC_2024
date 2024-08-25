@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35027.167
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MURDOC_2024", "MURDOC_2024.csproj", "{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}.Debug|x64.ActiveCfg = Debug|x64
+		{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}.Debug|x64.Build.0 = Debug|x64
+		{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}.Release|x64.ActiveCfg = Release|x64
+		{78FE0CE3-3CF6-4E65-BDAD-72E651D9A291}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {67D6DC3C-05BF-4204-8C78-E0A503D2CAA6}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,255 @@
+﻿<Window x:Class="MURDOC_2024.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MURDOC_2024"
+        mc:Ignorable="d"
+        Height="990" Width="1860"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <DockPanel>
+        <!-- Your window content here -->
+        <!-- Content Grid -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <!-- Define three columns with appropriate widths -->
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Main pane -->
+            <StackPanel Grid.Column="0" Background="LightGray" Margin="5,5,441,5" Grid.ColumnSpan="2">
+
+                <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray">
+                        <!-- Image file select/browse button and text box -->
+                        <Label Content="Select image:" FontWeight="Bold"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="5, -5, 5, 5">
+                            <TextBox Text="{Binding SelectedImageFileName, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
+                            <Button Content="Browse" Command="{Binding BrowseCommand}" Margin="5,5,5,5" />
+                        </StackPanel>
+
+                        <!-- Image Adjustment controls: Brightness, Contrast, Saturation -->
+                        <StackPanel VerticalAlignment="Center">
+                            <DockPanel VerticalAlignment="Center" Margin="5">
+                                <Label DockPanel.Dock="Left" FontWeight="Bold">Brightness:</Label>
+                                <TextBox Text="{Binding ElementName=sliderBrightness, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
+                                <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderBrightness" Value="{Binding SliderBrightness}" />
+                            </DockPanel>
+
+                            <DockPanel VerticalAlignment="Center" Margin="5">
+                                <Label DockPanel.Dock="Left" Width="72" FontWeight="Bold">Contrast:</Label>
+                                <TextBox Text="{Binding ElementName=sliderContrast, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
+                                <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderContrast" Value="{Binding SliderContrast}"/>
+                            </DockPanel>
+
+                            <DockPanel VerticalAlignment="Center" Margin="5">
+                                <Label DockPanel.Dock="Left" FontWeight="Bold">Saturation:</Label>
+                                <TextBox Text="{Binding ElementName=sliderSaturation, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
+                                <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderSaturation" Value="{Binding SliderSaturation}"/>
+                            </DockPanel>
+                        </StackPanel>
+
+                        <!-- Model controls: Run models to gather prediction and outputs -->
+                        <Button Content="Run Models" Command="{Binding RunCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
+                    </StackPanel>
+
+                    <!-- Selected Image -->
+                    <StackPanel Orientation="Vertical" Margin="5">
+                        <Label Content="Input" FontWeight="Bold" Margin="10,0,0,0"/>
+                        <Image Source="{Binding SelectedImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="225" />
+                    </StackPanel>
+
+                    <!-- Preview for mouse over -->
+                    <StackPanel Orientation="Vertical" Margin="5">
+                        <Label Content="Preview" FontWeight="Bold" Margin="5,0,20,0"/>
+                        <Image Source="{Binding PreviewImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="225" />
+                    </StackPanel>
+
+                    <!-- IAI Output Message -->
+                    <StackPanel Orientation="Vertical" Margin="5">
+                        <Label Content="Informative AI Output" FontWeight="Bold" Margin="5,0,20,0"/>
+                        <TextBlock Text="{Binding IAIOutputMessage}" />
+                    </StackPanel>
+                </StackPanel>
+
+
+                <StackPanel Orientation="Vertical" Margin="5">
+                    <StackPanel Orientation="Horizontal">
+                        <!-- RankNet -->
+                        <StackPanel Orientation="Vertical">
+
+                            <Label Content="RankNet" FontWeight="Bold" Margin="10,0,0,0"/>
+
+                            <StackPanel Orientation="Horizontal">
+                                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="625">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Top" Text="Localization" FontWeight="DemiBold" HorizontalAlignment="Left" Margin="10,5,5,0"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="15,0,0,0">
+
+                                            <StackPanel Orientation="Vertical">
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Conv}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter"/>
+                                                    <Label Content="Initial Conv" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
+
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Layer1}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
+                                                    <Label Content="Stage 1" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
+
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Layer2}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter"/>
+                                                    <Label Content="Stage 2" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
+
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Layer3}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
+                                                    <Label Content="Stage 3" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
+
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Layer4}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left"  MouseEnter="LocalizationImage_MouseEnter" />
+                                                    <Label Content="Stage 4" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2198;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2192;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2197;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2197;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                                <Image Source="{Binding RankNetFixationDecoderImagePath}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" Height="Auto" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
+                                                <Label Content="Fixation Decoder"/>
+                                            </StackPanel>
+
+                                            <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="0"/>
+
+                                            <StackPanel Orientation="Vertical" Margin="5,15,0,0" VerticalAlignment="Center">
+                                                <Image Source="{Binding ResNet50Output}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" Height="Auto" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
+                                                <Label Content="Grad-Cam Output"  HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                </Border>
+
+                                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="625">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Top" Text="Ranking" FontWeight="DemiBold" HorizontalAlignment="Left" Margin="10,5,5,0"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="15,0,0,0">
+
+                                            <StackPanel Orientation="Vertical">
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Conv}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
+                                                    <Label Content="Initial Conv" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
+
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Layer1}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
+                                                    <Label Content="Stage 1" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
+
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Layer2}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
+                                                    <Label Content="Stage 2" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
+
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Layer3}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
+                                                    <Label Content="Stage 3" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
+
+                                                <StackPanel Orientation="Vertical">
+                                                    <Image Source="{Binding ResNet50Layer4}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
+                                                    <Label Content="Stage 4" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2198;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2192;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2197;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
+                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2197;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                                                <Image Source="{Binding RankNetCamouflageDecoderImagePath}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" MaxHeight="200" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
+                                                <Label Content="Camouflage Decoder"/>
+                                            </StackPanel>
+
+                                            <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="0"/>
+
+                                            <StackPanel Orientation="Vertical" Margin="5,15,0,0" VerticalAlignment="Center">
+                                                <Image Source="{Binding ResNet50Output}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" MaxHeight="200" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
+                                                <Label Content="Grad-Cam Output"  HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </StackPanel>
+
+                        </StackPanel>
+
+                        <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
+
+                        <StackPanel Orientation="Vertical">
+                            <Label Content="EfficientDet-D7" FontWeight="Bold" Width="250" Margin="10,0,0,0"/>
+
+                            <Border BorderBrush="DarkGray" BorderThickness="1" Height="625">
+                                <DockPanel>
+
+                                    <StackPanel Orientation="Vertical">
+                                        <Image Source="{Binding WeakAreaCamoImagePath}" Margin="10" Stretch="Uniform" MaxWidth="200" Height="Auto" HorizontalAlignment="Center" />
+
+                                        <TextBlock Text="{Binding WeakAreaCamoDescription}" Margin="5,2"/>
+                                    </StackPanel>
+
+
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
+
+                        <StackPanel Background="LightGray" Orientation="Vertical" HorizontalAlignment="Right" Width="718" Margin="5">
+                            <Label Content="Final Prediction" HorizontalAlignment="Center" FontWeight="Bold" Margin="0"/>
+                            <StackPanel Orientation="Horizontal" Margin="20">
+                                <Image Source="{Binding FACEPredictionImagePath}" Margin="5" Stretch="Uniform" MaxWidth="700" Height="Auto" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </StackPanel>
+
+                    </StackPanel>
+
+
+                </StackPanel>
+
+            </StackPanel>
+
+
+        </Grid>
+
+    </DockPanel>
+</Window>
