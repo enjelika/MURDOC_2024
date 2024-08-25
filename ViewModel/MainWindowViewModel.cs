@@ -735,7 +735,7 @@ namespace MURDOC_2024.ViewModel
             else
             {
                 // Set the default placeholder image
-                SelectedImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC;component/Assets/image_placeholder.png"));
+                SelectedImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
@@ -751,7 +751,7 @@ namespace MURDOC_2024.ViewModel
             else
             {
                 // Set the default placeholder image
-                ResNet50Conv = new BitmapImage(new Uri("pack://application:,,,/MURDOC;component/Assets/image_placeholder.png"));
+                ResNet50Conv = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
@@ -768,7 +768,7 @@ namespace MURDOC_2024.ViewModel
             else
             {
                 // Set the default placeholder image
-                ResNet50Layer1 = new BitmapImage(new Uri("pack://application:,,,/MURDOC;component/Assets/image_placeholder.png"));
+                ResNet50Layer1 = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
@@ -784,7 +784,7 @@ namespace MURDOC_2024.ViewModel
             else
             {
                 // Set the default placeholder image
-                ResNet50Layer2 = new BitmapImage(new Uri("pack://application:,,,/MURDOC;component/Assets/image_placeholder.png"));
+                ResNet50Layer2 = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
@@ -800,7 +800,7 @@ namespace MURDOC_2024.ViewModel
             else
             {
                 // Set the default placeholder image
-                ResNet50Layer3 = new BitmapImage(new Uri("pack://application:,,,/MURDOC;component/Assets/image_placeholder.png"));
+                ResNet50Layer3 = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
@@ -816,7 +816,7 @@ namespace MURDOC_2024.ViewModel
             else
             {
                 // Set the default placeholder image
-                ResNet50Layer4 = new BitmapImage(new Uri("pack://application:,,,/MURDOC;component/Assets/image_placeholder.png"));
+                ResNet50Layer4 = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
@@ -832,7 +832,7 @@ namespace MURDOC_2024.ViewModel
             else
             {
                 // Set the default placeholder image
-                ResNet50Output = new BitmapImage(new Uri("pack://application:,,,/MURDOC;component/Assets/image_placeholder.png"));
+                ResNet50Output = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
