@@ -16,6 +16,8 @@
 2. To what extent does the integration of user-controllable image enhancement functionalities, such as brightness, contrast, and saturation adjustments, within the MURDOC visualization tool contribute to enhancing trust, usability, and understanding in camouflage detection?
 
 ## Work Completed
+2024-08-25: Added FACE elements (IAI_Decision_Hierarchy.py, and supporting python scripts into MURDOC's Model folder)
+
 2024-06-28: Updated GUI layout (View) and the ViewModel to reflect View updates
 
 2024-05-01: Image adjustment user controls (brightness/contrast/saturation); Added off-ramps to RankNet; Adjusted GUI layout
