@@ -386,7 +386,7 @@ def levelThree(original_image, bbox, message, filename):
             if overlap([box1['x1'], box1['x2'], box1['y1'], box1['y2']], [box2[1]*x_size, box2[3]*x_size, box2[0]*y_size,  box2[2]*y_size]):
                 detected_class = label_map[int(d_class[count])-1]
                 detection_score = detections['detection_scores'].numpy()[0][count]
-                message += f"Object's {detected_class}\n"
+                message += f"Object's {detected_class}, Detection Score: {detection_score:.2%}\n"
                 feat.append(detected_class)
                 txt_content.append(f"Class: {detected_class}, Score: {detection_score:.4f}")
         weak.append(feat)        
@@ -659,7 +659,7 @@ def iaiDecision_test(file_name, counter):
     output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message)
 
     org_image = Image.open(image_root + file_name + '.jpg')
-    segmented_image = segment_image(org_image, Image.fromarray(bm_image*255), Image.fromarray(fix_image*255))
+    segmented_image = segment_image(org_image, Image.fromarray(bm_image), Image.fromarray(fix_image))
     add_label(segmented_image, output, (15, 15))
     segmented_image.save('outputs/segmented_'+ file_name +'.jpg')
     plt.axis('tight')
