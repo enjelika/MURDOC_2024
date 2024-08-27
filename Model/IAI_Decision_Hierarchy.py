@@ -611,13 +611,13 @@ def iaiDecision_test(file_name, counter):
     cods.set_filename(file_name)
     
     # Get the Binary Mapping, Fixation Mapping, and CODS Prediction
-    fix_pred, cod_pred1, cod_pred2 = cods.forward(image)
+    fix_pred, _, cod_pred2 = cods.forward(image)
     
     # Gather the images: Original, Binary Mapping, Fixation Mapping
     fix_image = fix_pred
     fix_image = F.upsample(fix_image, size=[WW,HH], mode='bilinear', align_corners=False)
     fix_image = fix_image.sigmoid().data.cpu().numpy().squeeze()
-    fix_image = 255*(fix_image - fix_image.min()) / (fix_image.max() - fix_image.min() + 1e-8)\
+    fix_image = 255*(fix_image - fix_image.min()) / (fix_image.max() - fix_image.min() + 1e-8)
     
     # Convert the NumPy array to uint8 type
     fix_image = fix_image.astype(np.uint8)
@@ -629,7 +629,7 @@ def iaiDecision_test(file_name, counter):
     fix_pil_image.save(f'results/{file_name}/{file_name}_fixation_decoder.png')
     
     #======================================================================
-    bm_image = cod_pred1
+    bm_image = cod_pred2
     bm_image = F.upsample(bm_image, size=[WW,HH], mode='bilinear', align_corners=False)
     bm_image = bm_image.sigmoid().data.cpu().numpy().squeeze()
     bm_image = 255*(bm_image - bm_image.min()) / (bm_image.max() - bm_image.min() + 1e-8)
@@ -666,33 +666,3 @@ def iaiDecision_test(file_name, counter):
     plt.show()
     
     return message
-    
-    
-"""
-===================================================================================================
-    Main
-===================================================================================================
-"""
-if __name__ == "__main__":
-    # Counter
-    counter = 1
-    
-    # Loop to iterate through dataset
-    test_loader = test_dataset(image_root, 480)
-    
-    for i in range(test_loader.size):
-        # Filename
-        image, HH, WW, name = test_loader.load_data()
-        file_name = os.path.splitext(name)[0]
-        
-        if i > 35:
-            # Get the IAI and the Fixation Map Image
-            output_message = iaiDecision_test(file_name, counter)
-        
-        counter += 1
-        
-        if counter == 50: #3041:
-            break
-
-    # with open("stats.json", "w") as outfile:
-    #     outfile.write(stats)
