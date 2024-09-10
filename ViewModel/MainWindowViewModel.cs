@@ -571,7 +571,7 @@ namespace MURDOC_2024.ViewModel
                     string imageLocation = string.IsNullOrEmpty(tempImageLocation) ? SelectedImagePath : tempImageLocation;
 
                     // Call the iaiDecision_test function from your Python script
-                    string message = script.iaiDecision_test(imageLocation); //IAIOutputMessage
+                    string message = script.iaiDecision(imageLocation); //IAIOutputMessage
                     IAIOutputMessage = message;
                     OnPropertyChanged(nameof(IAIOutputMessage));
 
