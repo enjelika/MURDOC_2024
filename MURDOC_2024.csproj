@@ -126,6 +126,7 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+    <None Include="python-env-check-script.ps1" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
