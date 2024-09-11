@@ -4,7 +4,11 @@ using Python.Runtime; // Ensure this namespace is recognized without errors
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 
 namespace MURDOC_2024.ViewModel
@@ -17,9 +21,15 @@ namespace MURDOC_2024.ViewModel
 
         private string _selectedImageName;      // filename without file type
 
+        private string _pythonOutput; // for troubleshooting Python script outputs
+
         private BitmapImage _selectedImage;
 
         private BitmapImage _previewImage;
+
+        private BitmapImage _facePredictionImage;
+
+        private BitmapImage _weakAreaCamoImage;
 
         private readonly ICommand _exitCommand;
 
@@ -64,6 +74,19 @@ namespace MURDOC_2024.ViewModel
         private int _sliderSaturation;
         private MemoryStream _modifiedImageStream;
         private bool hasUserModifiedImage;
+
+        /// <summary>
+        /// Getter/Setter for the python output string for troubleshooting
+        /// </summary>
+        public string PythonOutput
+        {
+            get => _pythonOutput;
+            set
+            {
+                _pythonOutput = value;
+                OnPropertyChanged(nameof(PythonOutput));
+            }
+        }
 
         /// <summary>
         /// Getter/Setter for the IAI Output Message
@@ -131,8 +154,26 @@ namespace MURDOC_2024.ViewModel
             {
                 _selectedImage = value;
                 OnPropertyChanged(nameof(SelectedImage));
+            }
+        }
 
-                // TODO: Clear all of the Model Traversal Results - except for Input Image
+        public BitmapImage FACEPredictionImage
+        {
+            get { return _facePredictionImage; }
+            set
+            {
+                _facePredictionImage = value;
+                OnPropertyChanged(nameof(FACEPredictionImage));
+            }
+        }
+
+        public BitmapImage WeakAreaCamoImage
+        {
+            get { return _weakAreaCamoImage;  }
+            set 
+            {
+                _weakAreaCamoImage = value;
+                OnPropertyChanged(nameof(WeakAreaCamoImage));
             }
         }
 
@@ -460,6 +501,8 @@ namespace MURDOC_2024.ViewModel
         /// </summary>
         public MainWindowViewModel()
         {
+            InitializePythonRuntime();
+
             IsRunButtonEnabled = false; // Disable Run button initially
 
             _modifiedImageStream = new MemoryStream();
@@ -544,110 +587,151 @@ namespace MURDOC_2024.ViewModel
         private void ExecuteRunCommand()
         {
             // Need to handle the scenario by preventing the run when SelectedImagePath has no image selected - done: disabled the run models button if no image is selected
-
-            // Initialize Python engine
-            if (!PythonEngine.IsInitialized)
+            try
             {
-                InitializePythonEngine();
+                // Change cursor to wait cursor
+                Mouse.OverrideCursor = Cursors.Wait;
+                PythonOutput = "Initializing Python environment...\n";
+
+                using (Py.GIL())
+                {
+                    dynamic sys = Py.Import("sys");
+                    dynamic os = Py.Import("os");
+
+                    // Add the directory containing your Python script to Python's sys.path
+                    string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\", "Model", "IAI_Decision_Hierarchy.py");
+                    sys.path.append(os.path.dirname(scriptPath));
+
+                    // ResNet50
+                    try
+                    {
+                        // Import your Python script module
+                        dynamic script = Py.Import("IAI_Decision_Hierarchy");
+                        Console.WriteLine("IAI_Decision_Hierarchy imported successfully");
+                        PythonOutput += "Script imported successfully. Redirecting stdout...\n";
+
+                        // Save Temporary Image if user modified
+                        string tempImageLocation = SaveTemporaryImage();
+                        string imageLocation = string.IsNullOrEmpty(tempImageLocation) ? SelectedImagePath : tempImageLocation;
+
+                        PythonOutput += "Calling iaiDecision function...\n";
+                        // Call the iaiDecision_test function from your Python script
+                        string message = script.iaiDecision(imageLocation); //IAIOutputMessage
+
+                        // Update UI on the main thread
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            IAIOutputMessage = message;
+                            OnPropertyChanged(nameof(IAIOutputMessage));
+
+                            string executableDir = AppDomain.CurrentDomain.BaseDirectory;
+                            string offrampsFolderPath = Path.Combine(executableDir, "offramp_output_images", _selectedImageName);
+                            string detectionFolderPath = Path.Combine(executableDir, "detection_results");
+                            string folderPath = Path.Combine(executableDir, "results");
+
+                            // Update the ResNet50ConvImagePath to trigger UI update
+                            //string initConvImagePath = Path.Combine(folderPath, _selectedImageName + "_initial_conv_feature_map.png");
+                            //ResNet50ConvImagePath = initConvImagePath;
+                            //OnPropertyChanged(nameof(ResNet50Conv)); // Trigger UI update for ResNet50Conv
+
+                            //string layer1ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage1_feature_map.png");
+                            //Console.WriteLine(layer1ImagePath);
+                            //ResNet50Layer1ImagePath = layer1ImagePath;
+                            //OnPropertyChanged(nameof(ResNet50Layer1));
+
+                            //string layer2ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage2_feature_map.png");
+                            //ResNet50Layer2ImagePath = layer2ImagePath;
+                            //OnPropertyChanged(nameof(ResNet50Layer2));
+
+                            //string layer3ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage3_feature_map.png");
+                            //ResNet50Layer3ImagePath = layer3ImagePath;
+                            //OnPropertyChanged(nameof(ResNet50Layer3));
+
+                            //string layer4ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage4_feature_map.png");
+                            //ResNet50Layer4ImagePath = layer4ImagePath;
+                            //OnPropertyChanged(nameof(ResNet50Layer4));
+
+                            //string fixationDecoderImagePath = Path.Combine(folderPath, _selectedImageName + "_fixation_decoder.png");
+                            //RankNetFixationDecoderImagePath = fixationDecoderImagePath;
+                            //OnPropertyChanged(nameof(RankNetFixationDecoderImagePath));
+
+                            //string camouflageDecoderImagePath = Path.Combine(folderPath, _selectedImageName + "_camouflage_decoder.png");
+                            //RankNetCamouflageDecoderImagePath = camouflageDecoderImagePath;
+                            //OnPropertyChanged(nameof(RankNetCamouflageDecoderImagePath));
+
+                            string weakAreaCamoImagePath = Path.Combine(detectionFolderPath, _selectedImageName + ".png");
+                            WeakAreaCamoImagePath = weakAreaCamoImagePath;
+                            OnPropertyChanged(nameof(WeakAreaCamoImagePath));
+                            LoadDetectionImage();
+
+                            string facePredictionImagePath = Path.Combine(folderPath, "segmented_" + _selectedImageName + ".jpg");
+                            FACEPredictionImagePath = facePredictionImagePath;
+                            OnPropertyChanged(nameof(FACEPredictionImage));
+                            LoadPredictionImage();
+                        });
+                    }
+                    catch (PythonException exception)
+                    {
+                        // Probably should indicate somewhere on the GUI that something went wrong
+                        Console.WriteLine("Exception occured: " + exception);
+                    }
+                }   
             }
-
-            using (Py.GIL())
+            catch (Exception ex)
             {
-                dynamic sys = Py.Import("sys");
-                dynamic os = Py.Import("os");
-
-                // Add the directory containing your Python script to Python's sys.path
-                string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\", "Model", "IAI_Decision_Hierarchy.py");
-                sys.path.append(os.path.dirname(scriptPath));
-
-                // ResNet50
-                try
-                {
-                    // Import your Python script module
-                    dynamic script = Py.Import("IAI_Decision_Hierarchy");
-
-                    // Save Temporary Image if user modified
-                    string tempImageLocation = SaveTemporaryImage();
-                    string imageLocation = string.IsNullOrEmpty(tempImageLocation) ? SelectedImagePath : tempImageLocation;
-
-                    // Call the iaiDecision_test function from your Python script
-                    string message = script.iaiDecision(imageLocation); //IAIOutputMessage
-                    IAIOutputMessage = message;
-                    OnPropertyChanged(nameof(IAIOutputMessage));
-
-                    string executableDir = AppDomain.CurrentDomain.BaseDirectory;
-                    string folderPath = Path.Combine(executableDir, "resnet50_output", _selectedImageName);
-
-                    // Update the ResNet50ConvImagePath to trigger UI update
-                    string initConvImagePath = Path.Combine(folderPath, _selectedImageName + "_initial_conv_feature_map.png");
-                    ResNet50ConvImagePath = initConvImagePath;
-                    OnPropertyChanged(nameof(ResNet50Conv)); // Trigger UI update for ResNet50Conv
-
-                    string layer1ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage1_feature_map.png");
-                    Console.WriteLine(layer1ImagePath);
-                    ResNet50Layer1ImagePath = layer1ImagePath;
-                    OnPropertyChanged(nameof(ResNet50Layer1));
-
-                    string layer2ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage2_feature_map.png");
-                    ResNet50Layer2ImagePath = layer2ImagePath;
-                    OnPropertyChanged(nameof(ResNet50Layer2));
-
-                    string layer3ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage3_feature_map.png");
-                    ResNet50Layer3ImagePath = layer3ImagePath;
-                    OnPropertyChanged(nameof(ResNet50Layer3));
-
-                    string layer4ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage4_feature_map.png");
-                    ResNet50Layer4ImagePath = layer4ImagePath;
-                    OnPropertyChanged(nameof(ResNet50Layer4));
-
-                    string fixationDecoderImagePath = Path.Combine(folderPath, _selectedImageName + "_fixation_decoder.png");
-                    RankNetFixationDecoderImagePath = fixationDecoderImagePath;
-                    OnPropertyChanged(nameof(RankNetFixationDecoderImagePath));
-
-                    string camouflageDecoderImagePath = Path.Combine(folderPath, _selectedImageName + "_camouflage_decoder.png");
-                    RankNetCamouflageDecoderImagePath = camouflageDecoderImagePath;
-                    OnPropertyChanged(nameof(RankNetCamouflageDecoderImagePath));
-
-                    string weakAreaCamoImagePath = Path.Combine(folderPath, _selectedImageName + "_weak_area_camo.png");
-                    WeakAreaCamoImagePath = weakAreaCamoImagePath;
-                    OnPropertyChanged(nameof(WeakAreaCamoImagePath));
-
-                    string facePredictionImagePath = Path.Combine(folderPath, "segmented_" + _selectedImageName + ".jpg");
-                    FACEPredictionImagePath = facePredictionImagePath;
-                    OnPropertyChanged(nameof(FACEPredictionImagePath));
-
-                    string outputImagePath = Path.Combine(folderPath, _selectedImageName + "_prediction.png");
-                    ResNet50OutputImagePath = outputImagePath;
-                    OnPropertyChanged(nameof(ResNet50Output));
-
-
-
-                }
-                catch (PythonException exception)
-                {
-                    // Probably should indicate somewhere on the GUI that something went wrong
-                    Console.WriteLine("Exception occured: " + exception);
-                }
-
+                Console.WriteLine($"General Exception: {ex.Message}");
+                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+            }
+            finally
+            {
+                // Reset cursor back to default
+                Mouse.OverrideCursor = null;
             }
         }
 
         /// <summary>
         /// Initializes Python Engine with the default Visual Studio Python DLL location
         /// </summary>
-        private void InitializePythonEngine()
+        private void InitializePythonRuntime()
         {
             try
             {
-                string pathToVirtualEnv = @"C:\Users\pharm\AppData\Local\Programs\Python\Python39"; //@"C:\Users\pharm\anaconda3\envs\murdoc\";
+                Console.WriteLine("Starting Python runtime initialization...");
 
+                string pythonHome = @"C:\Users\pharm\AppData\Local\Programs\Python\Python39";
                 string pythonDll = Environment.GetEnvironmentVariable("PythonDLL", EnvironmentVariableTarget.User);
-                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pythonDll);
-                Environment.SetEnvironmentVariable("PYTHONHOME", pathToVirtualEnv, EnvironmentVariableTarget.Process);
-                Environment.SetEnvironmentVariable("PYTHONPATH", $"{pathToVirtualEnv}\\Lib\\site-packages;{pathToVirtualEnv}\\Lib", EnvironmentVariableTarget.Process);
 
-                // Initialize will fail if configuration manager is not set up or ran with x64 since the above python Dll is 64 bit
-                PythonEngine.Initialize();
+                Console.WriteLine($"Python Home: {pythonHome}");
+                Console.WriteLine($"Python DLL: {pythonDll}");
+
+                if (string.IsNullOrEmpty(pythonDll))
+                {
+                    throw new Exception("PythonDLL environment variable is not set.");
+                }
+
+                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pythonDll);
+                Environment.SetEnvironmentVariable("PYTHONHOME", pythonHome, EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable("PYTHONPATH", $"{pythonHome}\\Lib\\site-packages;{pythonHome}\\Lib", EnvironmentVariableTarget.Process);
+
+                Console.WriteLine("Environment variables set. Attempting to initialize Python Engine...");
+
+                if (!PythonEngine.IsInitialized)
+                {
+                    PythonEngine.Initialize();
+                    Console.WriteLine("Python runtime initialized successfully.");
+                }
+                else
+                {
+                    Console.WriteLine("Python runtime was already initialized.");
+                }
+
+                // Test Python functionality
+                using (Py.GIL())
+                {
+                    dynamic sys = Py.Import("sys");
+                    Console.WriteLine($"Python version: {sys.version}");
+                    Console.WriteLine($"Python path: {string.Join(", ", sys.path)}");
+                }
             }
             catch (TypeInitializationException tiex)
             {
@@ -659,6 +743,39 @@ namespace MURDOC_2024.ViewModel
             {
                 // Log or display any other exceptions during initialization
                 Console.WriteLine("Error initializing Python engine: " + ex.Message);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the Prediction Image on the GUI
+        /// </summary>
+        private void LoadPredictionImage()
+        {
+            if (!string.IsNullOrEmpty(FACEPredictionImagePath))
+            {
+                FACEPredictionImage = new BitmapImage(new Uri(FACEPredictionImagePath));
+            }
+            else
+            {
+                // Set the default placeholder image
+                FACEPredictionImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the Prediction Image on the GUI
+        /// </summary>
+        private void LoadDetectionImage()
+        {
+            if (!string.IsNullOrEmpty(WeakAreaCamoImagePath))
+            {
+                WeakAreaCamoImage = new BitmapImage(new Uri(WeakAreaCamoImagePath));
+            }
+            else
+            {
+                // Set the default placeholder image
+                WeakAreaCamoImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 

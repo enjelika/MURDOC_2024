@@ -24,6 +24,10 @@ import tensorflow as tf
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 from matplotlib.patches import Rectangle
 
+import traceback
+import time
+import sys
+
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -534,14 +538,11 @@ def iaiDecision(file_path):
         
         log_step("Creating output directories")
         # Create output directories
-        for dir in ["figures", "bbox_figures", "jsons", "outputs"]:
+        for dir in ["figures", "bbox_figures", "jsons", "outputs", "results"]:
             if not os.path.exists(dir):
                 os.mkdir(dir)
         
         file_name = os.path.splitext(os.path.basename(file_path))[0]
-        if not os.path.exists(f'results'):
-            os.makedirs(f'results')
-
         if not os.path.exists(f'outputs/{file_name}'):
             os.makedirs(f'outputs/{file_name}')
                         

@@ -72,6 +72,11 @@
                         <Label Content="Informative AI Output" FontWeight="Bold" Margin="5,0,20,0"/>
                         <TextBlock Text="{Binding IAIOutputMessage}" />
                     </StackPanel>
+                    
+                    <!-- Python Output -->
+                    <StackPanel Orientation="Vertical" Margin="5">
+                        <TextBox Text="{Binding PythonOutput}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Height="100" Visibility="Collapsed"/>
+                    </StackPanel>
                 </StackPanel>
 
 
@@ -222,9 +227,9 @@
                                 <DockPanel>
 
                                     <StackPanel Orientation="Vertical">
-                                        <Image Source="{Binding WeakAreaCamoImagePath}" Margin="10" Stretch="Uniform" MaxWidth="200" Height="Auto" HorizontalAlignment="Center" />
+                                        <Image Source="{Binding WeakAreaCamoImage}" Margin="10" Stretch="Uniform" MaxWidth="200" Height="Auto" HorizontalAlignment="Center" />
 
-                                        <TextBlock Text="{Binding WeakAreaCamoDescription}" Margin="5,2"/>
+                                        <TextBlock Text="{Binding WeakAreaCamoDescription}" Margin="5,2" TextWrapping="Wrap"/>
                                     </StackPanel>
 
 
@@ -237,7 +242,7 @@
                         <StackPanel Background="LightGray" Orientation="Vertical" HorizontalAlignment="Right" Width="718" Margin="5">
                             <Label Content="Final Prediction" HorizontalAlignment="Center" FontWeight="Bold" Margin="0"/>
                             <StackPanel Orientation="Horizontal" Margin="20">
-                                <Image Source="{Binding FACEPredictionImagePath}" Margin="5" Stretch="Uniform" MaxWidth="700" Height="Auto" HorizontalAlignment="Left" />
+                                <Image Source="{Binding FACEPredictionImage}" Margin="5" Stretch="Uniform" MaxWidth="700" Height="Auto" HorizontalAlignment="Left" />
                             </StackPanel>
                         </StackPanel>
 
