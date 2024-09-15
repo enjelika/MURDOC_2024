@@ -616,7 +616,7 @@ def iaiDecision(file_path):
         segmented_image.save(f'results/segmented_{file_name}.jpg')
 
         log_step("iaiDecision completed")
-        return message
+        return output
 
     except Exception as e:
         error_message = f"An error occurred: {str(e)}\nTraceback: {traceback.format_exc()}"

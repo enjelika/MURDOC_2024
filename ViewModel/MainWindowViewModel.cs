@@ -445,6 +445,138 @@ namespace MURDOC_2024.ViewModel
             }
         }
         #endregion
+                     
+        #region RankNet X2_2
+        private BitmapImage _resNet50Layer1_2;
+        public BitmapImage RankNetX2_2Image
+        {
+            get => _resNet50Layer1_2;
+            set
+            {
+                if (_resNet50Layer1_2 != value)
+                {
+                    _resNet50Layer1_2 = value;
+                    OnPropertyChanged(nameof(RankNetX2_2Image));
+                }
+            }
+        }
+
+        private string _resNet50Layer1_2ImagePath;
+        public string RankNetX2_2ImagePath
+        {
+            get => _resNet50Layer1_2ImagePath;
+            set
+            {
+                if (_resNet50Layer1_2ImagePath != value)
+                {
+                    _resNet50Layer1_2ImagePath = value;
+                    OnPropertyChanged(nameof(RankNetX2_2ImagePath));
+
+                    // Load and set the image directly to RankNetX2_2Image
+                    LoadRankNetX2_2Image();
+                }
+            }
+        }
+        #endregion
+
+        #region RankNet X3_2
+        private BitmapImage _resNet50Layer3_2;
+        public BitmapImage RankNetX3_2Image
+        {
+            get => _resNet50Layer3_2;
+            set
+            {
+                if (_resNet50Layer3_2 != value)
+                {
+                    _resNet50Layer3_2 = value;
+                    OnPropertyChanged(nameof(RankNetX3_2Image));
+                }
+            }
+        }
+
+        private string _resNet50Layer3_2ImagePath;
+        public string RankNetX3_2ImagePath
+        {
+            get => _resNet50Layer3_2ImagePath;
+            set
+            {
+                if (_resNet50Layer3_2ImagePath != value)
+                {
+                    _resNet50Layer3_2ImagePath = value;
+                    OnPropertyChanged(nameof(RankNetX3_2ImagePath));
+
+                    // Load and set the image directly to RankNetX2Image
+                    LoadRankNetX3_2Image();
+                }
+            }
+        }
+        #endregion
+
+        #region RankNet X4_2
+        private BitmapImage _resNet50Layer4_2;
+        public BitmapImage RankNetX4_2Image
+        {
+            get => _resNet50Layer4_2;
+            set
+            {
+                if (_resNet50Layer4_2 != value)
+                {
+                    _resNet50Layer4_2 = value;
+                    OnPropertyChanged(nameof(RankNetX4_2Image));
+                }
+            }
+        }
+
+        private string _resNet50Layer4_2ImagePath;
+        public string RankNetX4_2ImagePath
+        {
+            get => _resNet50Layer4_2ImagePath;
+            set
+            {
+                if (_resNet50Layer4_2ImagePath != value)
+                {
+                    _resNet50Layer4_2ImagePath = value;
+                    OnPropertyChanged(nameof(RankNetX4_2ImagePath));
+
+                    // Load and set the image directly to RankNetX3Image
+                    LoadImage();
+                }
+            }
+        }
+        #endregion
+
+        #region RankNet Ref_Pred
+        private BitmapImage _resNet50LayerRef_Pred;
+        public BitmapImage RankNetRef_PredImage
+        {
+            get => _resNet50LayerRef_Pred;
+            set
+            {
+                if (_resNet50LayerRef_Pred != value)
+                {
+                    _resNet50LayerRef_Pred = value;
+                    OnPropertyChanged(nameof(RankNetRef_PredImage));
+                }
+            }
+        }
+
+        private string _resNet50LayerRef_PredImagePath;
+        public string RankNetRef_PredImagePath
+        {
+            get => _resNet50LayerRef_PredImagePath;
+            set
+            {
+                if (_resNet50LayerRef_PredImagePath != value)
+                {
+                    _resNet50LayerRef_PredImagePath = value;
+                    OnPropertyChanged(nameof(RankNetRef_PredImagePath));
+
+                    // Load and set the image directly to RankNetX4Image
+                    LoadRankNetRef_PredImage();
+                }
+            }
+        }
+        #endregion
 
         private BitmapImage _resNet50Output;
         public BitmapImage ResNet50Output
@@ -578,7 +710,10 @@ namespace MURDOC_2024.ViewModel
             LoadResNet50Layer4Image();
             LoadRankNetFixationImage();
 
-
+            LoadRankNetX2_2Image();
+            LoadRankNetX3_2Image();
+            LoadRankNetX4_2Image();
+            LoadRankNetRef_PredImage();
             LoadRankNetCamouflageImage();
 
             // FACE Prediction Image
@@ -617,6 +752,10 @@ namespace MURDOC_2024.ViewModel
             RankNetX2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetX3Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetX4Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            RankNetX2_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            RankNetX3_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            RankNetX4_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+
             ResNet50Output = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetFixationDecoderImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetCamouflageDecoderImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
@@ -695,16 +834,13 @@ namespace MURDOC_2024.ViewModel
                         // Update UI on the main thread
                         Application.Current.Dispatcher.Invoke(() =>
                         {
-                            IAIOutputMessage = message;
-                            OnPropertyChanged(nameof(IAIOutputMessage));
-
                             string executableDir = AppDomain.CurrentDomain.BaseDirectory;
                             string offrampsFolderPath = Path.Combine(executableDir, "offramp_output_images");
                             string outputsFolderPath = Path.Combine(executableDir, "outputs", _selectedImageName);
                             string detectionFolderPath = Path.Combine(executableDir, "detection_results");
                             string folderPath = Path.Combine(executableDir, "results");
 
-                            // Update the RankNet images to trigger UI update
+                            // RankNet ==========================================   
                             string layer1ImagePath = Path.Combine(offrampsFolderPath, "x1.png");
                             Console.WriteLine(layer1ImagePath);
                             RankNetX1ImagePath = layer1ImagePath;
@@ -730,28 +866,29 @@ namespace MURDOC_2024.ViewModel
                             OnPropertyChanged(nameof(RankNetFixationDecoderImage));
                             LoadRankNetFixationImage();
 
-                            // ==========================================
+                            // ==========================================                                                       
+                            string layer2_2ImagePath = Path.Combine(offrampsFolderPath, "x2_2.png");
+                            RankNetX2_2ImagePath = layer2_2ImagePath;
+                            OnPropertyChanged(nameof(RankNetX2_2Image));
 
+                            string layer3_2ImagePath = Path.Combine(offrampsFolderPath, "x3_2.png");
+                            RankNetX3_2ImagePath = layer3_2ImagePath;
+                            OnPropertyChanged(nameof(RankNetX3_2Image));
 
-                            //string layer2ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage2_feature_map.png");
-                            //RankNetX2ImagePath = layer2ImagePath;
-                            //OnPropertyChanged(nameof(RankNetX2Image));
+                            string layer4_2ImagePath = Path.Combine(offrampsFolderPath, "x4_2.png");
+                            RankNetX4_2ImagePath = layer4_2ImagePath;
+                            OnPropertyChanged(nameof(RankNetX4_2Image));
 
-                            //string layer3ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage3_feature_map.png");
-                            //RankNetX3ImagePath = layer3ImagePath;
-                            //OnPropertyChanged(nameof(RankNetX3Image));
-
-                            //string layer4ImagePath = Path.Combine(folderPath, _selectedImageName + "_stage4_feature_map.png");
-                            //RankNetX4ImagePath = layer4ImagePath;
-                            //OnPropertyChanged(nameof(RankNetX4Image));
+                            string layerRef_PredImagePath = Path.Combine(offrampsFolderPath, "ref_pred.png");
+                            RankNetRef_PredImagePath = layerRef_PredImagePath;
+                            OnPropertyChanged(nameof(RankNetRef_PredImage));
 
                             string camouflageDecoderImagePath = Path.Combine(outputsFolderPath, "fixation_image.png");
                             RankNetCamouflageDecoderImagePath = camouflageDecoderImagePath;
                             OnPropertyChanged(nameof(RankNetCamouflageDecoderImagePath));
                             LoadRankNetCamouflageImage();
 
-                            // EfficientDet-D7 output
-
+                            // EfficientDet-D7 output ==========================================   
                             string weakAreaCamoImagePath = Path.Combine(detectionFolderPath, _selectedImageName + ".png");
                             WeakAreaCamoImagePath = weakAreaCamoImagePath;
                             OnPropertyChanged(nameof(WeakAreaCamoImagePath));
@@ -761,11 +898,14 @@ namespace MURDOC_2024.ViewModel
                             OpenAndReadFile(weakAreaCamoTextPath);
 
 
-                            // FACE Prediction Output
+                            // FACE Prediction Output ==========================================   
                             string facePredictionImagePath = Path.Combine(folderPath, "segmented_" + _selectedImageName + ".jpg");
                             FACEPredictionImagePath = facePredictionImagePath;
                             OnPropertyChanged(nameof(FACEPredictionImagePath));
                             LoadPredictionImage();
+
+                            IAIOutputMessage = message;
+                            OnPropertyChanged(nameof(IAIOutputMessage));
                         });
                     }
                     catch (PythonException exception)
@@ -884,6 +1024,67 @@ namespace MURDOC_2024.ViewModel
             {
                 // Set the default placeholder image
                 RankNetFixationDecoderImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the Resnet Layer 2_2 Image in the GUI
+        /// </summary>
+        private void LoadRankNetX2_2Image()
+        {
+            if (!string.IsNullOrEmpty(RankNetX2_2ImagePath))
+            {
+                RankNetX2_2Image = new BitmapImage(new Uri(RankNetX2_2ImagePath));
+            }
+            else
+            {
+                // Set the default placeholder image
+                RankNetX2_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the Resnet Layer 3_2 Image in the GUI
+        /// </summary>
+        private void LoadRankNetX3_2Image()
+        {
+            if (!string.IsNullOrEmpty(RankNetX3_2ImagePath))
+            {
+                RankNetX3_2Image = new BitmapImage(new Uri(RankNetX3_2ImagePath));
+            }
+            else
+            {
+                // Set the default placeholder image
+                RankNetX3_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the Resnet Layer 4_2 Image in the GUI
+        /// </summary>
+        private void LoadRankNetX4_2Image()
+        {
+            if (!string.IsNullOrEmpty(RankNetX4_2ImagePath))
+            {
+                RankNetX4_2Image = new BitmapImage(new Uri(RankNetX4_2ImagePath));
+            }
+            else
+            {
+                // Set the default placeholder image
+                RankNetX4_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            }
+        }
+
+        private void LoadRankNetRef_PredImage()
+        {
+            if (!string.IsNullOrEmpty(RankNetRef_PredImagePath))
+            {
+                RankNetRef_PredImage = new BitmapImage(new Uri(RankNetRef_PredImagePath));
+            }
+            else
+            {
+                // Set the default placeholder image
+                RankNetRef_PredImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
