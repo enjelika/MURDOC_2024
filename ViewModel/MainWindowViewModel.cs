@@ -854,10 +854,19 @@ namespace MURDOC_2024.ViewModel
             try
             {
                 WeakAreaCamoDescription = File.ReadAllText(filePath);
+
+                if (WeakAreaCamoDescription.Equals(String.Empty))
+                {
+                    WeakAreaCamoDescription = "EfficientDet-D7 could not identify weak camouflaged object parts.";
+                }
             }
             catch (Exception ex)
             {
                 WeakAreaCamoDescription = $"Error reading file: {ex.Message}";
+            }
+            finally
+            {
+                OnPropertyChanged(nameof(WeakAreaCamoDescription));
             }
         }
 

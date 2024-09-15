@@ -226,7 +226,7 @@
                                     <StackPanel Orientation="Vertical">
                                         <Image Source="{Binding WeakAreaCamoImage}" Margin="10" Stretch="Uniform" MaxWidth="200" Height="Auto" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
 
-                                        <TextBlock Text="{Binding WeakAreaCamoDescription}" Margin="5,2" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding WeakAreaCamoDescription}" Margin="5,2" TextWrapping="Wrap" Width="200" Height="Auto"/>
                                     </StackPanel>
 
 
