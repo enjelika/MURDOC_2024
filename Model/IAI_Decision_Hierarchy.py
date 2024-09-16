@@ -14,96 +14,32 @@ import cv2
 import os
 import json
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 import matplotlib.colors as color
 import matplotlib.pyplot as plt
 from skimage.measure import label, regionprops, find_contours
 import tensorflow as tf
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-from data import test_dataset
 from matplotlib.patches import Rectangle
+
+import traceback
+import time
+import sys
+
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
+
 import numpy as np
 import pdb, os, argparse
-
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam import GradCAM
-
 from pytorch_grad_cam.utils.image import show_cam_on_image, preprocess_image
 
 from scipy import misc
 from model.ResNet_models import Generator
-from data import test_dataset
-from PIL import ImageFile
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-import cv2
-
-#For collecting and writing the json stats file
-stats={
-       "data": []
-       }
-
-#Turning off gpu since loading 2 models takes too much VRAM
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-# Loading the model and handling the CUDA availability
-cods = Generator(channel=32)
-
-# Load the model with appropriate handling for CPU-only environments
-model_path = './models/Resnet/Model_50_gen.pth'
-if torch.cuda.is_available():
-    cods.load_state_dict(torch.load(model_path))
-    cods.cuda()
-else:
-    cods.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-
-cods.eval()
-
-PATH_TO_SAVED_MODEL = "models/d7_f/saved_model"
-
-detect_fn = []
-with tf.device('/CPU:0'):
-    detect_fn = tf.saved_model.load(PATH_TO_SAVED_MODEL)
-
-target_layer = cods.sal_encoder.resnet.layer4_2[-1].conv3 
-
-image_root = '../dataset/COD10K/images/'
-gt_root = '../dataset/COD10K/GT/'
-fix_root = '../dataset/COD10K/Fix/'
-
-# Custom colormap for fixation maps
-RdBl = color.LinearSegmentedColormap.from_list('blGrRdBl', ["black", "black", "red", "red"])
-# plt.colormaps.register(RdBl)
-
-blGrRdBl = color.LinearSegmentedColormap.from_list('blGrRdBl', ["black", "blue", "green", "red", "red"])
-# plt.colormaps.register(blGrRdBl)
-
-if not os.path.exists("figures"):
-    os.mkdir("figures")
-    
-if not os.path.exists("bbox_figures"):
-    os.mkdir("bbox_figures")
-    
-if not os.path.exists("jsons"):
-    os.mkdir("jsons")
-    
-if not os.path.exists("outputs"):
-    os.mkdir("outputs")
-
-"""
-===================================================================================================
-    Helper function
-        - Makes sure 'fix_image' and 'bm_image' are in the correct format for GradCAM
-===================================================================================================
-"""
-def preprocess_for_gradcam(image):
-    # Assuming image is a numpy array
-    image = np.expand_dims(image, axis=0)  # Add batch dimension
-    image = np.expand_dims(image, axis=0)  # Add channel dimension if needed
-    image = torch.from_numpy(image).float()
-    return image
 
 """
 ===================================================================================================
@@ -206,7 +142,7 @@ def segment_image(original_image, mask_image, rank_mask, alpha=128):
 ===================================================================================================
 """
 def processFixationMap(fix_image):   
-    # print("Sample of fix_image data:", np.asarray(fix_image).flatten()[:10])
+    global blGrRdBl
     
     # Input data should range from 0-1
     img_np = np.asarray(fix_image)/255
@@ -235,7 +171,7 @@ def processFixationMap(fix_image):
 ===================================================================================================
 """
 def findAreasOfWeakCamouflage(fix_image):  
-    # print("Sample of fix_image data:", np.asarray(fix_image).flatten()[:10])
+    global RdBl
     
     # Input data should range from 0-1
     img_np = np.asarray(fix_image)/255
@@ -338,7 +274,7 @@ def overlap(bbox1,bbox2):
     Lvl 3 - What part of the object breaks the camouflage concealment?
 ===================================================================================================
 """
-def levelThree(original_image, bbox, message, filename):
+def levelThree(original_image, bbox, message, filename, detect_fn):   
     y_size, x_size, channel = original_image.shape
     
     label_map = ["leg","mouth","shadow","tail","arm","eye"]
@@ -386,12 +322,10 @@ def levelThree(original_image, bbox, message, filename):
             if overlap([box1['x1'], box1['x2'], box1['y1'], box1['y2']], [box2[1]*x_size, box2[3]*x_size, box2[0]*y_size,  box2[2]*y_size]):
                 detected_class = label_map[int(d_class[count])-1]
                 detection_score = detections['detection_scores'].numpy()[0][count]
-                message += f"Object's {detected_class}\n"
+                message += f"Object's {detected_class}, Detection Score: {detection_score:.2%}\n"
                 feat.append(detected_class)
                 txt_content.append(f"Class: {detected_class}, Score: {detection_score:.4f}")
         weak.append(feat)        
-             
-    stats["data"].append({"obj": True, "weak":weak})
     
     # Save the detected classes and scores to a TXT file
     with open('detection_results/'+filename+'.txt', 'w') as f:
@@ -407,7 +341,7 @@ def levelThree(original_image, bbox, message, filename):
         Output: original image & list of bounding boxes
 ===================================================================================================
 """
-def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
+def levelTwo(filename, original_image, all_fix_map, fixation_map, message, detect_fn):
     
     # Mask the red area(s) in the fixation map (weak camouflaged area(s))
     fig, axis = plt.subplots(1,2, figsize=(12,6))
@@ -484,7 +418,7 @@ def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
     print("Identified " + str(index-1) + " weak camouflaged area(s).")
     
     # Weak camouflaged area annotated image
-    output = levelThree(original_image, data["weak_area_bbox"], message, filename)
+    output = levelThree(original_image, data["weak_area_bbox"], message, filename, detect_fn)
     
     return output
 
@@ -496,7 +430,7 @@ def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
         Output: fix_map (if a camouflaged object is detected)
 ===================================================================================================
 """
-def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, message):
+def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, message, detect_fn):
 
     # Does the numpy array contain any non-zero values?
     all_zeros = not binary_map.any()
@@ -505,13 +439,12 @@ def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, messa
         # No object detected, no need to continue to lower levels
         message += "No object present. \n"
         print("No object present.")
-        stats["data"].append({"obj": False, "weak":[]})
         output = message
     else:
         # Object detected, continue to Lvl 2
         message += "Object present. \n"
         print("Object detected.")
-        output = levelTwo(filename, original_image, all_fix_map, fix_image, message)
+        output = levelTwo(filename, original_image, all_fix_map, fix_image, message, detect_fn)
         
     return output
 
@@ -547,152 +480,155 @@ def apply_mask(heatmap, mask):
     IAI Function
 ===================================================================================================
 """
-def iaiDecision(file_name, counter):
-    print(f'Counter = {counter}: {file_name}')
+def create_custom_colormaps():
+    log_step("Creating custom colormaps")
     
-    # XAI Message
-    message = "Decision for " + file_name + ": \n"
-    
-    # Gather the images: Original, Binary Mapping, Fixation Mapping
-    original_image = cv2.imread(image_root + file_name + '.jpg')
-    dim = original_image.shape
-    
-    # Gather the Binary Mapping (Ground Truth) Image
-    if os.path.exists(gt_root + file_name + '.png'):
-        gt_image = Image.open(gt_root + file_name + '.png')
-        # gt_image.show()
+    # Create RdBl colormap
+    if 'RdBl' not in plt.colormaps():
+        RdBl_colors = ["black", "black", "red", "red"]
+        RdBl = color.LinearSegmentedColormap.from_list('RdBl', RdBl_colors)
+        plt.register_cmap(cmap=RdBl)
     else:
-        gt_image = np.zeros((dim[1], dim[0],3), np.uint8)
-    
-    # Gather the Fixation Map Image
-    if os.path.exists(fix_root + file_name + '.png'):
-        fix_image = Image.open(fix_root + file_name + '.png')
-        # fix_image.show()
+        RdBl = plt.get_cmap('RdBl')
+
+    # Create blGrRdBl colormap
+    if 'blGrRdBl' not in plt.colormaps():
+        blGrRdBl_colors = ["black", "blue", "green", "red", "red"]
+        blGrRdBl = color.LinearSegmentedColormap.from_list('blGrRdBl', blGrRdBl_colors)
+        plt.register_cmap(cmap=blGrRdBl)
     else:
-        fix_image = np.zeros((dim[1], dim[0],3), np.uint8)
-    
-    # Normalize the Binary Mapping
-    trans_img = np.transpose(gt_image)
-    img_np = np.asarray(trans_img)/255
-    
-    # Preprocess the Fixation Mapping
-    weak_fix_map = findAreasOfWeakCamouflage(fix_image)
-    all_fix_map = processFixationMap(fix_image)
-    
-    # Send the various images through the IAI Hierarchy for the IAI output message
-    output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message)
+        blGrRdBl = plt.get_cmap('blGrRdBl')
 
-    org_image = Image.open(image_root + file_name + '.jpg')
-    segmented_image = segment_image(org_image, gt_image, fix_image)
-    add_label(segmented_image, output, (15, 15))
-    segmented_image.save('outputs/segmented_'+ file_name +'.jpg')
-    plt.axis('tight')
-    plt.show()
-    
-    return message
+    return RdBl, blGrRdBl
 
-
-def iaiDecision_test(file_name, counter):
-    print(f'Counter = {counter}: {file_name}')
+def iaiDecision(file_path):
+    global RdBl, blGrRdBl, detect_fn
     
-    if not os.path.exists('results/'+file_name):
-        os.makedirs('results/'+file_name)
-                    
-    # XAI Message
-    message = "Decision for " + file_name + ": \n"
-    
-    # Gather the images: Original, Binary Mapping, Fixation Mapping
-    original_image = cv2.imread(image_root + file_name + '.jpg')
-    
-    image, HH, WW, name = test_loader.load_data()
-    image = image.cuda()
-    
-    # Set the filename for the current iteration
-    cods.set_filename(file_name)
-    
-    # Get the Binary Mapping, Fixation Mapping, and CODS Prediction
-    fix_pred, cod_pred1, cod_pred2 = cods.forward(image)
-    
-    # Gather the images: Original, Binary Mapping, Fixation Mapping
-    fix_image = fix_pred
-    fix_image = F.upsample(fix_image, size=[WW,HH], mode='bilinear', align_corners=False)
-    fix_image = fix_image.sigmoid().data.cpu().numpy().squeeze()
-    fix_image = 255*(fix_image - fix_image.min()) / (fix_image.max() - fix_image.min() + 1e-8)\
-    
-    # Convert the NumPy array to uint8 type
-    fix_image = fix_image.astype(np.uint8)
-    
-    # Create a PIL Image from the NumPy array
-    fix_pil_image = Image.fromarray(fix_image*255)
-    
-    # Save the image
-    fix_pil_image.save(f'results/{file_name}/{file_name}_fixation_decoder.png')
-    
-    #======================================================================
-    bm_image = cod_pred1
-    bm_image = F.upsample(bm_image, size=[WW,HH], mode='bilinear', align_corners=False)
-    bm_image = bm_image.sigmoid().data.cpu().numpy().squeeze()
-    bm_image = 255*(bm_image - bm_image.min()) / (bm_image.max() - bm_image.min() + 1e-8)
-    
-    # Convert the NumPy array to uint8 type
-    bm_image = bm_image.astype(np.uint8)
-    
-    # Create a PIL Image from the NumPy array
-    bm_pil_image = Image.fromarray(bm_image*255)
-    
-    # Save the image
-    bm_pil_image.save(f'results/{file_name}/{file_name}_camouflage_decoder.png')
-    
-    #======================================================================
-
-    # Normalize the Binary Mapping 
-    trans_img = np.transpose(np.where(bm_image>0.5,1,0))
-    img_np = np.asarray(trans_img)
-    
-    # Only get the weak camouflaged areas that are present in the binary map
-    masked_fix_map = apply_mask(fix_pil_image, img_np)
-    
-    # Preprocess the Fixation Mapping
-    weak_fix_map = findAreasOfWeakCamouflage(masked_fix_map)
-    all_fix_map = processFixationMap(masked_fix_map)
-    
-    output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message)
-
-    org_image = Image.open(image_root + file_name + '.jpg')
-    segmented_image = segment_image(org_image, Image.fromarray(bm_image*255), Image.fromarray(fix_image*255))
-    add_label(segmented_image, output, (15, 15))
-    segmented_image.save('outputs/segmented_'+ file_name +'.jpg')
-    plt.axis('tight')
-    plt.show()
-    
-    return message
-    
-    
-"""
-===================================================================================================
-    Main
-===================================================================================================
-"""
-if __name__ == "__main__":
-    # Counter
-    counter = 1
-    
-    # Loop to iterate through dataset
-    test_loader = test_dataset(image_root, 480)
-    
-    for i in range(test_loader.size):
-        # Filename
-        image, HH, WW, name = test_loader.load_data()
-        file_name = os.path.splitext(name)[0]
+    try:
+        log_step("iaiDecision")
         
-        if i > 35:
-            # Get the IAI and the Fixation Map Image
-            output_message = iaiDecision_test(file_name, counter)
-        
-        counter += 1
-        
-        if counter == 50: #3041:
-            break
+        #Turning off gpu since loading 2 models takes too much VRAM
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-    # with open("stats.json", "w") as outfile:
-    #     outfile.write(stats)
+        log_step("Initializing model")
+        # Loading the model and handling the CUDA availability
+        cods = Generator(channel=32)
+
+        # Load the model with appropriate handling for CPU-only environments
+        model_path = './models/Resnet/Model_50_gen.pth'
+        if torch.cuda.is_available():
+            cods.load_state_dict(torch.load(model_path))
+            cods.cuda()
+        else:
+            cods.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+
+        cods.eval()
+
+        PATH_TO_SAVED_MODEL = "models/d7_f/saved_model"
+
+        log_step("Loading TensorFlow model")
+        detect_fn = []
+        with tf.device('/CPU:0'):
+            detect_fn = tf.saved_model.load(PATH_TO_SAVED_MODEL)
+        log_step("TensorFlow model loaded successfully")
+
+        log_step("Setting up colormaps")
+        # Custom colormap for fixation maps
+        RdBl, blGrRdBl = create_custom_colormaps()
+        
+        log_step("Creating output directories")
+        # Create output directories
+        for dir in ["figures", "bbox_figures", "jsons", "outputs", "results"]:
+            if not os.path.exists(dir):
+                os.mkdir(dir)
+        
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        if not os.path.exists(f'outputs/{file_name}'):
+            os.makedirs(f'outputs/{file_name}')
+                        
+        # XAI Message
+        message = f"Decision for {file_name}: \n"
+        
+        log_step(f"Loading image: {file_name}")
+        # Gather the images: Original, Binary Mapping, Fixation Mapping
+        original_image = cv2.imread(file_path)
+        if original_image is None:
+            raise ValueError(f"Unable to load image from path: {file_path}")
+
+        log_step("Preprocessing image")
+        # Preprocess the image
+        image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+        image = cv2.resize(image, (224, 224))  # Adjust size as needed
+        image = image.transpose((2, 0, 1))  # Change from HWC to CHW format
+        image = image / 255.0  # Normalize to [0, 1]
+        image = torch.from_numpy(image).float().unsqueeze(0)  # Add batch dimension
+
+        # Get original image dimensions
+        HH, WW = original_image.shape[:2]
+        
+        # Move image to GPU if available
+        if torch.cuda.is_available():
+            image = image.cuda()
+        
+        log_step("Running inference")
+        # Get the Fixation Mapping, and Binary Mapping Predictions
+        fix_pred, _, cod_pred2 = cods.forward(image)
+        
+        log_step("Postprocessing results")
+        # Process fixation and binary mapping predictions
+        fix_image = process_prediction(fix_pred, WW, HH)
+        bm_image = process_prediction(cod_pred2, WW, HH)
+        
+        bm_image_pil = Image.fromarray(bm_image).convert('L')
+        fix_image_pil = Image.fromarray(fix_image).convert('L')
+        
+        bm_image_pil.save(f'outputs/{file_name}/binary_image.png')
+        fix_image_pil.save(f'outputs/{file_name}/fixation_image.png')
+
+        # Normalize the Binary Mapping 
+        trans_img = np.transpose(np.where(bm_image>0.5,1,0))
+        img_np = np.asarray(trans_img)
+        
+        # Only get the weak camouflaged areas that are present in the binary map
+        masked_fix_map = apply_mask(Image.fromarray(fix_image), img_np)
+        
+        log_step("Processing fixation mapping")
+        # Preprocess the Fixation Mapping
+        weak_fix_map = findAreasOfWeakCamouflage(masked_fix_map)
+        all_fix_map = processFixationMap(masked_fix_map)
+        
+        log_step("Running through decision levels")
+        output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message, detect_fn)
+
+        log_step("Saving output")
+        org_image = Image.fromarray(cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB))
+        print(f'dim of org_image: {org_image.size}')
+        print(f'dim of bm_image: {Image.fromarray(bm_image).size}')
+        print(f'dim of fix_image: {Image.fromarray(fix_image).size}')
+    
+        # Resize binary and fixation images to match original image size
+        bm_image_resized = cv2.resize(bm_image, (org_image.width, org_image.height))
+        fix_image_resized = cv2.resize(fix_image, (org_image.width, org_image.height))
+    
+        segmented_image = segment_image(org_image, Image.fromarray(bm_image_resized), Image.fromarray(fix_image_resized))
+        print(f'dim of segmented_image: {segmented_image.size}')
+        add_label(segmented_image, output, (15, 15))
+        segmented_image.save(f'results/segmented_{file_name}.jpg')
+
+        log_step("iaiDecision completed")
+        return output
+
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}\nTraceback: {traceback.format_exc()}"
+        print(error_message)  # This will be captured by the redirected stdout in C#
+        return f"Error occurred: {str(e)}"
+
+def log_step(step_name):
+    print(f"{time.time()}: Starting {step_name}")
+    sys.stdout.flush()  # Ensure the output is immediately visible
+
+def process_prediction(pred, WW, HH):
+    pred = F.upsample(pred, size=[WW,HH], mode='bilinear', align_corners=False)
+    pred = pred.sigmoid().data.cpu().numpy().squeeze()
+    pred = 255*(pred - pred.min()) / (pred.max() - pred.min() + 1e-8)
+    return pred.astype(np.uint8)
