@@ -10,6 +10,8 @@
 ### Setup instructions
 - Create an **user** environment variable named 'PythonDLL' and set the path to the python39 DLL you intend to use. (Such as one in a virtual environment).
 - In **MainWindowViewModel.cs**, find the function: InitializePythonEngine and update the **pathToVirtialEnv** value to the location of your python environment. (The current version references a miniconda environment.)
+- Once your environment is setup, in Visual Studio go into the Python Environment, select your Python 3.9 environment, and open the PowerShell prompt. Type in: $ "path\to\the\script\python-env-check-script.ps1"
+  This PowerShell script will ensure that your Python 3.9 environment has the correct python libraries and the correct versions of these libraries, and the options to install.
 
 ## Research Questions
 1. How XAI off-ramps enhance MURDOC's trustworthiness by providing transparent and reliable explanations of the decision-making process in camouflage detection scenarios?
