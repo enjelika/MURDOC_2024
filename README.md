@@ -12,6 +12,8 @@
 - In **MainWindowViewModel.cs**, find the function: InitializePythonEngine and update the **pathToVirtialEnv** value to the location of your python environment. (The current version references a miniconda environment.)
 - Once your environment is setup, in Visual Studio go into the Python Environment, select your Python 3.9 environment, and open the PowerShell prompt. Type in: $ "path\to\the\script\python-env-check-script.ps1"
   This PowerShell script will ensure that your Python 3.9 environment has the correct python libraries and the correct versions of these libraries, and the options to install.
+- Once the project is built, the pretrained models (RankNet and EfficientDet-D7 from FACE 2023) will need to be placed in the folder location: .\bin\x64\Debug
+- The project will only run in "x64". It will not run with "Any CPU"
 
 ## Research Questions
 1. How XAI off-ramps enhance MURDOC's trustworthiness by providing transparent and reliable explanations of the decision-making process in camouflage detection scenarios?
