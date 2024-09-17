@@ -341,7 +341,7 @@ namespace MURDOC_2024.ViewModel
                     OnPropertyChanged(nameof(RankNetX1ImagePath));
 
                     // Load and set the image directly to RankNetX1Image
-                    LoadResNet50Layer1Image();
+                    LoadRankNetX1Image();
                 }
             }
         }
@@ -374,7 +374,7 @@ namespace MURDOC_2024.ViewModel
                     OnPropertyChanged(nameof(RankNetX2ImagePath));
 
                     // Load and set the image directly to RankNetX2Image
-                    LoadResNet50Layer2Image();
+                    LoadRankNetX2Image();
                 }
             }
         }
@@ -407,7 +407,7 @@ namespace MURDOC_2024.ViewModel
                     OnPropertyChanged(nameof(RankNetX3ImagePath));
 
                     // Load and set the image directly to RankNetX3Image
-                    LoadResNet50Layer3Image();
+                    LoadRankNetX3Image();
                 }
             }
         }
@@ -440,7 +440,7 @@ namespace MURDOC_2024.ViewModel
                     OnPropertyChanged(nameof(RankNetX4ImagePath));
 
                     // Load and set the image directly to RankNetX4Image
-                    LoadResNet50Layer4Image();
+                    LoadRankNetX4Image();
                 }
             }
         }
@@ -604,7 +604,7 @@ namespace MURDOC_2024.ViewModel
                     OnPropertyChanged(nameof(ResNet50OutputImagePath));
 
                     // Load and set the image directly to RankNetX4Image
-                    LoadResNet50OutputImage();
+                    LoadRankNetOutputImage();
                 }
             }
         }
@@ -704,10 +704,10 @@ namespace MURDOC_2024.ViewModel
 
             // RankNet Images
             LoadResNet50ConvImage();
-            LoadResNet50Layer1Image();
-            LoadResNet50Layer2Image();
-            LoadResNet50Layer3Image();
-            LoadResNet50Layer4Image();
+            LoadRankNetX1Image();
+            LoadRankNetX2Image();
+            LoadRankNetX3Image();
+            LoadRankNetX4Image();
             LoadRankNetFixationImage();
 
             LoadRankNetX2_2Image();
@@ -717,7 +717,7 @@ namespace MURDOC_2024.ViewModel
             LoadRankNetCamouflageImage();
 
             // FACE Prediction Image
-            LoadResNet50OutputImage();
+            LoadRankNetOutputImage();
 
             _exitCommand = new RelayCommand(ExecuteExitCommand);
 
@@ -1238,7 +1238,7 @@ namespace MURDOC_2024.ViewModel
         /// <summary>
         /// Loads an image from the user selected image path or sets a default placeholder image.
         /// </summary>
-        private void LoadResNet50Layer1Image()
+        private void LoadRankNetX1Image()
         {
             if (!string.IsNullOrEmpty(RankNetX1ImagePath))
             {
@@ -1255,7 +1255,7 @@ namespace MURDOC_2024.ViewModel
         /// <summary>
         /// Loads an image from the user selected image path or sets a default placeholder image.
         /// </summary>
-        private void LoadResNet50Layer2Image()
+        private void LoadRankNetX2Image()
         {
             if (!string.IsNullOrEmpty(RankNetX2ImagePath))
             {
@@ -1271,7 +1271,7 @@ namespace MURDOC_2024.ViewModel
         /// <summary>
         /// Loads an image from the user selected image path or sets a default placeholder image.
         /// </summary>
-        private void LoadResNet50Layer3Image()
+        private void LoadRankNetX3Image()
         {
             if (!string.IsNullOrEmpty(RankNetX3ImagePath))
             {
@@ -1287,7 +1287,7 @@ namespace MURDOC_2024.ViewModel
         /// <summary>
         /// Loads an image from the user selected image path or sets a default placeholder image.
         /// </summary>
-        private void LoadResNet50Layer4Image()
+        private void LoadRankNetX4Image()
         {
             if (!string.IsNullOrEmpty(RankNetX4ImagePath))
             {
@@ -1303,7 +1303,7 @@ namespace MURDOC_2024.ViewModel
         /// <summary>
         /// Loads an image from the user selected image path or sets a default placeholder image.
         /// </summary>
-        private void LoadResNet50OutputImage()
+        private void LoadRankNetOutputImage()
         {
             if (!string.IsNullOrEmpty(ResNet50OutputImagePath))
             {
