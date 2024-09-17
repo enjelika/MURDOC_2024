@@ -539,7 +539,7 @@ namespace MURDOC_2024.ViewModel
                     OnPropertyChanged(nameof(RankNetX4_2ImagePath));
 
                     // Load and set the image directly to RankNetX3Image
-                    LoadImage();
+                    LoadRankNetX4_2Image();
                 }
             }
         }
