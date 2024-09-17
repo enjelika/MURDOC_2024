@@ -744,6 +744,11 @@ namespace MURDOC_2024.ViewModel
         /// </summary>
         private void ExecuteResetCommand()
         {
+            string executableDir = AppDomain.CurrentDomain.BaseDirectory;
+            string offrampsFolderPath = Path.Combine(executableDir, "offramp_output_images");
+
+            ImageCleaner.ClearImages(offrampsFolderPath);
+
             // Logic for reset command - reset everything on the screen
             PreviewImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
 
@@ -755,7 +760,7 @@ namespace MURDOC_2024.ViewModel
             RankNetX2_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetX3_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetX4_2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
-
+            RankNetRef_PredImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             ResNet50Output = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetFixationDecoderImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetCamouflageDecoderImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
