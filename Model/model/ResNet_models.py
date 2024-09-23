@@ -37,9 +37,11 @@ class Generator(nn.Module):
         
         return fix_pred, cod_pred1, cod_pred2
     
-    def get_gradcam_layer(self):
-        # Return the layer you want to use for GradCAM
-        return self.sal_encoder.resnet.layer4_2[-1].conv3
+    def get_x4_layer(self):
+        return self.sal_encoder.resnet.layer4_1
+
+    def get_x4_2_layer(self):
+        return self.sal_encoder.resnet.layer4_2
 
     def save_intermediate_images(self, features):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
