@@ -29,6 +29,7 @@ import time
 import sys
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
@@ -584,6 +585,33 @@ def iaiDecision(file_path):
         
         bm_image_pil.save(f'outputs/{file_name}/binary_image.png')
         fix_image_pil.save(f'outputs/{file_name}/fixation_image.png')
+        
+        log_step("Getting the Grad-CAM Predictions")
+        #=======================================================================        
+        # Grad-CAM for fix_pred
+        target_layer_fix = [cods.get_x4_layer()]
+        grad_cam_fix = MultiOutputGradCAM(model=cods, target_layers=target_layer_fix, output_index=0)
+
+        # Grad-CAM for cod_pred2
+        target_layer_cod = [cods.get_x4_2_layer()]
+        grad_cam_cod = MultiOutputGradCAM(model=cods, target_layers=target_layer_cod, output_index=2)
+
+        # Compute Grad-CAM
+        grayscale_cam_fix = grad_cam_fix(input_tensor=image)
+        grayscale_cam_cod = grad_cam_cod(input_tensor=image)
+
+        # Convert the input tensor to a numpy array for visualization
+        input_image = image.squeeze(0).permute(1, 2, 0).cpu().numpy()
+        input_image = (input_image - input_image.min()) / (input_image.max() - input_image.min())  # Normalize to [0, 1]
+
+        # Convert grayscale heatmaps to RGB
+        heatmap_fix = show_cam_on_image(input_image, grayscale_cam_fix[0, :], use_rgb=True)
+        heatmap_cod = show_cam_on_image(input_image, grayscale_cam_cod[0, :], use_rgb=True)
+
+        # Save the heatmaps
+        cv2.imwrite(f'outputs/{file_name}/gradcam_fix.png', cv2.cvtColor(heatmap_fix, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(f'outputs/{file_name}/gradcam_cod.png', cv2.cvtColor(heatmap_cod, cv2.COLOR_RGB2BGR))
+        #=======================================================================
 
         # Normalize the Binary Mapping 
         trans_img = np.transpose(np.where(bm_image>0.5,1,0))
@@ -623,6 +651,24 @@ def iaiDecision(file_path):
         print(error_message)  # This will be captured by the redirected stdout in C#
         return f"Error occurred: {str(e)}"
 
+class MultiOutputGradCAM(GradCAM):
+    def __init__(self, model, target_layers, output_index=0, reshape_transform=None):
+        super(MultiOutputGradCAM, self).__init__(model, target_layers, reshape_transform)
+        self.output_index = output_index
+
+    def forward(self, input_tensor, targets=None, eigen_smooth=False):
+        outputs = self.activations_and_grads(input_tensor)
+        if targets is None:
+            target_categories = np.argmax(outputs[self.output_index].cpu().data.numpy(), axis=-1)
+            targets = [ClassifierOutputTarget(category) for category in target_categories]
+
+        if self.uses_gradients:
+            self.model.zero_grad()
+            loss = sum([target(output) for target, output in zip(targets, [outputs[self.output_index]])])
+            loss.backward(retain_graph=True)
+
+        return super(MultiOutputGradCAM, self).forward(input_tensor, targets, eigen_smooth)
+    
 def log_step(step_name):
     print(f"{time.time()}: Starting {step_name}")
     sys.stdout.flush()  # Ensure the output is immediately visible
