@@ -33,7 +33,11 @@ namespace MURDOC_2024.ViewModel
 
         private BitmapImage _ranknetFixationImage;
 
+        private BitmapImage _fixationGradCAMImage;
+
         private BitmapImage _ranknetCamouflageImage;
+
+        private BitmapImage _camouflageGradCAMImage;
 
         private BitmapImage _weakAreaCamoImage;
 
@@ -219,6 +223,32 @@ namespace MURDOC_2024.ViewModel
             {
                 _ranknetFixationImage = value;
                 OnPropertyChanged(nameof(RankNetFixationDecoderImage));
+            }
+        }
+
+        /// <summary>
+        /// Getter/Setter for FixationGradCAMImage
+        /// </summary>
+        public BitmapImage FixationGradCAMImage
+        {
+            get { return _fixationGradCAMImage; }
+            set
+            {
+                _fixationGradCAMImage = value;
+                OnPropertyChanged(nameof(FixationGradCAMImage));
+            }
+        }
+
+        /// <summary>
+        /// Getter/Setter for CamouflageGradCAMImage
+        /// </summary>
+        public BitmapImage CamouflageGradCAMImage
+        {
+            get { return _camouflageGradCAMImage; }
+            set
+            {
+                _camouflageGradCAMImage = value;
+                OnPropertyChanged(nameof(CamouflageGradCAMImage));
             }
         }
 
@@ -609,6 +639,40 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        private string _fixationGradCAMImagePath;
+        public string FixationGradCAMImagePath
+        {
+            get => _fixationGradCAMImagePath;
+            set
+            {
+                if (_fixationGradCAMImagePath != value)
+                {
+                    _fixationGradCAMImagePath = value;
+                    OnPropertyChanged(nameof(FixationGradCAMImagePath));
+
+                    // Load and set the image directly to FixationGradCAMImage
+                    LoadFixationGradCAMImage();
+                }
+            }
+        }
+
+        private string _camouflageGradCAMImagePath;
+        public string CamouflageGradCAMImagePath
+        {
+            get => _camouflageGradCAMImagePath;
+            set
+            {
+                if (_camouflageGradCAMImagePath != value)
+                {
+                    _camouflageGradCAMImagePath = value;
+                    OnPropertyChanged(nameof(CamouflageGradCAMImagePath));
+
+                    // Load and set the image directly to CamouflageGradCAMImage
+                    LoadCamouflageGradCAMImage();
+                }
+            }
+        }
+
         private string _rankNetFixationDecoderImagePath;
         public string RankNetFixationDecoderImagePath
         {
@@ -709,12 +773,14 @@ namespace MURDOC_2024.ViewModel
             LoadRankNetX3Image();
             LoadRankNetX4Image();
             LoadRankNetFixationImage();
+            LoadFixationGradCAMImage();
 
             LoadRankNetX2_2Image();
             LoadRankNetX3_2Image();
             LoadRankNetX4_2Image();
             LoadRankNetRef_PredImage();
             LoadRankNetCamouflageImage();
+            LoadCamouflageGradCAMImage();
 
             // FACE Prediction Image
             LoadRankNetOutputImage();
@@ -766,6 +832,8 @@ namespace MURDOC_2024.ViewModel
             RankNetCamouflageDecoderImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             WeakAreaCamoImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             FACEPredictionImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            FixationGradCAMImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            CamouflageGradCAMImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
         }
 
         /// <summary>
@@ -871,6 +939,11 @@ namespace MURDOC_2024.ViewModel
                             OnPropertyChanged(nameof(RankNetFixationDecoderImage));
                             LoadRankNetFixationImage();
 
+                            string fixationGradCAMImagePath = Path.Combine(outputsFolderPath, "gradcam_cod.png");
+                            FixationGradCAMImagePath = fixationGradCAMImagePath;
+                            OnPropertyChanged(nameof(FixationGradCAMImage));
+                            LoadFixationGradCAMImage();
+
                             // ==========================================                                                       
                             string layer2_2ImagePath = Path.Combine(offrampsFolderPath, "x2_2.png");
                             RankNetX2_2ImagePath = layer2_2ImagePath;
@@ -892,6 +965,11 @@ namespace MURDOC_2024.ViewModel
                             RankNetCamouflageDecoderImagePath = camouflageDecoderImagePath;
                             OnPropertyChanged(nameof(RankNetCamouflageDecoderImagePath));
                             LoadRankNetCamouflageImage();
+
+                            string camouflageGradCAMImagePath = Path.Combine(outputsFolderPath, "gradcam_fix.png");
+                            CamouflageGradCAMImagePath = camouflageGradCAMImagePath;
+                            OnPropertyChanged(nameof(CamouflageGradCAMImage));
+                            LoadCamouflageGradCAMImage();
 
                             // EfficientDet-D7 output ==========================================   
                             string weakAreaCamoImagePath = Path.Combine(detectionFolderPath, _selectedImageName + ".png");
@@ -1029,6 +1107,38 @@ namespace MURDOC_2024.ViewModel
             {
                 // Set the default placeholder image
                 RankNetFixationDecoderImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the RankNet Fixation Grad-CAM XAI Image
+        /// </summary>
+        private void LoadFixationGradCAMImage()
+        {
+            if (!string.IsNullOrEmpty(FixationGradCAMImagePath))
+            {
+                FixationGradCAMImage = new BitmapImage(new Uri(FixationGradCAMImagePath));
+            }
+            else
+            {
+                // Set the default placeholder image
+                FixationGradCAMImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the RankNet Camouflage Grad-CAM XAI Image
+        /// </summary>
+        private void LoadCamouflageGradCAMImage()
+        {
+            if (!string.IsNullOrEmpty(CamouflageGradCAMImagePath))
+            {
+                CamouflageGradCAMImage = new BitmapImage(new Uri(CamouflageGradCAMImagePath));
+            }
+            else
+            {
+                // Set the default placeholder image
+                CamouflageGradCAMImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             }
         }
 
