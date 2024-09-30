@@ -29,13 +29,15 @@ import time
 import sys
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
 import numpy as np
 import pdb, os, argparse
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+
 from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image, preprocess_image
 
 from scipy import misc
@@ -48,12 +50,18 @@ from model.ResNet_models import Generator
 ===================================================================================================
 """
 def show_cam_on_image(img: np.ndarray, mask: np.ndarray, use_rgb: bool = False, colormap: int = cv2.COLORMAP_JET) -> np.ndarray:
-    img = np.transpose(img, (1, 2, 0))
-    img = np.float32(img) / 255
     heatmap = cv2.applyColorMap(np.uint8(255 * mask), colormap)
     if use_rgb:
         heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-    cam = heatmap * 0.4 + img
+    heatmap = np.float32(heatmap) / 255
+
+    if img.shape != heatmap.shape:
+        heatmap = np.transpose(heatmap, (1, 0, 2))
+
+    if np.max(img) > 1:
+        raise Exception("The input image should np.float32 in the range [0, 1]")
+
+    cam = heatmap + img
     cam = cam / np.max(cam)
     return np.uint8(255 * cam)
 
@@ -516,6 +524,7 @@ def iaiDecision(file_path):
 
         # Load the model with appropriate handling for CPU-only environments
         model_path = './models/Resnet/Model_50_gen.pth'
+        #model_path = 'C:\\Users\\pharm\\Documents\\0 - Debra PhD Courses\\2 - Academic Collaborations\\00 - OADII MURDOC\\MURDOC\\models\\resnet\\Model_50_gen.pth'
         if torch.cuda.is_available():
             cods.load_state_dict(torch.load(model_path))
             cods.cuda()
@@ -525,6 +534,7 @@ def iaiDecision(file_path):
         cods.eval()
 
         PATH_TO_SAVED_MODEL = "models/d7_f/saved_model"
+        #PATH_TO_SAVED_MODEL = "C:\\Users\\pharm\\Documents\\0 - Debra PhD Courses\\2 - Academic Collaborations\\00 - OADII MURDOC\\MURDOC\\models\\d7_f\\saved_model"
 
         log_step("Loading TensorFlow model")
         detect_fn = []
@@ -584,6 +594,56 @@ def iaiDecision(file_path):
         
         bm_image_pil.save(f'outputs/{file_name}/binary_image.png')
         fix_image_pil.save(f'outputs/{file_name}/fixation_image.png')
+        
+        log_step("Getting the Grad-CAM Predictions")
+        #=======================================================================        
+        # Grad-CAM for fix_pred
+        target_layer_fix = [cods.get_x4_layer()]
+        grad_cam_fix = MultiOutputGradCAM(model=cods, target_layers=target_layer_fix, output_index=0)
+        
+        # Grad-CAM for cod_pred2
+        target_layer_cod = [cods.get_x4_2_layer()]
+        grad_cam_cod = MultiOutputGradCAM(model=cods, target_layers=target_layer_cod, output_index=2)
+        
+        # Compute Grad-CAM
+        grayscale_cam_fix = None
+        grayscale_cam_cod = None
+
+        try:
+            grayscale_cam_fix = grad_cam_fix(input_tensor=image)
+            print(f"Shape of grayscale_cam_fix: {grayscale_cam_fix.shape}")
+        except Exception as e:
+            print(f"Error in grad_cam_fix: {str(e)}")
+        
+        try:
+            grayscale_cam_cod = grad_cam_cod(input_tensor=image)
+            print(f"Shape of grayscale_cam_cod: {grayscale_cam_cod.shape}")
+        except Exception as e:
+            print(f"Error in grad_cam_cod: {str(e)}")
+        
+        # Convert the input tensor to a numpy array for visualization
+        input_image = image.squeeze(0).permute(1, 2, 0).cpu().numpy()
+        input_image = (input_image - input_image.min()) / (input_image.max() - input_image.min())  # Normalize to [0, 1]
+        
+        print(f"Shape of input_image: {input_image.shape}")
+        
+        # Convert grayscale heatmaps to RGB
+        if grayscale_cam_fix is not None:
+            heatmap_fix = show_cam_on_image(input_image, grayscale_cam_fix[0], use_rgb=True)
+            cv2.imwrite(f'outputs/{file_name}/gradcam_fix.png', cv2.cvtColor(heatmap_fix, cv2.COLOR_RGB2BGR))
+        else:
+            print("Unable to generate heatmap for fix_pred")
+        
+        if grayscale_cam_cod is not None:
+            heatmap_cod = show_cam_on_image(input_image, grayscale_cam_cod[0], use_rgb=True)
+            cv2.imwrite(f'outputs/{file_name}/gradcam_cod.png', cv2.cvtColor(heatmap_cod, cv2.COLOR_RGB2BGR))
+        else:
+            print("Unable to generate heatmap for cod_pred2")
+        
+        # Save the heatmaps
+        cv2.imwrite(f'outputs/{file_name}/gradcam_fix.png', cv2.cvtColor(heatmap_fix, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(f'outputs/{file_name}/gradcam_cod.png', cv2.cvtColor(heatmap_cod, cv2.COLOR_RGB2BGR))
+        #=======================================================================
 
         # Normalize the Binary Mapping 
         trans_img = np.transpose(np.where(bm_image>0.5,1,0))
@@ -623,6 +683,42 @@ def iaiDecision(file_path):
         print(error_message)  # This will be captured by the redirected stdout in C#
         return f"Error occurred: {str(e)}"
 
+class MultiOutputGradCAM(GradCAM):
+    def __init__(self, model, target_layers, output_index=0, reshape_transform=None):
+        super(MultiOutputGradCAM, self).__init__(model, target_layers, reshape_transform)
+        self.output_index = output_index
+
+    def forward(self, input_tensor, targets=None, eigen_smooth=False):
+        # if self.cuda:
+        #     input_tensor = input_tensor.cuda()
+
+        outputs = self.activations_and_grads(input_tensor)
+        output = outputs[self.output_index]
+        
+        if targets is None:
+            target_categories = np.argmax(output.cpu().data.numpy(), axis=-1)
+            targets = [ClassifierOutputTarget(category) for category in target_categories]
+        
+        if self.uses_gradients:
+            self.model.zero_grad()
+            # Sum the output tensor to create a scalar value
+            loss = output.sum()
+            loss.backward(retain_graph=True)
+
+        # In most of the saliency attribution papers, the saliency is
+        # computed with a single target layer.
+        # Commonly it is the last convolutional layer.
+        # Here we support passing a list with multiple target layers.
+        # It will compute the saliency image for every image,
+        # and then aggregate them (with a default mean aggregation).
+        # This gives you more flexibility in case you just want to
+        # use all conv layers for example, all Batchnorm layers,
+        # or something else.
+        cam_per_layer = self.compute_cam_per_layer(input_tensor,
+                                                   targets,
+                                                   eigen_smooth)
+        return self.aggregate_multi_layers(cam_per_layer)
+    
 def log_step(step_name):
     print(f"{time.time()}: Starting {step_name}")
     sys.stdout.flush()  # Ensure the output is immediately visible
@@ -632,3 +728,26 @@ def process_prediction(pred, WW, HH):
     pred = pred.sigmoid().data.cpu().numpy().squeeze()
     pred = 255*(pred - pred.min()) / (pred.max() - pred.min() + 1e-8)
     return pred.astype(np.uint8)
+
+"""
+===================================================================================================
+    Main
+===================================================================================================
+"""
+if __name__ == "__main__":
+    # Counter
+    counter = 1
+
+    # Folder containing images
+    image_folder_path = 'C:\\Users\\pharm\\Documents\\0 - Debra PhD Courses\\2 - Academic Collaborations\\00 - OADII MURDOC\\dataset\\train\\imgs\\'
+    
+    # List all images in the folder
+    image_files = [os.path.join(image_folder_path, file) for file in os.listdir(image_folder_path) if file.endswith(('jpg', 'jpeg', 'png'))]
+    
+    # Loop through each image in the folder
+    for image_file in image_files:
+        iaiDecision(image_file)
+        counter += 1
+        
+        if counter >= 5:
+            break
