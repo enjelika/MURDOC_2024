@@ -141,7 +141,7 @@
                                             <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="0"/>
 
                                             <StackPanel Orientation="Vertical" Margin="5,15,0,0" VerticalAlignment="Center">
-                                                <Image Source="{Binding ResNet50Output}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" Height="Auto" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
+                                                <Image Source="{Binding FixationGradCAMImage}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" Height="Auto" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
                                                 <Label Content="Grad-CAM Output"  HorizontalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
@@ -199,7 +199,7 @@
                                             <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="0"/>
 
                                             <StackPanel Orientation="Vertical" Margin="5,15,0,0" VerticalAlignment="Center">
-                                                <Image Source="{Binding ResNet50Output}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" MaxHeight="200" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
+                                                <Image Source="{Binding CamouflageGradCAMImage}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" MaxHeight="200" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
                                                 <Label Content="Grad-CAM Output"  HorizontalAlignment="Center"/>
                                             </StackPanel>
                                         </StackPanel>
