@@ -38,7 +38,7 @@ The project investigates two key questions:
 2. How do user-controllable image enhancements (brightness, contrast, saturation) contribute to trust, usability, and understanding?
 
 ## License
-This project is licensed under - see the LICENSE.md file for details.
+This project is licensed under GPL-3.0 - see the LICENSE.md file for details.
 
 ## Features
 - Advanced XAI off-ramps for interpretable insights
