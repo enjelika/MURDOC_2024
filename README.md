@@ -1,6 +1,8 @@
 # MURDOC: Mixed Understanding and Recognition for Detection of Camouflage 
 MURDOC is an application that enhances trustworthiness and explainability in computer vision models for camouflage detection through advanced XAI techniques and user-centric visualization tools.
 
+<img src="MURDOC v1-0 Architecture Diagram.png">
+
 ## System Requirements
 ### Python Environment Setup
 - Python 3.9
