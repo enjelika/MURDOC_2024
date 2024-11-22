@@ -1,23 +1,72 @@
-# DASC_2024
-## MURDOC: Transforming Pixels into Perception for Camouflage Detection
+# MURDOC: Mixed Understanding and Recognition for Detection of Camouflage 
+MURDOC is an application that enhances trustworthiness and explainability in computer vision models for camouflage detection through advanced XAI techniques and user-centric visualization tools.
 
-## How to Setup MURDOC Python Environment
+## System Requirements
+### Python Environment Setup
+- Python 3.9
+- Create a user environment variable named 'PythonDLL' pointing to your Python 3.9 DLL
+- Required libraries and versions will be checked/installed by the provided PowerShell script
 
-### Required NuGet Packages
+### NuGet Packages
 - ImageProcessor
 - pythonnet
 
-### Setup instructions
-- Create an **user** environment variable named 'PythonDLL' and set the path to the python39 DLL you intend to use. (Such as one in a virtual environment).
-- In **MainWindowViewModel.cs**, find the function: InitializePythonEngine and update the **pathToVirtialEnv** value to the location of your python environment. (The current version references a miniconda environment.)
-- Once your environment is setup, in Visual Studio go into the Python Environment, select your Python 3.9 environment, and open the PowerShell prompt. Type in: $ "path\to\the\script\python-env-check-script.ps1"
-  This PowerShell script will ensure that your Python 3.9 environment has the correct python libraries and the correct versions of these libraries, and the options to install.
-- Once the project is built, the pretrained models (RankNet and EfficientDet-D7 from FACE 2023) will need to be placed in the folder location: .\bin\x64\Debug
-- The project will only run in "x64". It will not run with "Any CPU"
+### Models
+- Place pretrained models (RankNet and EfficientDet-D7 from FACE 2023) in .\bin\x64\Debug
+- Project must be built in "x64" configuration (will not run with "Any CPU")
 
-## Research Questions
-1. How XAI off-ramps enhance MURDOC's trustworthiness by providing transparent and reliable explanations of the decision-making process in camouflage detection scenarios?
-2. To what extent does the integration of user-controllable image enhancement functionalities, such as brightness, contrast, and saturation adjustments, within the MURDOC visualization tool contribute to enhancing trust, usability, and understanding in camouflage detection?
+### Installation Steps
+1. Configure Python Environment:
+- Create 'PythonDLL' environment variable pointing to your Python 3.9 DLL
+- Update pathToVirtialEnv in MainWindowViewModel.cs InitializePythonEngine function
 
-## Abstract
-The MURDOC project introduces an application to enhance trustworthiness and explainability in computer vision models, focusing on camouflage detection. It aims to address the need for transparent and interpretable AI systems in sensitive domains such as security and defense. MURDOC integrates advanced eXplainable AI techniques including off-ramps for collecting interpretable insights, attention mechanisms for highlighting relevant features, and a user-centric image pre-processing tool within the visualization interface. This paper offers an assessment of MURDOC's potential impact on trustworthiness and explainability in camouflaged object detection tasks. It discusses and assesses the potential effectiveness of off-ramps in gathering XAI output at various model stages, such as feature maps, attention mechanisms, and activation maps. Additionally, the paper investigates how user-driven image pre-processing mechanisms may enhance the trustworthiness of the model's predictions and decisions, allowing users to modify the input and observe prediction changes. As a work in progress, the development of MURDOC shows promise in bridging the gap for transparency and interpretability in camouflage detection. The paper also discusses the challenges, future directions, and potential applications of MURDOC's capabilities in diverse domains requiring transparent and trustworthy AI systems.
+2. Verify Dependencies:
+- Open Python Environment in Visual Studio
+- Select Python 3.9 environment
+- Run PowerShell script:
+  ```shell
+  $ "path\to\the\script\python-env-check-script.ps1"
+- Script will verify/install required libraries with correct versions
+
+3. Build Setup:
+- Build project in x64 configuration
+- Copy pretrained models to .\bin\x64\Debug
+
+## 2024 Research Focus:
+The project investigates two key questions:
+1. How do XAI off-ramps enhance MURDOC's trustworthiness by providing transparent explanations of camouflage detection decision-making?
+2. How do user-controllable image enhancements (brightness, contrast, saturation) contribute to trust, usability, and understanding?
+
+## License
+This project is licensed under - see the LICENSE.md file for details.
+
+## Features
+- Advanced XAI off-ramps for interpretable insights
+- Attention mechanisms highlighting relevant features
+- User-centric image pre-processing tools
+- Interactive visualization interface
+- Feature maps and activation map analysis
+- Transparent decision-making process visualization
+
+## Project Status:
+This is an active research project focused on:
+- Improving transparency in AI systems
+- Enhancing interpretability in camouflage detection
+- Developing trustworthy AI for security/defense applications
+- Investigating user-driven mechanisms for model trust
+
+## Contributing
+See our paper: "MURDOC: Transforming Pixels into Perception for Camouflage Detection" for technical details and research methodology.
+
+## Citation
+If you use MURDOC in your research, please cite our paper:
+
+```bibtex
+@INPROCEEDINGS{10748781,
+  author={Hogue, Debra and Kastl, Zak and Karch, Joseph and Nguyen, Don and Schley, Lacey and Lewis, Justin and Connelly, Shane and Weaver, Chris},
+  booktitle={2024 AIAA DATC/IEEE 43rd Digital Avionics Systems Conference (DASC)}, 
+  title={MURDOC: Transforming Pixels into Perception for Camouflage Detection}, 
+  year={2024},
+  pages={1-9},
+  doi={10.1109/DASC62030.2024.10748781}
+}
