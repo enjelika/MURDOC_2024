@@ -39,6 +39,28 @@ The project investigates two key questions:
 1. How do XAI off-ramps enhance MURDOC's trustworthiness by providing transparent explanations of camouflage detection decision-making?
 2. How do user-controllable image enhancements (brightness, contrast, saturation) contribute to trust, usability, and understanding?
 
+## 2025 Research Focus:
+### Trust-Driven Design for Camouflage Detection Applications
+This research aims to enhance user trust and understanding in camouflage detection systems through:
+- **Human Factors Evaluation**: Comprehensive study comparing FACE and MURDOC systems using TOAST scale and specialized surveys (n=240)
+  - Expert users (computer programming background): 120 participants
+  - Non-expert users: 120 participants
+    
+- **Trust-Focuses Improvements**:
+  - Enhanced uncertainty visualization
+  - Three-tier visualization hierarchy
+  - Dynamic trust indicators
+  - Integrated feedback mechanisms
+    
+- **Expected Outcomes**:
+  - Quantitative metrics for XAI effectiveness
+  - Validated design patterns for trust-aware interfaces
+  - Framework for human-AI team performance evaluation
+
+## Version History
+- **v2.0** (In Development): Trust-enhanced architecture with improved visualization and user feedback systems
+- **v1.0**: Initial implementation of camouflage detection with IAI/XAI integration
+
 ## License
 This project is licensed under GPL-3.0 license - see the LICENSE.md file for details.
 
