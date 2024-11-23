@@ -35,6 +35,10 @@ MURDOC is an application that enhances trustworthiness and explainability in com
 - Build project in x64 configuration
 - Copy pretrained models to .\bin\x64\Debug
 
+## Known Issues
+**Version 1.0**
+- **TensorFlow Memory Leak** (Critical): TensorFlow retains GPU/CPU memory after inference, preventing analysis of more than 2 images per session. Users must currently restart the application to analyze additional images.
+
 ## 2024 Research Focus:
 The project investigates two key questions:
 1. How do XAI off-ramps enhance MURDOC's trustworthiness by providing transparent explanations of camouflage detection decision-making?
