@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MURDOC_2024"
         mc:Ignorable="d"
-        Height="990" Width="1860"
+        Height="990" Width="1840"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen">
     <DockPanel>
