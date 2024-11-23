@@ -817,7 +817,6 @@ namespace MURDOC_2024.ViewModel
 
             // Logic for reset command - reset everything on the screen
             PreviewImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
-
             ResNet50Conv = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetX1Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             RankNetX2Image = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
@@ -834,6 +833,10 @@ namespace MURDOC_2024.ViewModel
             FACEPredictionImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             FixationGradCAMImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
             CamouflageGradCAMImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
+            IAIOutputMessage = String.Empty;
+            WeakAreaCamoDescription = String.Empty;
+
+            // Empty Temp folder and 
         }
 
         /// <summary>
