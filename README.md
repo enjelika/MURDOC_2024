@@ -28,6 +28,7 @@ MURDOC is an application that enhances trustworthiness and explainability in com
 - Run PowerShell script:
   ```shell
   $ "path\to\the\script\python-env-check-script.ps1"
+  ```
 - Script will verify/install required libraries with correct versions
 
 3. Build Setup:
@@ -94,3 +95,4 @@ If you use MURDOC in your research, please cite our paper:
   pages={1-9},
   doi={10.1109/DASC62030.2024.10748781}
 }
+```
