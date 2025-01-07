@@ -88,8 +88,24 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Model\DetectionPipeline.cs" />
+    <Compile Include="Model\DetectionResult.cs" />
+    <Compile Include="Model\Enums.cs" />
+    <Compile Include="Model\MICA\AdaptiveInterfaceService.cs" />
+    <Compile Include="Model\MICA\AdaptiveInterface\AdaptiveDisplayManager.cs" />
+    <Compile Include="Model\MICA\AdaptiveInterface\DisplayComponents.cs" />
+    <Compile Include="Model\MICA\AdaptiveInterface\ExpertiseDetector.cs" />
+    <Compile Include="Model\MICA\Services\IVisualizationService.cs" />
+    <Compile Include="Model\MICA\Tracking\IUserInteractionTracker.cs" />
+    <Compile Include="Model\MICA\UncertaintyMetrics.cs" />
+    <Compile Include="Model\MICA\Utils\ExpertiseCalculator.cs" />
+    <Compile Include="Model\MICA\ValidationSystem.cs" />
+    <Compile Include="Model\MICA\Services\VisualizationService.cs" />
+    <Compile Include="Model\UserInteractionData.cs" />
+    <Compile Include="Model\UserProfile.cs" />
     <Compile Include="ViewModel\ImageCleaner.cs" />
     <Compile Include="ViewModel\MainWindowViewModel.cs" />
+    <Compile Include="ViewModel\MICAViewModel.cs" />
     <Compile Include="ViewModel\RelayCommand.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>

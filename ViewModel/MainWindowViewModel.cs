@@ -55,7 +55,16 @@ namespace MURDOC_2024.ViewModel
 
         private readonly ICommand _runCommand;
 
+        private MICAViewModel _micaViewModel;
+        private VisualizationService _visualizationService;
+        private AdaptiveInterfaceService _adaptiveInterface;
+
         #endregion
+
+        // Add MICA-specific properties and commands
+        public ICommand ValidateResultCommand { get; private set; }
+        public double ConfidenceLevel { get; set; }
+        public ExpertiseLevel UserExpertise { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
