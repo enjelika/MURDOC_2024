@@ -6,7 +6,7 @@ namespace MURDOC_2024.ViewModel
 {
     public class MICAViewModel
     {
-        private readonly IDetectionService _detectionService;
+        private readonly IAIDecisionService _detectionService;
 
         public async Task ProcessDetectionResult(DetectionResult result)
         {

@@ -58,6 +58,9 @@
     <Reference Include="ImageProcessor, Version=2.9.0.207, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\ImageProcessor.2.9.0\lib\net452\ImageProcessor.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="Python.Runtime, Version=3.0.3.0, Culture=neutral, PublicKeyToken=5000fea6cba702dd, processorArchitecture=MSIL">
       <HintPath>packages\pythonnet.3.0.3\lib\netstandard2.0\Python.Runtime.dll</HintPath>
     </Reference>
@@ -91,18 +94,18 @@
     <Compile Include="Model\DetectionPipeline.cs" />
     <Compile Include="Model\DetectionResult.cs" />
     <Compile Include="Model\Enums.cs" />
-    <Compile Include="Model\MICA\Services\IDetectionService.cs" />
-    <Compile Include="Model\MICA\Services\IEfficientDetService.cs" />
+    <Compile Include="Model\MICA\Services\IAIDecisionService.cs" />
+    <Compile Include="Model\MICA\Services\IIAIDecisionService.cs" />
     <Compile Include="Model\MICA\Services\IMICAService.cs" />
-    <Compile Include="Model\MICA\Services\IRankNetService.cs" />
     <Compile Include="Model\MICA\Services\IVisualizationService.cs" />
-    <Compile Include="Model\MICA\Services\RankNetService.cs" />
+    <Compile Include="Model\MICA\Services\MICAService.cs" />
     <Compile Include="Model\MICA\Services\UpdateVisualizationLayers.cs" />
     <Compile Include="Model\MICA\Tracking\IUserInteractionTracker.cs" />
     <Compile Include="Model\MICA\UncertaintyMetrics.cs" />
     <Compile Include="Model\MICA\Utils\ExpertiseCalculator.cs" />
     <Compile Include="Model\MICA\ValidationSystem.cs" />
     <Compile Include="Model\MICA\Services\VisualizationService.cs" />
+    <Compile Include="Startup.cs" />
     <Compile Include="ViewModel\ImageCleaner.cs" />
     <Compile Include="ViewModel\MainWindowViewModel.cs" />
     <Compile Include="ViewModel\MICAViewModel.cs" />

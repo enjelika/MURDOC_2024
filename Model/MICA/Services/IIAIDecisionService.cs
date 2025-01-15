@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace MURDOC_2024.Model.MICA.Services
 {
-    public interface IDetectionService
+    public interface IIAIDecisionService
     {
+        Task<string> ProcessImage(string imagePath);
     }
 }
