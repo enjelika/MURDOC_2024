@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using MURDOC_2024.Model.MICA.Services;
 using System.Threading.Tasks;
 
 namespace MURDOC_2024.Model
@@ -14,7 +11,7 @@ namespace MURDOC_2024.Model
 
         public async Task<DetectionResult> ProcessImage(string imagePath)
         {
-            // Run existing detection
+            // Run existing detection : TODO - May need to revise this strategy to use the IAI_Decision_Hierarchy.py script
             var rankNetResult = await _rankNetService.Detect(imagePath);
             var efficientDetResult = await _efficientDetService.Detect(imagePath);
 

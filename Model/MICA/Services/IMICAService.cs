@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace MURDOC_2024.Model.MICA.Services
 {
-    public interface IVisualizationService
+    public interface IMICAService
     {
-        void UpdateConfidenceDisplay(DetectionConfidence confidence);
-        void ShowUncertaintyMetrics(UncertaintyData data);
+        Task<MICAOutput> ProcessUserModification(UserModification userModification);
+        Task<MICAOutput> RunMICAModel(MICAInput input);
     }
 }

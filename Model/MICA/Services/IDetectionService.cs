@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MURDOC_2024.Model.MICA
+namespace MURDOC_2024.Model.MICA.Services
 {
-    public class AdaptiveInterfaceService // Expertise-based UI adaptations
+    public interface IDetectionService
     {
     }
 }

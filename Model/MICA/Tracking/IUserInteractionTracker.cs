@@ -9,8 +9,6 @@ namespace MURDOC_2024.Model.MICA.Tracking
     public interface IUserInteractionTracker
     {
         UserInteractionData GetInteractionPattern();
-        UserBackground GetUserBackground();
         void TrackInteraction(InteractionType type, DateTime timestamp);
-        void UpdateUserProfile(UserProfile profile);
     }
 }
