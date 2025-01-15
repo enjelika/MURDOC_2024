@@ -14,23 +14,32 @@ namespace MURDOC_2024.Model.MICA
 
         public async Task<VisualizationLevel> GetVisualizationForExpertise(ExpertiseLevel level)
         {
-            return level switch
+            switch (level)
             {
-                ExpertiseLevel.Expert => VisualizationLevel.Detailed,
-                ExpertiseLevel.Intermediate => VisualizationLevel.Standard,
-                ExpertiseLevel.Novice => VisualizationLevel.Basic,
-                _ => VisualizationLevel.Standard
-            };
+                case ExpertiseLevel.Expert:
+                    return VisualizationLevel.Detailed;
+                case ExpertiseLevel.Intermediate:
+                    return VisualizationLevel.Standard;
+                case ExpertiseLevel.Novice:
+                    return VisualizationLevel.Basic;
+                default:
+                    return VisualizationLevel.Standard;
+            }
+        }
+
+        public void ShowUncertaintyMetrics(UncertaintyData data)
+        {
+            throw new NotImplementedException();
         }
 
         public void UpdateConfidenceDisplay(DetectionConfidence confidence)
         {
             // Update visualization based on confidence levels
-            var binaryMask = confidence.GetBinaryMask();
-            var uncertaintyMap = confidence.GetUncertaintyMap();
+            var binaryMap = confidence.GetBinaryMask();
+            var fixationMap = confidence.GetFixationMask();
 
             // Update display elements
-            UpdateVisualizationLayers(binaryMask, uncertaintyMap);
+            UpdateVisualizationLayers(binaryMap, fixationMap);
         }
     }
 }

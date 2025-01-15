@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MURDOC_2024.Model.MICA.Tracking;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +17,11 @@ namespace MURDOC_2024.Model.MICA.AdaptiveInterface
             var technicalBackground = _interactionTracker.GetUserBackground();
 
             return CalculateExpertiseLevel(interactionPattern, technicalBackground);
+        }
+
+        public int CalculateExpertiseLevel(var interactionPattern, var technicalBackground)
+        {
+            return 0;
         }
     }
 }
