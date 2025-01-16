@@ -91,6 +91,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Model\DataModels\RankNetInput.cs" />
+    <Compile Include="Model\DataModels\RankNetOutput.cs" />
+    <Compile Include="Model\DataModels\UserModification.cs" />
     <Compile Include="Model\DetectionPipeline.cs" />
     <Compile Include="Model\DetectionResult.cs" />
     <Compile Include="Model\Enums.cs" />
@@ -98,13 +101,10 @@
     <Compile Include="Model\MICA\Services\IIAIDecisionService.cs" />
     <Compile Include="Model\MICA\Services\IMICAService.cs" />
     <Compile Include="Model\MICA\Services\IVisualizationService.cs" />
-    <Compile Include="Model\MICA\Services\MICAService.cs" />
     <Compile Include="Model\MICA\Services\UpdateVisualizationLayers.cs" />
     <Compile Include="Model\MICA\Tracking\IUserInteractionTracker.cs" />
-    <Compile Include="Model\MICA\UncertaintyMetrics.cs" />
-    <Compile Include="Model\MICA\Utils\ExpertiseCalculator.cs" />
-    <Compile Include="Model\MICA\ValidationSystem.cs" />
-    <Compile Include="Model\MICA\Services\VisualizationService.cs" />
+    <Compile Include="Model\MICA\Utils\UncertaintyMetrics.cs" />
+    <Compile Include="Model\MICA\Utils\ValidationSystem.cs" />
     <Compile Include="Startup.cs" />
     <Compile Include="ViewModel\ImageCleaner.cs" />
     <Compile Include="ViewModel\MainWindowViewModel.cs" />

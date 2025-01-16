@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
-namespace MURDOC_2024.Model.MICA
+namespace MURDOC_2024.Model.MICA.Utils
 {
     /// <summary>
     /// Provides validation functionality by comparing detection results against ground truth data
@@ -54,6 +54,35 @@ namespace MURDOC_2024.Model.MICA
                 Message = "Validation completed",
                 Metrics = metrics
             };
+        }
+
+        /// <summary>
+        /// Enables the validation interface if ground truth data is available
+        /// </summary>
+        public void EnableValidationInterface()
+        {
+            // Check if the ground truth directory exists and contains files
+            if (Directory.Exists(_groundTruthPath) && Directory.GetFiles(_groundTruthPath).Length > 0)
+            {
+                // TODO: Implement code to enable the validation interface
+                // For example, show validation options in the UI or enable validation-related features
+                Console.WriteLine("Validation interface enabled");
+            }
+            else
+            {
+                // TODO: Implement code to disable or hide the validation interface
+                // For example, hide validation options in the UI or disable validation-related features
+                Console.WriteLine("Validation interface disabled");
+            }
+        }
+
+        /// <summary>
+        /// Checks if ground truth data is available
+        /// </summary>
+        /// <returns>True if ground truth data exists, otherwise false</returns>
+        public bool HasGroundTruth()
+        {
+            return Directory.Exists(_groundTruthPath) && Directory.GetFiles(_groundTruthPath).Length > 0;
         }
 
         /// <summary>

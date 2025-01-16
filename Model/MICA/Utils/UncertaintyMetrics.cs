@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 
-namespace MURDOC_2024.Model.MICA
+namespace MURDOC_2024.Model.MICA.Utils
 {
     public class UncertaintyMetrics
     {
