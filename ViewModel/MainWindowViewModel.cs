@@ -1,5 +1,6 @@
 ﻿using ImageProcessor;
 using Microsoft.Win32;
+using MURDOC_2024.Model.MICA.Services;
 using Python.Runtime; // Ensure this namespace is recognized without errors
 using System;
 using System.ComponentModel;
@@ -56,15 +57,13 @@ namespace MURDOC_2024.ViewModel
         private readonly ICommand _runCommand;
 
         private MICAViewModel _micaViewModel;
-        private VisualizationService _visualizationService;
-        private AdaptiveInterfaceService _adaptiveInterface;
+        private IVisualizationService _visualizationService;
 
         #endregion
 
         // Add MICA-specific properties and commands
         public ICommand ValidateResultCommand { get; private set; }
         public double ConfidenceLevel { get; set; }
-        public ExpertiseLevel UserExpertise { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
