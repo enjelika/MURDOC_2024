@@ -39,6 +39,21 @@ namespace MURDOC_2024.Model
         public DateTime ProcessedTime { get; set; }
 
         /// <summary>
+        /// Gets or sets the file path of the ground truth image
+        /// </summary>
+        public string GroundTruthImagePath { get; set; }
+
+        /// <summary>
+        /// Gets or sets the file path of the prediction image
+        /// </summary>
+        public string PredictionImagePath { get; set; }
+
+        /// <summary>
+        /// Gets or sets the file path of the uncertainty map image
+        /// </summary>
+        public string UncertaintyMapPath { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the DetectionResult class with default values
         /// </summary>
         public DetectionResult()
@@ -49,6 +64,9 @@ namespace MURDOC_2024.Model
             WeakAreas = new List<WeakArea>();
             DetectedParts = new Dictionary<string, float>();
             ProcessedTime = DateTime.Now;
+            GroundTruthImagePath = string.Empty;
+            PredictionImagePath = string.Empty;
+            UncertaintyMapPath = string.Empty;
         }
     }
 }
