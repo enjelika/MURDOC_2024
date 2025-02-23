@@ -12,9 +12,15 @@ namespace MURDOC_2024.Model.MICA.Services
         void UpdateConfidenceDisplay(DetectionConfidence confidence);
         void ShowUncertaintyMetrics(UncertaintyData data);
     }
+
     public class VisualizationService : IVisualizationService // Multi-level visualization system
     {
-        private readonly IDetectionService _detectionService;
+        private readonly IIAIDecisionService _iaiDecisionService;
+
+        public VisualizationService(IIAIDecisionService iaiDecisionService)
+        {
+            _iaiDecisionService = iaiDecisionService;
+        }
 
         public void UpdateConfidenceDisplay(DetectionConfidence confidence)
         {
@@ -24,6 +30,24 @@ namespace MURDOC_2024.Model.MICA.Services
 
             // Update display elements
             UpdateVisualizationLayers(binaryMask, uncertaintyMap);
+        }
+
+        void IVisualizationService.ShowUncertaintyMetrics(UncertaintyData data)
+        {
+            throw new NotImplementedException();
+        }
+
+        void IVisualizationService.UpdateConfidenceDisplay(DetectionConfidence confidence)
+        {
+            throw new NotImplementedException();
+        }
+
+        private void UpdateVisualizationLayers(byte[] binaryMask, byte[] uncertaintyMap)
+        {
+            // Implement the logic to update the visualization layers
+            // using the binary mask and uncertainty map
+            // You can use the _iaiDecisionService to process the data if needed
+            throw new NotImplementedException();
         }
     }
 }

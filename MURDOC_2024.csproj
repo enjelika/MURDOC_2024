@@ -94,6 +94,7 @@
     <Compile Include="Model\DataModels\RankNetInput.cs" />
     <Compile Include="Model\DataModels\RankNetOutput.cs" />
     <Compile Include="Model\DataModels\UserModification.cs" />
+    <Compile Include="Model\DetectionConfidence.cs" />
     <Compile Include="Model\DetectionPipeline.cs" />
     <Compile Include="Model\DetectionResult.cs" />
     <Compile Include="Model\Enums.cs" />
