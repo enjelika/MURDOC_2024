@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MURDOC_2024"
         mc:Ignorable="d"
-        Height="990" Width="1840"
+        Height="995" Width="1840"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen">
     <DockPanel>
@@ -21,7 +21,7 @@
             <StackPanel Grid.Column="0" Background="LightGray" Margin="5,5,441,5" Grid.ColumnSpan="2">
 
                 <StackPanel Orientation="Horizontal">
-                    <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray">
+                    <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Height="315">
                         <!-- Image file select/browse button and text box -->
                         <Label Content="Select image:" FontWeight="Bold"/>
 
@@ -59,21 +59,21 @@
                     </StackPanel>
 
                     <!-- Selected Image -->
-                    <StackPanel Orientation="Vertical" Margin="5" Width="300" Height="270">
+                    <StackPanel Orientation="Vertical" Margin="5" Width="450" Height="320">
                         <Label Content="Input" FontWeight="Bold" Margin="10,0,0,0"/>
-                        <Image Source="{Binding SelectedImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="250" />
+                        <Image Source="{Binding SelectedImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="300" />
                     </StackPanel>
 
                     <!-- Preview for mouse over -->
-                    <StackPanel Orientation="Vertical" Margin="5" Width="300" Height="270">
+                    <StackPanel Orientation="Vertical" Margin="5" Width="450" Height="320">
                         <Label Content="Preview" FontWeight="Bold" Margin="5,0,20,0"/>
-                        <Image Source="{Binding PreviewImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="250" />
+                        <Image Source="{Binding PreviewImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="300" />
                     </StackPanel>
 
                     <!-- IAI Output Message -->
                     <StackPanel Orientation="Vertical" Margin="5" Width="300" Height="270">
                         <Label Content="Informative AI Output" FontWeight="Bold" Margin="5,0,20,0"/>
-                        <TextBlock Text="{Binding IAIOutputMessage}" TextWrapping="Wrap" Height="Auto" Width="280"/>
+                        <TextBlock Text="{Binding IAIOutputMessage}" FontSize="14" TextWrapping="Wrap" Height="Auto" Width="280"/>
                     </StackPanel>
                     
                     <!-- Python Metric Output -->
@@ -83,15 +83,15 @@
                 </StackPanel>
 
 
-                <StackPanel Orientation="Vertical" Margin="5">
+                <StackPanel Orientation="Vertical" Margin="5" MaxHeight="610">
                     <StackPanel Orientation="Horizontal">
                         <!-- RankNet -->
                         <StackPanel Orientation="Vertical">
 
                             <Label Content="RankNet" FontWeight="Bold" Margin="10,0,0,0"/>
 
-                            <StackPanel Orientation="Horizontal">
-                                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="585">
+                            <StackPanel Orientation="Horizontal" MaxHeight="600">
+                                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="580">
                                     <DockPanel>
                                         <TextBlock DockPanel.Dock="Top" Text="Localization" FontWeight="DemiBold" HorizontalAlignment="Left" Margin="10,5,5,0"/>
 
@@ -149,7 +149,7 @@
 
                                 </Border>
 
-                                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="585">
+                                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="580">
                                     <DockPanel>
                                         <TextBlock DockPanel.Dock="Top" Text="Ranking" FontWeight="DemiBold" HorizontalAlignment="Left" Margin="10,5,5,0"/>
 
@@ -214,7 +214,7 @@
                         <StackPanel Orientation="Vertical">
                             <Label Content="EfficientDet-D7" FontWeight="Bold" Width="250" Margin="10,0,0,0"/>
 
-                            <Border BorderBrush="DarkGray" BorderThickness="1" Height="585">
+                            <Border BorderBrush="DarkGray" BorderThickness="1" Height="580">
                                 <DockPanel>
 
                                     <StackPanel Orientation="Vertical">
