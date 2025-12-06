@@ -310,10 +310,11 @@ def levelThree(original_image, bbox, message, filename, detect_fn):
     axis.imshow(original_image)
     axis.axis('off')  # Turn off the axis
                
-    for i,b in enumerate(detections['detection_boxes'].numpy()[0]):
-        if  detections['detection_scores'].numpy()[0][i] > 0.3:
-            axis.add_patch(plt.Rectangle((b[1]*x_size, b[0]*y_size),  (b[3]-b[1])*x_size,  (b[2]-b[0])*y_size, label="Test", fill=False, linewidth=2, color=(1,0,0)))
-            axis.text(b[1]*x_size, b[0]*y_size-10,label_map[int(detections['detection_classes'].numpy()[0][i])-1] + " " + str(detections['detection_scores'].numpy()[0][i]), fontweight=400, color=(1,0,0))
+    # Do not need the prediction label on the photo in MURDOC/MICA
+    #for i,b in enumerate(detections['detection_boxes'].numpy()[0]):
+    #    if  detections['detection_scores'].numpy()[0][i] > 0.3:
+    #        axis.add_patch(plt.Rectangle((b[1]*x_size, b[0]*y_size),  (b[3]-b[1])*x_size,  (b[2]-b[0])*y_size, label="Test", fill=False, linewidth=2, color=(1,0,0)))
+    #        axis.text(b[1]*x_size, b[0]*y_size-10,label_map[int(detections['detection_classes'].numpy()[0][i])-1] + " " + str(detections['detection_scores'].numpy()[0][i]), fontweight=400, color=(1,0,0))
     
     # Save the plot as a PNG file
     fig.savefig('detection_results/'+filename+'.png', bbox_inches='tight', pad_inches=0)
