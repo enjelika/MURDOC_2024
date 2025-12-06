@@ -310,11 +310,10 @@ def levelThree(original_image, bbox, message, filename, detect_fn):
     axis.imshow(original_image)
     axis.axis('off')  # Turn off the axis
                
-    # Do not need the prediction label on the photo in MURDOC/MICA
-    #for i,b in enumerate(detections['detection_boxes'].numpy()[0]):
-    #    if  detections['detection_scores'].numpy()[0][i] > 0.3:
-    #        axis.add_patch(plt.Rectangle((b[1]*x_size, b[0]*y_size),  (b[3]-b[1])*x_size,  (b[2]-b[0])*y_size, label="Test", fill=False, linewidth=2, color=(1,0,0)))
-    #        axis.text(b[1]*x_size, b[0]*y_size-10,label_map[int(detections['detection_classes'].numpy()[0][i])-1] + " " + str(detections['detection_scores'].numpy()[0][i]), fontweight=400, color=(1,0,0))
+    for i,b in enumerate(detections['detection_boxes'].numpy()[0]):
+        if  detections['detection_scores'].numpy()[0][i] > 0.3:
+            axis.add_patch(plt.Rectangle((b[1]*x_size, b[0]*y_size),  (b[3]-b[1])*x_size,  (b[2]-b[0])*y_size, label="Test", fill=False, linewidth=2, color=(1,0,0)))
+            axis.text(b[1]*x_size, b[0]*y_size-10,label_map[int(detections['detection_classes'].numpy()[0][i])-1] + " " + str(detections['detection_scores'].numpy()[0][i]), fontweight=400, color=(1,0,0))
     
     # Save the plot as a PNG file
     fig.savefig('detection_results/'+filename+'.png', bbox_inches='tight', pad_inches=0)
@@ -325,6 +324,7 @@ def levelThree(original_image, bbox, message, filename, detect_fn):
     # Prepare data for the TXT file
     txt_content = []
     
+    # Do not need the prediction label on the photo in MURDOC/MICA
     for box1 in bbox:
         feat = []
         for count, box2 in enumerate(d_box):
@@ -673,7 +673,7 @@ def iaiDecision(file_path):
     
         segmented_image = segment_image(org_image, Image.fromarray(bm_image_resized), Image.fromarray(fix_image_resized))
         print(f'dim of segmented_image: {segmented_image.size}')
-        add_label(segmented_image, output, (15, 15))
+        #add_label(segmented_image, output, (15, 15))
         segmented_image.save(f'results/segmented_{file_name}.jpg')
 
         log_step("iaiDecision completed")

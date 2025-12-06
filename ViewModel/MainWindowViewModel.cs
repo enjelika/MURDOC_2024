@@ -1014,7 +1014,7 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
-        /// Initializes Python Engine with the default Visual Studio Python DLL location
+        /// Initializes Python Engine safely for WPF and Python 3.9
         /// </summary>
         private void InitializePythonRuntime()
         {
@@ -1022,23 +1022,26 @@ namespace MURDOC_2024.ViewModel
             {
                 Console.WriteLine("Starting Python runtime initialization...");
 
-                string pythonHome = @"C:\Users\pharm\AppData\Local\Programs\Python\Python39";
-                string pythonDll = Environment.GetEnvironmentVariable("PythonDLL", EnvironmentVariableTarget.User);
+                // Python paths
+                string pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
+                string pythonDll = Path.Combine(pythonHome, "python39.dll");
+
+                if (!File.Exists(pythonDll))
+                {
+                    throw new FileNotFoundException($"Python DLL not found at {pythonDll}");
+                }
 
                 Console.WriteLine($"Python Home: {pythonHome}");
                 Console.WriteLine($"Python DLL: {pythonDll}");
 
-                if (string.IsNullOrEmpty(pythonDll))
-                {
-                    throw new Exception("PythonDLL environment variable is not set.");
-                }
-
-                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pythonDll);
+                // Set environment variables
+                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pythonDll, EnvironmentVariableTarget.Process);
                 Environment.SetEnvironmentVariable("PYTHONHOME", pythonHome, EnvironmentVariableTarget.Process);
-                Environment.SetEnvironmentVariable("PYTHONPATH", $"{pythonHome}\\Lib\\site-packages;{pythonHome}\\Lib", EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable("PYTHONPATH",
+                    $"{Path.Combine(pythonHome, "Lib\\site-packages")};{Path.Combine(pythonHome, "Lib")}",
+                    EnvironmentVariableTarget.Process);
 
-                Console.WriteLine("Environment variables set. Attempting to initialize Python Engine...");
-
+                // Initialize Python runtime
                 if (!PythonEngine.IsInitialized)
                 {
                     PythonEngine.Initialize();
@@ -1049,7 +1052,7 @@ namespace MURDOC_2024.ViewModel
                     Console.WriteLine("Python runtime was already initialized.");
                 }
 
-                // Test Python functionality
+                // Run a test on the **same thread** to avoid GIL cross-thread issues
                 using (Py.GIL())
                 {
                     dynamic sys = Py.Import("sys");
@@ -1057,19 +1060,13 @@ namespace MURDOC_2024.ViewModel
                     Console.WriteLine($"Python path: {string.Join(", ", sys.path)}");
                 }
             }
-            catch (TypeInitializationException tiex)
-            {
-                // Log or display the type initialization exception message and inner exception
-                Console.WriteLine("Type Initialization Exception: " + tiex.Message);
-                Console.WriteLine("Inner Exception: " + tiex.InnerException?.Message);
-            }
             catch (Exception ex)
             {
-                // Log or display any other exceptions during initialization
                 Console.WriteLine("Error initializing Python engine: " + ex.Message);
                 throw;
             }
         }
+
 
         /// <summary>
         /// Function to open a text file and display the contents in the View's TextBlock
