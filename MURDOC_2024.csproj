@@ -112,6 +112,7 @@
       <DependentUpon>RankNetOutputPane.xaml</DependentUpon>
     </Compile>
     <Compile Include="ViewModel\EfficientDetD7ViewModel.cs" />
+    <Compile Include="ViewModel\IAIOutputPaneViewModel.cs" />
     <Compile Include="ViewModel\ImageCleaner.cs" />
     <Compile Include="ViewModel\ImageControlPaneViewModel.cs" />
     <Compile Include="ViewModel\InputImagePaneViewModel.cs" />

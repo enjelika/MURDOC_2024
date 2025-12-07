@@ -83,5 +83,27 @@ namespace MURDOC_2024.Services
                 return bitmap;
             }
         }
+
+        public string SaveBitmapToTemp(BitmapImage bitmap)
+        {
+            if (bitmap == null)
+                return null;
+
+            string tempPath = Path.Combine(
+                _tempDir,
+                "adjusted_input_" + Guid.NewGuid().ToString("N") + ".jpg"
+            );
+
+            // Save BitmapImage → JPEG
+            using (var fileStream = new FileStream(tempPath, FileMode.Create))
+            {
+                BitmapEncoder encoder = new JpegBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                encoder.Save(fileStream);
+            }
+
+            return tempPath;
+        }
+
     }
 }

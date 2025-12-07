@@ -32,7 +32,7 @@
                     <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}"/>
 
                     <!-- IAI Output Message -->
-                    <controls:IAIOutputPane />
+                    <controls:IAIOutputPane DataContext="{Binding IAIOutputVM}" />
 
                     <!-- MICA Control Pane -->
                     <controls:MICAControlPane />

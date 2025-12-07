@@ -26,16 +26,17 @@ namespace MURDOC_2024.ViewModel
             Action<string> imageSelectedAction,
             Action<int, int, int> slidersChangedAction)
         {
-            _runModelsAction = runModelsAction;
-            _resetAction = resetAction;
-            _imageSelectedAction = imageSelectedAction;
+            _runModelsAction = runModelsAction ?? throw new ArgumentNullException(nameof(runModelsAction));
+            _resetAction = resetAction ?? throw new ArgumentNullException(nameof(resetAction));
+            _imageSelectedAction = imageSelectedAction ?? throw new ArgumentNullException(nameof(imageSelectedAction));
             _slidersChangedAction = slidersChangedAction;
 
-            _browseCommand = new RelayCommand(_ => ExecuteBrowseCommand());
-            _runCommand = new RelayCommand(_ => _runModelsAction(), _ => IsRunButtonEnabled);
-            _resetCommand = new RelayCommand(_ => _resetAction());
+            _browseCommand = new RelayCommand(_ => ExecuteBrowseCommand(), _ => CanBrowse);
+            _runCommand = new RelayCommand(_ => ExecuteRunCommand(), _ => CanRun);
+            _resetCommand = new RelayCommand(_ => ExecuteResetCommand(), _ => CanReset);
 
             IsRunButtonEnabled = false;
+            IsBrowseEnabled = true;
         }
 
         // =======================
@@ -56,7 +57,10 @@ namespace MURDOC_2024.ViewModel
             set
             {
                 if (SetProperty(ref _selectedImagePath, value))
-                    IsRunButtonEnabled = !string.IsNullOrEmpty(value);
+                {
+                    IsRunButtonEnabled = !string.IsNullOrEmpty(value) && !IsModelRunning;
+                    UpdateCommandStates();
+                }
             }
         }
 
@@ -67,8 +71,10 @@ namespace MURDOC_2024.ViewModel
             set
             {
                 if (SetProperty(ref _sliderBrightness, value))
+                {
                     _slidersChangedAction?.Invoke(
                         SliderBrightness, SliderContrast, SliderSaturation);
+                }
             }
         }
 
@@ -79,8 +85,10 @@ namespace MURDOC_2024.ViewModel
             set
             {
                 if (SetProperty(ref _sliderContrast, value))
+                {
                     _slidersChangedAction?.Invoke(
                         SliderBrightness, SliderContrast, SliderSaturation);
+                }
             }
         }
 
@@ -91,8 +99,10 @@ namespace MURDOC_2024.ViewModel
             set
             {
                 if (SetProperty(ref _sliderSaturation, value))
+                {
                     _slidersChangedAction?.Invoke(
                         SliderBrightness, SliderContrast, SliderSaturation);
+                }
             }
         }
 
@@ -103,19 +113,71 @@ namespace MURDOC_2024.ViewModel
             set
             {
                 if (SetProperty(ref _isRunEnabled, value))
-                    _runCommand.RaiseCanExecuteChanged();
+                {
+                    _runCommand?.RaiseCanExecuteChanged();
+                }
             }
         }
 
+        private bool _isBrowseEnabled = true;
+        public bool IsBrowseEnabled
+        {
+            get => _isBrowseEnabled;
+            set
+            {
+                if (SetProperty(ref _isBrowseEnabled, value))
+                {
+                    _browseCommand?.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        private bool _isModelRunning;
+        public bool IsModelRunning
+        {
+            get => _isModelRunning;
+            set
+            {
+                if (SetProperty(ref _isModelRunning, value))
+                {
+                    UpdateCommandStates();
+                    OnPropertyChanged(nameof(IsNotRunning));
+                }
+            }
+        }
+
+        public bool IsNotRunning => !IsModelRunning;
+
         // =======================
-        // Browse
+        // Command Execution
         // =======================
+
+        private bool CanBrowse => !IsModelRunning;
+        private bool CanRun => !string.IsNullOrEmpty(SelectedImagePath) && !IsModelRunning;
+        private bool CanReset => !IsModelRunning;
+
+        /// <summary>
+        /// Updates all command states - call this when model running state changes
+        /// </summary>
+        public void UpdateCommandStates()
+        {
+            IsRunButtonEnabled = CanRun;
+            IsBrowseEnabled = CanBrowse;
+
+            _runCommand?.RaiseCanExecuteChanged();
+            _browseCommand?.RaiseCanExecuteChanged();
+            _resetCommand?.RaiseCanExecuteChanged();
+        }
 
         private void ExecuteBrowseCommand()
         {
+            if (IsModelRunning)
+                return;
+
             var openFileDialog = new OpenFileDialog
             {
-                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp"
+                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp",
+                Title = "Select an Image for Camouflage Detection"
             };
 
             if (openFileDialog.ShowDialog() == true)
@@ -128,6 +190,38 @@ namespace MURDOC_2024.ViewModel
                 // Notify the parent viewmodel
                 _imageSelectedAction?.Invoke(fullPath);
             }
+        }
+
+        private void ExecuteRunCommand()
+        {
+            if (!CanRun)
+                return;
+
+            IsModelRunning = true;
+
+            try
+            {
+                _runModelsAction();
+            }
+            finally
+            {
+                // The parent ViewModel should handle setting this back to false
+                // when the async operation completes
+            }
+        }
+
+        private void ExecuteResetCommand()
+        {
+            if (IsModelRunning)
+                return;
+
+            SelectedImagePath = null;
+            SelectedImageFileName = null;
+            SliderBrightness = 0;
+            SliderContrast = 0;
+            SliderSaturation = 0;
+
+            _resetAction();
         }
     }
 }
