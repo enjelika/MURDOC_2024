@@ -9,6 +9,8 @@ namespace MURDOC_2024.ViewModel
     {
         private readonly Action _runModelsAction;
         private readonly Action _resetAction;
+        private readonly Action<string> _imageSelectedAction;
+        private readonly Action<int, int, int> _slidersChangedAction;
 
         private readonly RelayCommand _runCommand;
         private readonly RelayCommand _resetCommand;
@@ -18,16 +20,16 @@ namespace MURDOC_2024.ViewModel
         public ICommand RunCommand => _runCommand;
         public ICommand ResetCommand => _resetCommand;
 
-        private readonly Action<string> _imageSelectedAction;
-
         public ImageControlViewModel(
             Action runModelsAction,
             Action resetAction,
-            Action<string> imageSelectedAction)
+            Action<string> imageSelectedAction,
+            Action<int, int, int> slidersChangedAction)
         {
             _runModelsAction = runModelsAction;
             _resetAction = resetAction;
             _imageSelectedAction = imageSelectedAction;
+            _slidersChangedAction = slidersChangedAction;
 
             _browseCommand = new RelayCommand(_ => ExecuteBrowseCommand());
             _runCommand = new RelayCommand(_ => _runModelsAction(), _ => IsRunButtonEnabled);
@@ -54,10 +56,7 @@ namespace MURDOC_2024.ViewModel
             set
             {
                 if (SetProperty(ref _selectedImagePath, value))
-                {
-                    // Enable/disable Run button based on whether an image is selected
                     IsRunButtonEnabled = !string.IsNullOrEmpty(value);
-                }
             }
         }
 
@@ -65,21 +64,36 @@ namespace MURDOC_2024.ViewModel
         public int SliderBrightness
         {
             get => _sliderBrightness;
-            set => SetProperty(ref _sliderBrightness, value);
+            set
+            {
+                if (SetProperty(ref _sliderBrightness, value))
+                    _slidersChangedAction?.Invoke(
+                        SliderBrightness, SliderContrast, SliderSaturation);
+            }
         }
 
         private int _sliderContrast;
         public int SliderContrast
         {
             get => _sliderContrast;
-            set => SetProperty(ref _sliderContrast, value);
+            set
+            {
+                if (SetProperty(ref _sliderContrast, value))
+                    _slidersChangedAction?.Invoke(
+                        SliderBrightness, SliderContrast, SliderSaturation);
+            }
         }
 
         private int _sliderSaturation;
         public int SliderSaturation
         {
             get => _sliderSaturation;
-            set => SetProperty(ref _sliderSaturation, value);
+            set
+            {
+                if (SetProperty(ref _sliderSaturation, value))
+                    _slidersChangedAction?.Invoke(
+                        SliderBrightness, SliderContrast, SliderSaturation);
+            }
         }
 
         private bool _isRunEnabled;
@@ -89,15 +103,12 @@ namespace MURDOC_2024.ViewModel
             set
             {
                 if (SetProperty(ref _isRunEnabled, value))
-                {
-                    // When the flag changes, tell WPF to re-evaluate CanExecute
                     _runCommand.RaiseCanExecuteChanged();
-                }
             }
         }
 
         // =======================
-        // Command logic
+        // Browse
         // =======================
 
         private void ExecuteBrowseCommand()
@@ -110,10 +121,11 @@ namespace MURDOC_2024.ViewModel
             if (openFileDialog.ShowDialog() == true)
             {
                 var fullPath = openFileDialog.FileName;
+
                 SelectedImagePath = fullPath;
                 SelectedImageFileName = Path.GetFileName(fullPath);
 
-                // 👉 Notify the InputImagePaneViewModel
+                // Notify the parent viewmodel
                 _imageSelectedAction?.Invoke(fullPath);
             }
         }

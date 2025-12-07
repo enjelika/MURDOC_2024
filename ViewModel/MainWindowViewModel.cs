@@ -21,39 +21,41 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _previewImage, value);
         }
 
-        #region Child VMs
-        // Image selection + sliders
+        // Child VMs
         public ImageControlViewModel ImageControlVM { get; }
         public InputImagePaneViewModel InputImageVM { get; }
         public PreviewPaneViewModel PreviewPaneVM { get; }
 
-        // Model output VMs
         public RankNetViewModel RankNetVM { get; }
         public EfficientDetD7ViewModel EfficientDetVM { get; }
-        #endregion
 
+        private readonly ImageService _imageService;
         private readonly PythonModelService _python;
 
         public MainWindowViewModel()
         {
             _python = new PythonModelService();
+            _imageService = new ImageService();
 
-            // 1Create child VMs FIRST
+            // Create child VMs
             InputImageVM = new InputImagePaneViewModel();
             PreviewPaneVM = new PreviewPaneViewModel();
 
-            // THEN create ImageControlVM and pass the callbacks
             ImageControlVM = new ImageControlViewModel(
                 runModelsAction: RunModels,
                 resetAction: ResetAll,
-                imageSelectedAction: path => InputImageVM.LoadImage(path)
+                imageSelectedAction: path =>
+                {
+                    SelectedImagePath = path;
+                    InputImageVM.LoadImage(path);
+                },
+                slidersChangedAction: (b, c, s) => AdjustInputImage(b, c, s)
             );
 
             RankNetVM = new RankNetViewModel(previewPath => HandlePreviewImageChanged(previewPath));
             EfficientDetVM = new EfficientDetD7ViewModel(HandlePreviewImageChanged);
         }
 
-        // MAIN CALLBACKS
         private void RunModels()
         {
             Console.WriteLine("Run models triggered.");
@@ -65,13 +67,25 @@ namespace MURDOC_2024.ViewModel
             PreviewPaneVM.PreviewImage = null;
         }
 
-        public void HandlePreviewImageChanged(string imagePath)
+        private void AdjustInputImage(int brightness, int contrast, int saturation)
         {
-            if (PreviewPaneVM != null)
-            {
-                PreviewPaneVM.PreviewImage = new BitmapImage(new Uri(imagePath));
-            }
+            if (string.IsNullOrEmpty(SelectedImagePath))
+                return;
+
+            // Load original bitmap fully
+            BitmapImage original = _imageService.LoadBitmapFully(SelectedImagePath);
+
+            // Adjust into a NEW BitmapImage (no temp path)
+            BitmapImage adjusted = _imageService.AdjustImage(original, brightness, contrast, saturation);
+
+            // Display the adjusted image
+            InputImageVM.InputImage = adjusted;
         }
 
+
+        public void HandlePreviewImageChanged(string imagePath)
+        {
+            PreviewPaneVM.PreviewImage = new BitmapImage(new Uri(imagePath));
+        }
     }
 }

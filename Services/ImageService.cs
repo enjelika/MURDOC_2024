@@ -1,94 +1,87 @@
 ﻿using ImageProcessor;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
 namespace MURDOC_2024.Services
 {
     public class ImageService
     {
-        /// <summary>
-        /// Loads an image from the user selected image path or sets a default placeholder image.
-        /// </summary>
-        public void LoadImage()
+        private readonly string _tempDir;
+
+        public ImageService()
         {
-        //    if (hasUserModifiedImage)
-        //    {
-        //        BitmapImage tempModifiedImage = new BitmapImage();
-        //        tempModifiedImage.BeginInit();
-        //        tempModifiedImage.CacheOption = BitmapCacheOption.OnLoad;
-        //        tempModifiedImage.StreamSource = _modifiedImageStream;
-        //        tempModifiedImage.EndInit();
-        //        SelectedImage = tempModifiedImage;
-        //    }
-        //    else if (!string.IsNullOrEmpty(SelectedImagePath))
-        //    {
-        //        SelectedImage = new BitmapImage(new Uri(SelectedImagePath));
-        //    }
-        //    else
-        //    {
-        //        // Set the default placeholder image
-        //        SelectedImage = new BitmapImage(new Uri("pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png"));
-        //    }
+            _tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
+
+            if (!Directory.Exists(_tempDir))
+                Directory.CreateDirectory(_tempDir);
         }
 
         /// <summary>
-        /// Updates the selected image with user defined brightnesss, contrast, and saturation values
+        /// Adjust the image and save to a temp JPG — always overwrite safely.
         /// </summary>
-        /// <param name="brightness">User Defined Brightness</param>
-        /// <param name="contrast">User Defined Contrast</param>
-        /// <param name="saturation">User Defined Saturation</param>
-        internal void UpdateSelectedImage(int brightness, int contrast, int saturation)
+        /// <summary>
+        /// Adjusts brightness/contrast/saturation and returns a new BitmapImage in memory.
+        /// </summary>
+        public BitmapImage AdjustImage(BitmapImage original, int brightness, int contrast, int saturation)
         {
-            //if (!string.IsNullOrEmpty(SelectedImagePath))
-            //{
-            //    byte[] imageBytes = File.ReadAllBytes(SelectedImagePath);
-            //    using (MemoryStream inStream = new MemoryStream(imageBytes))
-            //    {
-            //        using (ImageFactory imageFactory = new ImageFactory(preserveExifData: true))
-            //        {
-            //            hasUserModifiedImage = true;
-            //            imageFactory.Load(inStream);
-            //            imageFactory.Brightness(brightness);
-            //            imageFactory.Contrast(contrast);
-            //            imageFactory.Saturation(saturation);
-            //            imageFactory.Save(_modifiedImageStream);
-            //            LoadImage();
-            //        }
-            //    }
-            //}
+            if (original == null)
+                return null;
+
+            // Convert BitmapImage → bytes
+            byte[] inputBytes;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                BitmapEncoder encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(original));
+                encoder.Save(ms);
+                inputBytes = ms.ToArray();
+            }
+
+            byte[] outputBytes;
+
+            using (ImageFactory factory = new ImageFactory(preserveExifData: true))
+            using (MemoryStream inStream = new MemoryStream(inputBytes))
+            using (MemoryStream outStream = new MemoryStream())
+            {
+                factory.Load(inStream)
+                       .Brightness(brightness)
+                       .Contrast(contrast)
+                       .Saturation(saturation)
+                       .Save(outStream);
+
+                outputBytes = outStream.ToArray();
+            }
+
+            // Convert bytes → BitmapImage
+            BitmapImage adjusted = new BitmapImage();
+            using (MemoryStream ms = new MemoryStream(outputBytes))
+            {
+                adjusted.BeginInit();
+                adjusted.CacheOption = BitmapCacheOption.OnLoad;
+                adjusted.StreamSource = ms;
+                adjusted.EndInit();
+            }
+
+            adjusted.Freeze(); // important for UI thread safety
+            return adjusted;
         }
 
-        /// <summary>
-        /// Saves the temporary image to a temp folder in JPG format
-        /// </summary>
-        /// <returns>String of location saved</returns>
-        public string AdjustImage(BitmapImage original, int brightness, int contrast, int saturation)
+        public BitmapImage LoadBitmapFully(string filePath)
         {
-            string tempPath = string.Empty;
-            //if (hasUserModifiedImage)
-            //{
-            //    byte[] imageBytes = File.ReadAllBytes(SelectedImagePath);
-            //    using (MemoryStream inStream = new MemoryStream(imageBytes))
-            //    {
-            //        using (ImageFactory imageFactory = new ImageFactory(preserveExifData: true))
-            //        {
-            //            tempPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp", SelectedImageName + ".jpg");
-            //            imageFactory.Load(inStream);
-            //            imageFactory.Brightness(_sliderBrightness);
-            //            imageFactory.Contrast(_sliderContrast);
-            //            imageFactory.Saturation(_sliderSaturation);
-            //            // Delete old temp file if exists since it won't overwrite
-            //            File.Delete(tempPath);
-            //            imageFactory.Save(tempPath);
-            //        }
-            //    }
-            //}
-            return tempPath;
+            if (!File.Exists(filePath))
+                return null;
+
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad; // ⭐ Load FULLY into memory
+                bitmap.StreamSource = stream;
+                bitmap.EndInit();
+                bitmap.Freeze(); // ⭐ Make it safe for cross-thread use
+                return bitmap;
+            }
         }
     }
 }
