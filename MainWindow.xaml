@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MURDOC_2024"
+        xmlns:controls="clr-namespace:MURDOC_2024.UserControls"
         mc:Ignorable="d"
         Height="995" Width="1840"
         ResizeMode="NoResize"
@@ -21,212 +22,33 @@
             <StackPanel Grid.Column="0" Background="LightGray" Margin="5,5,441,5" Grid.ColumnSpan="2">
 
                 <StackPanel Orientation="Horizontal">
-                    <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Height="315">
-                        <!-- Image file select/browse button and text box -->
-                        <Label Content="Select image:" FontWeight="Bold"/>
-
-                        <StackPanel Orientation="Horizontal" Margin="5, -5, 5, 5">
-                            <TextBox Text="{Binding SelectedImageFileName, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
-                            <Button Content="Browse" Command="{Binding BrowseCommand}" Margin="5,5,5,5" />
-                        </StackPanel>
-
-                        <!-- Image Adjustment controls: Brightness, Contrast, Saturation -->
-                        <StackPanel VerticalAlignment="Center">
-                            <DockPanel VerticalAlignment="Center" Margin="5">
-                                <Label DockPanel.Dock="Left" FontWeight="Bold">Brightness:</Label>
-                                <TextBox Text="{Binding ElementName=sliderBrightness, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                                <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderBrightness" Value="{Binding SliderBrightness}" />
-                            </DockPanel>
-
-                            <DockPanel VerticalAlignment="Center" Margin="5">
-                                <Label DockPanel.Dock="Left" Width="72" FontWeight="Bold">Contrast:</Label>
-                                <TextBox Text="{Binding ElementName=sliderContrast, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                                <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderContrast" Value="{Binding SliderContrast}"/>
-                            </DockPanel>
-
-                            <DockPanel VerticalAlignment="Center" Margin="5">
-                                <Label DockPanel.Dock="Left" FontWeight="Bold">Saturation:</Label>
-                                <TextBox Text="{Binding ElementName=sliderSaturation, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                                <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderSaturation" Value="{Binding SliderSaturation}"/>
-                            </DockPanel>
-                        </StackPanel>
-
-                        <!-- Model controls: Run models to gather prediction and outputs -->
-                        <Button Content="Run Models" Command="{Binding RunCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
-
-                        <!-- Reset control: clears the GUI -->
-                        <Button Content="Reset" Command="{Binding ResetCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
-                    </StackPanel>
+                    <!-- Image Selection and Control Pane -->
+                    <controls:ImageControlPane DataContext="{Binding ImageControlVM}"/>
 
                     <!-- Selected Image -->
-                    <StackPanel Orientation="Vertical" Margin="5" Width="450" Height="320">
-                        <Label Content="Input" FontWeight="Bold" Margin="10,0,0,0"/>
-                        <Image Source="{Binding SelectedImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="300" />
-                    </StackPanel>
+                    <controls:InputImagePane DataContext="{Binding InputImageVM}"/>
 
                     <!-- Preview for mouse over -->
-                    <StackPanel Orientation="Vertical" Margin="5" Width="450" Height="320">
-                        <Label Content="Preview" FontWeight="Bold" Margin="5,0,20,0"/>
-                        <Image Source="{Binding PreviewImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="300" />
-                    </StackPanel>
+                    <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}"/>
 
                     <!-- IAI Output Message -->
-                    <StackPanel Orientation="Vertical" Margin="5" Width="300" Height="270">
-                        <Label Content="Informative AI Output" FontWeight="Bold" Margin="5,0,20,0"/>
-                        <TextBlock Text="{Binding IAIOutputMessage}" FontSize="14" TextWrapping="Wrap" Height="Auto" Width="280"/>
-                    </StackPanel>
-                    
-                    <!-- Python Metric Output -->
-                    <StackPanel Orientation="Vertical" Margin="5">
-                        <TextBox Text="{Binding PythonOutput}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Height="100" Visibility="Collapsed"/>
-                    </StackPanel>
+                    <controls:IAIOutputPane />
+
+                    <!-- MICA Control Pane -->
+                    <controls:MICAControlPane />
                 </StackPanel>
 
 
                 <StackPanel Orientation="Vertical" Margin="5" MaxHeight="610">
                     <StackPanel Orientation="Horizontal">
-                        <!-- RankNet -->
-                        <StackPanel Orientation="Vertical">
-
-                            <Label Content="RankNet" FontWeight="Bold" Margin="10,0,0,0"/>
-
-                            <StackPanel Orientation="Horizontal" MaxHeight="600">
-                                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="580">
-                                    <DockPanel>
-                                        <TextBlock DockPanel.Dock="Top" Text="Localization" FontWeight="DemiBold" HorizontalAlignment="Left" Margin="10,5,5,0"/>
-
-                                        <StackPanel Orientation="Horizontal" Margin="15,0,0,0">
-
-                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-
-                                                <StackPanel Orientation="Vertical">
-                                                    <Image Source="{Binding RankNetX1Image}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
-                                                    <Label Content="Stage 1" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
-
-                                                <StackPanel Orientation="Vertical">
-                                                    <Image Source="{Binding RankNetX2Image}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter"/>
-                                                    <Label Content="Stage 2" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
-
-                                                <StackPanel Orientation="Vertical">
-                                                    <Image Source="{Binding RankNetX3Image}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
-                                                    <Label Content="Stage 3" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
-
-                                                <StackPanel Orientation="Vertical">
-                                                    <Image Source="{Binding RankNetX4Image}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left"  MouseEnter="LocalizationImage_MouseEnter" />
-                                                    <Label Content="Stage 4" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2198;" VerticalAlignment="Center" Foreground="Black" Margin="0,0,0,0"/>
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2198;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2197;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2197;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                                <Image Source="{Binding RankNetFixationDecoderImage}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" Height="Auto" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
-                                                <Label Content="Fixation Decoder"/>
-                                            </StackPanel>
-
-                                            <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="0"/>
-
-                                            <StackPanel Orientation="Vertical" Margin="5,15,0,0" VerticalAlignment="Center">
-                                                <Image Source="{Binding FixationGradCAMImage}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" Height="Auto" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
-                                                <Label Content="Grad-CAM Output"  HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </DockPanel>
-
-                                </Border>
-
-                                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="580">
-                                    <DockPanel>
-                                        <TextBlock DockPanel.Dock="Top" Text="Ranking" FontWeight="DemiBold" HorizontalAlignment="Left" Margin="10,5,5,0"/>
-
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
-
-                                            <StackPanel Orientation="Vertical">
-                                                <StackPanel Orientation="Vertical">
-                                                    <Image Source="{Binding RankNetX2_2Image}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
-                                                    <Label Content="Stage 2__2" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
-
-                                                <StackPanel Orientation="Vertical">
-                                                    <Image Source="{Binding RankNetX3_2Image}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
-                                                    <Label Content="Stage 3__2" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
-
-                                                <StackPanel Orientation="Vertical">
-                                                    <Image Source="{Binding RankNetX4_2Image}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
-                                                    <Label Content="Stage 4__2" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="30" FontWeight="Bold" Text="&#x2193;" HorizontalAlignment="Center" VerticalAlignment="Top" Foreground="Black" Margin="0"/>
-
-                                                <StackPanel Orientation="Vertical">
-                                                    <Image Source="{Binding RankNetRef_PredImage}" Margin="0" Stretch="Uniform" MaxWidth="60" Height="Auto" HorizontalAlignment="Left" MouseEnter="LocalizationImage_MouseEnter" />
-                                                    <Label Content="Ref__Pred" HorizontalAlignment="Center"/>
-                                                </StackPanel>
-
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2198;" VerticalAlignment="Center" Foreground="Black" Margin="0,0,0,0"/>
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2198;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2197;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
-                                                <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2197;" VerticalAlignment="Center" Foreground="Black" Margin="0,50,0,0"/>
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                                                <Image Source="{Binding RankNetCamouflageDecoderImage}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" MaxHeight="200" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
-                                                <Label Content="Camouflage Decoder"/>
-                                            </StackPanel>
-
-                                            <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="0"/>
-
-                                            <StackPanel Orientation="Vertical" Margin="5,15,0,0" VerticalAlignment="Center">
-                                                <Image Source="{Binding CamouflageGradCAMImage}" Margin="0,0,5,5" Stretch="Uniform" MaxWidth="80" MaxHeight="200" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
-                                                <Label Content="Grad-CAM Output"  HorizontalAlignment="Center"/>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </DockPanel>
-                                </Border>
-                            </StackPanel>
-
-                        </StackPanel>
+                        <!-- RankNet Output Pane -->
+                        <controls:RankNetOutputPane DataContext="{Binding RankNetVM}" />
 
                         <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
 
-                        <StackPanel Orientation="Vertical">
-                            <Label Content="EfficientDet-D7" FontWeight="Bold" Width="250" Margin="10,0,0,0"/>
+                        <!-- EfficientDetD7 Output Pane -->
+                        <controls:EfficientDetD7OutputPane DataContext="{Binding EfficientDetVM}" />
 
-                            <Border BorderBrush="DarkGray" BorderThickness="1" Height="580">
-                                <DockPanel>
-
-                                    <StackPanel Orientation="Vertical">
-                                        <Image Source="{Binding WeakAreaCamoImage}" Margin="10" Stretch="Uniform" MaxWidth="200" Height="Auto" HorizontalAlignment="Center" MouseEnter="LocalizationImage_MouseEnter" />
-
-                                        <TextBlock Text="{Binding WeakAreaCamoDescription}" Margin="5,2" TextWrapping="Wrap" Width="200" Height="Auto"/>
-                                    </StackPanel>
-
-
-                                </DockPanel>
-                            </Border>
-                        </StackPanel>
 
                         <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
 

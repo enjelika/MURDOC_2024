@@ -1,5 +1,4 @@
 ﻿using MURDOC_2024.ViewModel;
-using System.Threading;
 using System;
 using System.Windows;
 
@@ -64,7 +63,7 @@ namespace MURDOC_2024
                 var viewModel = DataContext as MainWindowViewModel;
                 if (viewModel != null)
                 {
-                    viewModel.HandlePreviewImageChanged(imageItem.Source.ToString());
+                    //viewModel.PreviewVM.UpdatePreview(img.Source.ToString());
                 }
             }
         }

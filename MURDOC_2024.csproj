@@ -88,9 +88,38 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Services\ImageService.cs" />
+    <Compile Include="Services\PythonModelService.cs" />
+    <Compile Include="UserControls\EfficientDetD7OutputPane.xaml.cs">
+      <DependentUpon>EfficientDetD7OutputPane.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\IAIOutputPane.xaml.cs">
+      <DependentUpon>IAIOutputPane.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\ImageControlPane.xaml.cs">
+      <DependentUpon>ImageControlPane.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\InputImagePane.xaml.cs">
+      <DependentUpon>InputImagePane.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\MICAControlPane.xaml.cs">
+      <DependentUpon>MICAControlPane.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\PreviewImagePane.xaml.cs">
+      <DependentUpon>PreviewImagePane.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\RankNetOutputPane.xaml.cs">
+      <DependentUpon>RankNetOutputPane.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ViewModel\EfficientDetD7ViewModel.cs" />
     <Compile Include="ViewModel\ImageCleaner.cs" />
+    <Compile Include="ViewModel\ImageControlPaneViewModel.cs" />
+    <Compile Include="ViewModel\InputImagePaneViewModel.cs" />
     <Compile Include="ViewModel\MainWindowViewModel.cs" />
+    <Compile Include="ViewModel\PreviewPaneViewModel.cs" />
+    <Compile Include="ViewModel\RankNetPaneViewModel.cs" />
     <Compile Include="ViewModel\RelayCommand.cs" />
+    <Compile Include="ViewModel\ViewModelBase.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -103,6 +132,34 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="UserControls\EfficientDetD7OutputPane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\IAIOutputPane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\ImageControlPane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\InputImagePane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\MICAControlPane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\PreviewImagePane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\RankNetOutputPane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
