@@ -49,16 +49,10 @@
                         <!-- EfficientDetD7 Output Pane -->
                         <controls:EfficientDetD7OutputPane DataContext="{Binding EfficientDetVM}" />
 
-
                         <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
 
-                        <StackPanel Background="LightGray" Orientation="Vertical" HorizontalAlignment="Right" Width="718" Margin="5">
-                            <Label Content="Final Prediction" HorizontalAlignment="Center" FontWeight="Bold" Margin="0"/>
-                            <StackPanel Orientation="Horizontal" Margin="20">
-                                <Image Source="{Binding FACEPredictionImage}" Margin="5" Stretch="Uniform" MaxWidth="700" Height="Auto" HorizontalAlignment="Left" />
-                            </StackPanel>
-                        </StackPanel>
-
+                        <!-- Final Prediction Output Pane -->
+                        <controls:FinalPredictionPane DataContext="{Binding FinalImagePrediction}"/>
                     </StackPanel>
 
 

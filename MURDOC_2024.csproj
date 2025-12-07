@@ -93,6 +93,9 @@
     <Compile Include="UserControls\EfficientDetD7OutputPane.xaml.cs">
       <DependentUpon>EfficientDetD7OutputPane.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UserControls\FinalPredictionPane.xaml.cs">
+      <DependentUpon>FinalPredictionPane.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UserControls\IAIOutputPane.xaml.cs">
       <DependentUpon>IAIOutputPane.xaml</DependentUpon>
     </Compile>
@@ -112,8 +115,8 @@
       <DependentUpon>RankNetOutputPane.xaml</DependentUpon>
     </Compile>
     <Compile Include="ViewModel\EfficientDetD7ViewModel.cs" />
+    <Compile Include="ViewModel\FinalPredictionPaneViewModel.cs" />
     <Compile Include="ViewModel\IAIOutputPaneViewModel.cs" />
-    <Compile Include="ViewModel\ImageCleaner.cs" />
     <Compile Include="ViewModel\ImageControlPaneViewModel.cs" />
     <Compile Include="ViewModel\InputImagePaneViewModel.cs" />
     <Compile Include="ViewModel\MainWindowViewModel.cs" />
@@ -134,6 +137,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="UserControls\EfficientDetD7OutputPane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\FinalPredictionPane.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

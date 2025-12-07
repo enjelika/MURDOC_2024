@@ -56,6 +56,7 @@ namespace MURDOC_2024.ViewModel
         public IAIOutputPaneViewModel IAIOutputVM { get; }
         public RankNetViewModel RankNetVM { get; }
         public EfficientDetD7ViewModel EfficientDetVM { get; }
+        public FinalPredictionPaneViewModel FinalPredictionVM { get; }
 
         public MainWindowViewModel()
         {
@@ -80,6 +81,7 @@ namespace MURDOC_2024.ViewModel
 
             RankNetVM = new RankNetViewModel(previewPath => HandlePreviewImageChanged(previewPath));
             EfficientDetVM = new EfficientDetD7ViewModel(HandlePreviewImageChanged);
+            FinalPredictionVM = new FinalPredictionPaneViewModel();
         }
 
         /// <summary>
@@ -254,12 +256,14 @@ namespace MURDOC_2024.ViewModel
                 string offrampsFolderPath = Path.Combine(exeDir, "offramp_output_images");
                 string outputsFolderPath = Path.Combine(exeDir, "outputs", selectedName);
                 string detectionFolderPath = Path.Combine(exeDir, "detection_results");
+                string predictionFolderPath = Path.Combine(exeDir, "results");
 
                 // Load results on background thread, but UI updates will be handled by ViewModels
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     RankNetVM.LoadResults(offrampsFolderPath, outputsFolderPath);
                     EfficientDetVM.LoadResults(detectionFolderPath, outputsFolderPath, selectedName);
+                    FinalPredictionVM.LoadResult(predictionFolderPath, "segmented_"+ selectedName);
                 });
             }
             catch (Exception ex)
