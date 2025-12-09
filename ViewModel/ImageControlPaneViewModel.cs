@@ -1,7 +1,6 @@
-﻿using Microsoft.Win32;
-using System;
-using System.IO;
+﻿using System;
 using System.Windows.Input;
+using MURDOC_2024.ViewModel;
 
 namespace MURDOC_2024.ViewModel
 {
@@ -12,114 +11,32 @@ namespace MURDOC_2024.ViewModel
         private readonly Action<string> _imageSelectedAction;
         private readonly Action<int, int, int> _slidersChangedAction;
 
+        private bool _isRunButtonEnabled;
+        private bool _isBrowseEnabled;
+        private bool _isResetEnabled;
+
+        // Commands
+        private readonly RelayCommand _browseCommand;
         private readonly RelayCommand _runCommand;
         private readonly RelayCommand _resetCommand;
-        private readonly RelayCommand _browseCommand;
 
         public ICommand BrowseCommand => _browseCommand;
         public ICommand RunCommand => _runCommand;
         public ICommand ResetCommand => _resetCommand;
 
-        public ImageControlViewModel(
-            Action runModelsAction,
-            Action resetAction,
-            Action<string> imageSelectedAction,
-            Action<int, int, int> slidersChangedAction)
-        {
-            _runModelsAction = runModelsAction ?? throw new ArgumentNullException(nameof(runModelsAction));
-            _resetAction = resetAction ?? throw new ArgumentNullException(nameof(resetAction));
-            _imageSelectedAction = imageSelectedAction ?? throw new ArgumentNullException(nameof(imageSelectedAction));
-            _slidersChangedAction = slidersChangedAction;
-
-            _browseCommand = new RelayCommand(_ => ExecuteBrowseCommand(), _ => CanBrowse);
-            _runCommand = new RelayCommand(_ => ExecuteRunCommand(), _ => CanRun);
-            _resetCommand = new RelayCommand(_ => ExecuteResetCommand(), _ => CanReset);
-
-            IsRunButtonEnabled = false;
-            IsBrowseEnabled = true;
-        }
-
-        // =======================
-        // Properties
-        // =======================
-
-        private string _selectedImageFileName;
-        public string SelectedImageFileName
-        {
-            get => _selectedImageFileName;
-            set => SetProperty(ref _selectedImageFileName, value);
-        }
-
-        private string _selectedImagePath;
-        public string SelectedImagePath
-        {
-            get => _selectedImagePath;
-            set
-            {
-                if (SetProperty(ref _selectedImagePath, value))
-                {
-                    IsRunButtonEnabled = !string.IsNullOrEmpty(value) && !IsModelRunning;
-                    UpdateCommandStates();
-                }
-            }
-        }
-
-        private int _sliderBrightness;
-        public int SliderBrightness
-        {
-            get => _sliderBrightness;
-            set
-            {
-                if (SetProperty(ref _sliderBrightness, value))
-                {
-                    _slidersChangedAction?.Invoke(
-                        SliderBrightness, SliderContrast, SliderSaturation);
-                }
-            }
-        }
-
-        private int _sliderContrast;
-        public int SliderContrast
-        {
-            get => _sliderContrast;
-            set
-            {
-                if (SetProperty(ref _sliderContrast, value))
-                {
-                    _slidersChangedAction?.Invoke(
-                        SliderBrightness, SliderContrast, SliderSaturation);
-                }
-            }
-        }
-
-        private int _sliderSaturation;
-        public int SliderSaturation
-        {
-            get => _sliderSaturation;
-            set
-            {
-                if (SetProperty(ref _sliderSaturation, value))
-                {
-                    _slidersChangedAction?.Invoke(
-                        SliderBrightness, SliderContrast, SliderSaturation);
-                }
-            }
-        }
-
-        private bool _isRunEnabled;
         public bool IsRunButtonEnabled
         {
-            get => _isRunEnabled;
+            get => _isRunButtonEnabled;
             set
             {
-                if (SetProperty(ref _isRunEnabled, value))
+                if (SetProperty(ref _isRunButtonEnabled, value))
                 {
+                    // Notify commands that their CanExecute may have changed
                     _runCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
 
-        private bool _isBrowseEnabled = true;
         public bool IsBrowseEnabled
         {
             get => _isBrowseEnabled;
@@ -132,96 +49,137 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
-        private bool _isModelRunning;
-        public bool IsModelRunning
+        public bool IsResetEnabled
         {
-            get => _isModelRunning;
+            get => _isResetEnabled;
             set
             {
-                if (SetProperty(ref _isModelRunning, value))
+                if (SetProperty(ref _isResetEnabled, value))
                 {
-                    UpdateCommandStates();
-                    OnPropertyChanged(nameof(IsNotRunning));
+                    _resetCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
 
-        public bool IsNotRunning => !IsModelRunning;
-
-        // =======================
-        // Command Execution
-        // =======================
-
-        private bool CanBrowse => !IsModelRunning;
-        private bool CanRun => !string.IsNullOrEmpty(SelectedImagePath) && !IsModelRunning;
-        private bool CanReset => !IsModelRunning;
-
-        /// <summary>
-        /// Updates all command states - call this when model running state changes
-        /// </summary>
-        public void UpdateCommandStates()
+        public ImageControlViewModel(
+            Action runModelsAction,
+            Action resetAction,
+            Action<string> imageSelectedAction,
+            Action<int, int, int> slidersChangedAction)
         {
-            IsRunButtonEnabled = CanRun;
-            IsBrowseEnabled = CanBrowse;
+            _runModelsAction = runModelsAction ?? throw new ArgumentNullException(nameof(runModelsAction));
+            _resetAction = resetAction ?? throw new ArgumentNullException(nameof(resetAction));
+            _imageSelectedAction = imageSelectedAction ?? throw new ArgumentNullException(nameof(imageSelectedAction));
+            _slidersChangedAction = slidersChangedAction;
 
-            _runCommand?.RaiseCanExecuteChanged();
-            _browseCommand?.RaiseCanExecuteChanged();
-            _resetCommand?.RaiseCanExecuteChanged();
+            // FIXED: Use parameterless RelayCommand constructor since we're not using command parameters
+            _browseCommand = new RelayCommand(
+                execute: () => ExecuteBrowseCommand(),
+                canExecute: () => CanBrowse());
+
+            _runCommand = new RelayCommand(
+                execute: () => ExecuteRunCommand(),
+                canExecute: () => CanRun());
+
+            _resetCommand = new RelayCommand(
+                execute: () => ExecuteResetCommand(),
+                canExecute: () => CanReset());
+
+            // Initialize states
+            IsRunButtonEnabled = false;
+            IsBrowseEnabled = true;
+            IsResetEnabled = false; // Typically starts disabled until there's something to reset
         }
 
+        // Execute methods
         private void ExecuteBrowseCommand()
         {
-            if (IsModelRunning)
-                return;
-
-            var openFileDialog = new OpenFileDialog
+            // Your browse logic here
+            // For example:
+            var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp",
-                Title = "Select an Image for Camouflage Detection"
+                Filter = "Image files (*.jpg, *.jpeg, *.png)|*.jpg;*.jpeg;*.png|All files (*.*)|*.*"
             };
 
-            if (openFileDialog.ShowDialog() == true)
+            if (dialog.ShowDialog() == true)
             {
-                var fullPath = openFileDialog.FileName;
-
-                SelectedImagePath = fullPath;
-                SelectedImageFileName = Path.GetFileName(fullPath);
-
-                // Notify the parent viewmodel
-                _imageSelectedAction?.Invoke(fullPath);
+                _imageSelectedAction?.Invoke(dialog.FileName);
+                IsRunButtonEnabled = true;
+                IsResetEnabled = true;
             }
         }
 
         private void ExecuteRunCommand()
         {
-            if (!CanRun)
-                return;
-
-            IsModelRunning = true;
-
-            try
-            {
-                _runModelsAction();
-            }
-            finally
-            {
-                // The parent ViewModel should handle setting this back to false
-                // when the async operation completes
-            }
+            _runModelsAction?.Invoke();
         }
 
         private void ExecuteResetCommand()
         {
-            if (IsModelRunning)
-                return;
+            _resetAction?.Invoke();
+            IsRunButtonEnabled = false;
+            IsResetEnabled = false;
+            IsBrowseEnabled = true;
+        }
 
-            SelectedImagePath = null;
-            SelectedImageFileName = null;
-            SliderBrightness = 0;
-            SliderContrast = 0;
-            SliderSaturation = 0;
+        // CanExecute methods - return bool, not use properties directly
+        private bool CanBrowse()
+        {
+            return IsBrowseEnabled;
+        }
 
-            _resetAction();
+        private bool CanRun()
+        {
+            return IsRunButtonEnabled;
+        }
+
+        private bool CanReset()
+        {
+            return IsResetEnabled;
+        }
+
+        // Method to update command states when parent VM changes running state
+        public void UpdateCommandStates()
+        {
+            _browseCommand?.RaiseCanExecuteChanged();
+            _runCommand?.RaiseCanExecuteChanged();
+            _resetCommand?.RaiseCanExecuteChanged();
+        }
+
+        // Call this method when the parent's IsRunningModels changes
+        public void SetButtonStates(bool isRunning)
+        {
+            if (isRunning)
+            {
+                // Disable all buttons during model execution
+                IsBrowseEnabled = false;
+                IsRunButtonEnabled = false;
+                IsResetEnabled = false;
+            }
+            else
+            {
+                // Re-enable appropriate buttons after execution
+                IsBrowseEnabled = true;
+                IsRunButtonEnabled = !string.IsNullOrEmpty(SelectedImagePath);
+                IsResetEnabled = !string.IsNullOrEmpty(SelectedImagePath);
+            }
+
+            UpdateCommandStates();
+        }
+
+        // Add property for selected image path if needed
+        private string _selectedImagePath;
+        public string SelectedImagePath
+        {
+            get => _selectedImagePath;
+            set
+            {
+                if (SetProperty(ref _selectedImagePath, value))
+                {
+                    IsRunButtonEnabled = !string.IsNullOrEmpty(value);
+                    IsResetEnabled = !string.IsNullOrEmpty(value);
+                }
+            }
         }
     }
 }

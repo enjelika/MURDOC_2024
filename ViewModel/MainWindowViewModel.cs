@@ -8,7 +8,7 @@ using System.Windows.Media.Imaging;
 
 namespace MURDOC_2024.ViewModel
 {
-    public class MainWindowViewModel : ViewModelBase
+    public class MainWindowViewModel : ViewModelBase, IDisposable
     {
         private string _selectedImagePath;
         private BitmapImage _previewImage;
@@ -41,8 +41,12 @@ namespace MURDOC_2024.ViewModel
                     // Notify the UI that the running state has changed
                     OnPropertyChanged(nameof(IsNotRunningModels));
 
-                    // Update command can execute state
-                    ImageControlVM?.UpdateCommandStates();
+                    // Force command state updates on UI thread
+                    Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        ImageControlVM?.UpdateCommandStates();
+                        CommandManager.InvalidateRequerySuggested();
+                    });
                 }
             }
         }
@@ -69,7 +73,7 @@ namespace MURDOC_2024.ViewModel
             IAIOutputVM = new IAIOutputPaneViewModel();
 
             ImageControlVM = new ImageControlViewModel(
-                runModelsAction: () => RunModelsCommand(), // Changed from async void
+                runModelsAction: () => RunModelsCommand(),
                 resetAction: ResetAll,
                 imageSelectedAction: path =>
                 {
@@ -104,6 +108,15 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        private void LogStateChange(string context)
+        {
+            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {context}:");
+            System.Diagnostics.Debug.WriteLine($"  IsRunningModels: {IsRunningModels}");
+            System.Diagnostics.Debug.WriteLine($"  IsNotRunningModels: {IsNotRunningModels}");
+            System.Diagnostics.Debug.WriteLine($"  Thread: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+            System.Diagnostics.Debug.WriteLine($"  IsUIThread: {Application.Current.Dispatcher.CheckAccess()}");
+        }
+
         /// <summary>
         /// Properly async method for running models
         /// </summary>
@@ -114,9 +127,12 @@ namespace MURDOC_2024.ViewModel
 
             try
             {
+                LogStateChange("Before setting IsRunningModels = true");
+                // Set running state - this will disable buttons
                 IsRunningModels = true;
+                LogStateChange("After setting IsRunningModels = true");
 
-                // Set cursor on UI thread
+                // Set wait cursor on UI thread
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     Mouse.OverrideCursor = Cursors.Wait;
@@ -125,25 +141,13 @@ namespace MURDOC_2024.ViewModel
                 string imageToProcess = GetImageToUse();
                 string iaiMessage = null;
 
-                // Run Python models on background thread
-                await Task.Run(async () =>
-                {
-                    try
-                    {
-                        // Run Python model (this will handle GIL internally)
-                        iaiMessage = await RunPythonModelAsync(imageToProcess);
+                // Run Python model (long-running operation)
+                iaiMessage = await RunPythonModelAsync(imageToProcess);
 
-                        // Load output images on background thread
-                        await Task.Run(() => LoadModelOutputs());
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error in model execution: {ex.Message}");
-                        throw;
-                    }
-                });
+                // Load outputs
+                await Task.Run(() => LoadModelOutputs());
 
-                // Update UI on UI thread
+                // Update UI with results
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     IAIOutputVM.IAIOutputMessage = iaiMessage ?? "Model execution completed.";
@@ -151,6 +155,7 @@ namespace MURDOC_2024.ViewModel
             }
             catch (Exception ex)
             {
+                LogStateChange("In catch block");
                 Console.WriteLine($"Error in RunModelsAsync: {ex.Message}");
 
                 await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -162,33 +167,38 @@ namespace MURDOC_2024.ViewModel
             }
             finally
             {
-                // Always restore cursor and state on UI thread
+                LogStateChange("Before setting IsRunningModels = false");
+
+                // Restore cursor on UI thread
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     Mouse.OverrideCursor = null;
-                    IsRunningModels = false;
+                });
+
+                // IMPORTANT: Set IsRunningModels to false OUTSIDE of Dispatcher.Invoke
+                // This ensures property change notifications work correctly
+                IsRunningModels = false;
+                LogStateChange("After setting IsRunningModels = false");
+
+                // Additional safety: Force a final command update after a small delay
+                await Task.Delay(100);
+                LogStateChange("After delay, forcing command update");
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    ImageControlVM?.UpdateCommandStates();
+                    CommandManager.InvalidateRequerySuggested();
+                    LogStateChange("After forcing command update");
                 });
             }
         }
 
         /// <summary>
-        /// Wrapper for Python execution to handle async properly
+        /// Simplified wrapper: Directly returns the Task created by the PythonModelService.
         /// </summary>
-        private Task<string> RunPythonModelAsync(string imagePath)
+        private async Task<string> RunPythonModelAsync(string imagePath)
         {
-            return Task.Run(() =>
-            {
-                try
-                {
-                    // This runs on a background thread
-                    return _python.RunIAIModels(imagePath);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Python execution error: {ex.Message}");
-                    throw;
-                }
-            });
+            return await Task.Run(() => _python.RunIAIModelsBypassAsync(imagePath));
         }
 
         private void ResetAll()
@@ -204,6 +214,11 @@ namespace MURDOC_2024.ViewModel
 
             RankNetVM.Clear();
             EfficientDetVM.Clear();
+            FinalPredictionVM.Clear();
+
+            // Force command updates after reset
+            ImageControlVM?.UpdateCommandStates();
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private void AdjustInputImage(int brightness, int contrast, int saturation)
@@ -258,12 +273,12 @@ namespace MURDOC_2024.ViewModel
                 string detectionFolderPath = Path.Combine(exeDir, "detection_results");
                 string predictionFolderPath = Path.Combine(exeDir, "results");
 
-                // Load results on background thread, but UI updates will be handled by ViewModels
+                // Load results on UI thread
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     RankNetVM.LoadResults(offrampsFolderPath, outputsFolderPath);
                     EfficientDetVM.LoadResults(detectionFolderPath, outputsFolderPath, selectedName);
-                    FinalPredictionVM.LoadResult(predictionFolderPath, "segmented_"+ selectedName);
+                    FinalPredictionVM.LoadResult(predictionFolderPath, "segmented_" + selectedName);
                 });
             }
             catch (Exception ex)
@@ -288,6 +303,13 @@ namespace MURDOC_2024.ViewModel
             {
                 Console.WriteLine($"Error updating preview: {ex.Message}");
             }
+        }
+
+        public void Dispose()
+        {
+            // Safely dispose of the Python service
+            (_python as IDisposable)?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

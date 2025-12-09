@@ -52,7 +52,7 @@
                         <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
 
                         <!-- Final Prediction Output Pane -->
-                        <controls:FinalPredictionPane DataContext="{Binding FinalImagePrediction}"/>
+                        <controls:FinalPredictionPane DataContext="{Binding FinalPredictionVM}"/>
                     </StackPanel>
 
 

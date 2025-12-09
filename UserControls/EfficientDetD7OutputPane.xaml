@@ -16,7 +16,7 @@
                     <StackPanel Orientation="Vertical">
                         <Image Source="{Binding DetectionImage}" Margin="10" Stretch="Uniform" MaxWidth="200" Height="Auto" MaxHeight="400" HorizontalAlignment="Center" MouseEnter="EfficientDetImage_MouseEnter" />
 
-                        <Label Content="Text Output:" FontWeight="Bold"/>
+                        <Label Content="Text Output:" FontWeight="DemiBold"/>
 
                         <TextBlock Text="{Binding DetectionText}" Margin="5,2" TextWrapping="Wrap" Width="200" Height="Auto"/>
                     </StackPanel>

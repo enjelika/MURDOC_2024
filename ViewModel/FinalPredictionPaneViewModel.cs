@@ -13,6 +13,10 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _finalImagePrediction, value);
         }
 
+        private readonly string _placeholder =
+            "pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png";
+
+
         public void LoadImage(string imagePath)
         {
             if (string.IsNullOrEmpty(imagePath))
@@ -29,7 +33,17 @@ namespace MURDOC_2024.ViewModel
         // ----------------------------------------------------
         public void LoadResult(string imageFolder, string imageName)
         {
-            FinalImagePrediction = new BitmapImage(new Uri(Path.Combine(imageFolder, imageName+".png")));
+            string path = System.IO.Path.Combine(imageFolder, imageName + ".jpg");
+
+            if (File.Exists(path))
+                FinalImagePrediction = new BitmapImage(new Uri(path));
+            else
+                FinalImagePrediction = new BitmapImage(new Uri(_placeholder));
+        }
+
+        public void Clear()
+        {
+            FinalImagePrediction = null;
         }
     }
 }

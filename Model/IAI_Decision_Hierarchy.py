@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar 27 13:10:39 2023
+Updated on Sun Dec 07 19:09:42 2025 - Lazy Loading
 
 @author: Debra Hogue
 
@@ -42,6 +43,129 @@ from pytorch_grad_cam.utils.image import show_cam_on_image, preprocess_image
 
 from scipy import misc
 from model.ResNet_models import Generator
+
+"""
+===================================================================================================
+    Lazy Loading Manager - Singleton pattern for managing resources
+===================================================================================================
+"""
+class LazyResourceManager:
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(LazyResourceManager, cls).__new__(cls)
+        return cls._instance
+    
+    def __init__(self):
+        # Only initialize once
+        if not LazyResourceManager._initialized:
+            self._cods_model = None
+            self._detect_fn = None
+            self._rd_bl_colormap = None
+            self._bl_gr_rd_bl_colormap = None
+            self._output_dirs_created = False
+            LazyResourceManager._initialized = True
+    
+    @property
+    def cods_model(self):
+        """Lazy load the CODS ResNet model"""
+        if self._cods_model is None:
+            #log_step("Lazy loading CODS model")
+            self._cods_model = self._load_cods_model()
+        return self._cods_model
+    
+    @property
+    def detect_fn(self):
+        """Lazy load the TensorFlow detection model"""
+        if self._detect_fn is None:
+            #log_step("Lazy loading TensorFlow detection model")
+            self._detect_fn = self._load_tensorflow_model()
+        return self._detect_fn
+    
+    @property
+    def RdBl(self):
+        """Lazy load the RdBl colormap"""
+        if self._rd_bl_colormap is None:
+            self._create_colormaps()
+        return self._rd_bl_colormap
+    
+    @property
+    def blGrRdBl(self):
+        """Lazy load the blGrRdBl colormap"""
+        if self._bl_gr_rd_bl_colormap is None:
+            self._create_colormaps()
+        return self._bl_gr_rd_bl_colormap
+    
+    def _load_cods_model(self):
+        """Load the CODS ResNet model"""
+        # Turning off gpu since loading 2 models takes too much VRAM
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        
+        # Loading the model and handling the CUDA availability
+        cods = Generator(channel=32)
+        
+        # Load the model with appropriate handling for CPU-only environments
+        model_path = './models/Resnet/Model_50_gen.pth'
+        if torch.cuda.is_available():
+            cods.load_state_dict(torch.load(model_path))
+            cods.cuda()
+        else:
+            cods.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        
+        cods.eval()
+        return cods
+    
+    def _load_tensorflow_model(self):
+        """Load the TensorFlow detection model"""
+        PATH_TO_SAVED_MODEL = "models/d7_f/saved_model"
+        
+        detect_fn = None
+        with tf.device('/CPU:0'):
+            detect_fn = tf.saved_model.load(PATH_TO_SAVED_MODEL)
+        
+        #log_step("TensorFlow model loaded successfully")
+        return detect_fn
+    
+    def _create_colormaps(self):
+        """Create custom colormaps"""
+        #log_step("Creating custom colormaps")
+        
+        # Create RdBl colormap
+        if 'RdBl' not in plt.colormaps():
+            RdBl_colors = ["black", "black", "red", "red"]
+            self._rd_bl_colormap = color.LinearSegmentedColormap.from_list('RdBl', RdBl_colors)
+            plt.register_cmap(cmap=self._rd_bl_colormap)
+        else:
+            self._rd_bl_colormap = plt.get_cmap('RdBl')
+        
+        # Create blGrRdBl colormap
+        if 'blGrRdBl' not in plt.colormaps():
+            blGrRdBl_colors = ["black", "blue", "green", "red", "red"]
+            self._bl_gr_rd_bl_colormap = color.LinearSegmentedColormap.from_list('blGrRdBl', blGrRdBl_colors)
+            plt.register_cmap(cmap=self._bl_gr_rd_bl_colormap)
+        else:
+            self._bl_gr_rd_bl_colormap = plt.get_cmap('blGrRdBl')
+    
+    def ensure_output_dirs(self):
+        """Create output directories if they haven't been created yet"""
+        if not self._output_dirs_created:
+            #log_step("Creating output directories")
+            for dir in ["figures", "bbox_figures", "jsons", "outputs", "results"]:
+                if not os.path.exists(dir):
+                    os.mkdir(dir)
+            self._output_dirs_created = True
+    
+    def clear_cache(self):
+        """Clear cached models and resources (useful for memory management)"""
+        #log_step("Clearing cached resources")
+        self._cods_model = None
+        self._detect_fn = None
+        torch.cuda.empty_cache()  # Clear GPU cache if using CUDA
+
+# Global instance of the resource manager
+resource_manager = LazyResourceManager()
 
 """
 ===================================================================================================
@@ -150,7 +274,8 @@ def segment_image(original_image, mask_image, rank_mask, alpha=128):
 ===================================================================================================
 """
 def processFixationMap(fix_image):   
-    global blGrRdBl
+    # Get colormap from resource manager
+    blGrRdBl = resource_manager.blGrRdBl
     
     # Input data should range from 0-1
     img_np = np.asarray(fix_image)/255
@@ -179,7 +304,8 @@ def processFixationMap(fix_image):
 ===================================================================================================
 """
 def findAreasOfWeakCamouflage(fix_image):  
-    global RdBl
+    # Get colormap from resource manager
+    RdBl = resource_manager.RdBl
     
     # Input data should range from 0-1
     img_np = np.asarray(fix_image)/255
@@ -282,7 +408,10 @@ def overlap(bbox1,bbox2):
     Lvl 3 - What part of the object breaks the camouflage concealment?
 ===================================================================================================
 """
-def levelThree(original_image, bbox, message, filename, detect_fn):   
+def levelThree(original_image, bbox, message, filename):   
+    # Get detection function from resource manager
+    detect_fn = resource_manager.detect_fn
+    
     y_size, x_size, channel = original_image.shape
     
     label_map = ["leg","mouth","shadow","tail","arm","eye"]
@@ -301,7 +430,7 @@ def levelThree(original_image, bbox, message, filename, detect_fn):
         os.makedirs('detection_results')
     
     for i,s in enumerate(detections['detection_scores'].numpy()[0]):
-        if s > 0.3:
+        if s > 0.05:
             d_class.append(detections['detection_classes'].numpy()[0][i])
             d_box.append(detections['detection_boxes'].numpy()[0][i])
     
@@ -350,7 +479,7 @@ def levelThree(original_image, bbox, message, filename, detect_fn):
         Output: original image & list of bounding boxes
 ===================================================================================================
 """
-def levelTwo(filename, original_image, all_fix_map, fixation_map, message, detect_fn):
+def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
     
     # Mask the red area(s) in the fixation map (weak camouflaged area(s))
     fig, axis = plt.subplots(1,2, figsize=(12,6))
@@ -424,10 +553,9 @@ def levelTwo(filename, original_image, all_fix_map, fixation_map, message, detec
     plt.savefig("bbox_figures/fig_"+filename)
     
     message += "Identified " + str(index-1) + " weak camouflaged area(s).  \n"
-    print("Identified " + str(index-1) + " weak camouflaged area(s).")
     
     # Weak camouflaged area annotated image
-    output = levelThree(original_image, data["weak_area_bbox"], message, filename, detect_fn)
+    output = levelThree(original_image, data["weak_area_bbox"], message, filename)
     
     return output
 
@@ -439,7 +567,7 @@ def levelTwo(filename, original_image, all_fix_map, fixation_map, message, detec
         Output: fix_map (if a camouflaged object is detected)
 ===================================================================================================
 """
-def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, message, detect_fn):
+def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, message):
 
     # Does the numpy array contain any non-zero values?
     all_zeros = not binary_map.any()
@@ -447,13 +575,13 @@ def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, messa
     if all_zeros:
         # No object detected, no need to continue to lower levels
         message += "No object present. \n"
-        print("No object present.")
+        #print("No object present.")
         output = message
     else:
         # Object detected, continue to Lvl 2
         message += "Object present. \n"
-        print("Object detected.")
-        output = levelTwo(filename, original_image, all_fix_map, fix_image, message, detect_fn)
+        #print("Object detected.")
+        output = levelTwo(filename, original_image, all_fix_map, fix_image, message)
         
     return output
 
@@ -486,72 +614,32 @@ def apply_mask(heatmap, mask):
 
 """
 ===================================================================================================
-    IAI Function
+    IAI Function - Main entry point with lazy loading
 ===================================================================================================
 """
-def create_custom_colormaps():
-    log_step("Creating custom colormaps")
+def iaiDecision(file_path, force_reload=False):
+    """
+    Process an image through the IAI decision hierarchy.
     
-    # Create RdBl colormap
-    if 'RdBl' not in plt.colormaps():
-        RdBl_colors = ["black", "black", "red", "red"]
-        RdBl = color.LinearSegmentedColormap.from_list('RdBl', RdBl_colors)
-        plt.register_cmap(cmap=RdBl)
-    else:
-        RdBl = plt.get_cmap('RdBl')
-
-    # Create blGrRdBl colormap
-    if 'blGrRdBl' not in plt.colormaps():
-        blGrRdBl_colors = ["black", "blue", "green", "red", "red"]
-        blGrRdBl = color.LinearSegmentedColormap.from_list('blGrRdBl', blGrRdBl_colors)
-        plt.register_cmap(cmap=blGrRdBl)
-    else:
-        blGrRdBl = plt.get_cmap('blGrRdBl')
-
-    return RdBl, blGrRdBl
-
-def iaiDecision(file_path):
-    global RdBl, blGrRdBl, detect_fn
+    Args:
+        file_path: Path to the image file to process
+        force_reload: If True, forces reloading of all cached resources
     
-    try:
-        log_step("iaiDecision")
+    Returns:
+        str: The decision message output
+    """
+    
+    try:       
+        # Clear cache if requested
+        if force_reload:
+            resource_manager.clear_cache()
         
-        #Turning off gpu since loading 2 models takes too much VRAM
-        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-        log_step("Initializing model")
-        # Loading the model and handling the CUDA availability
-        cods = Generator(channel=32)
-
-        # Load the model with appropriate handling for CPU-only environments
-        model_path = './models/Resnet/Model_50_gen.pth'
-        #model_path = 'C:\\Users\\pharm\\Documents\\0 - Debra PhD Courses\\2 - Academic Collaborations\\00 - OADII MURDOC\\MURDOC\\models\\resnet\\Model_50_gen.pth'
-        if torch.cuda.is_available():
-            cods.load_state_dict(torch.load(model_path))
-            cods.cuda()
-        else:
-            cods.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-
-        cods.eval()
-
-        PATH_TO_SAVED_MODEL = "models/d7_f/saved_model"
-        #PATH_TO_SAVED_MODEL = "C:\\Users\\pharm\\Documents\\0 - Debra PhD Courses\\2 - Academic Collaborations\\00 - OADII MURDOC\\MURDOC\\models\\d7_f\\saved_model"
-
-        log_step("Loading TensorFlow model")
-        detect_fn = []
-        with tf.device('/CPU:0'):
-            detect_fn = tf.saved_model.load(PATH_TO_SAVED_MODEL)
-        log_step("TensorFlow model loaded successfully")
-
-        log_step("Setting up colormaps")
-        # Custom colormap for fixation maps
-        RdBl, blGrRdBl = create_custom_colormaps()
+        # Ensure output directories exist
+        resource_manager.ensure_output_dirs()
         
-        log_step("Creating output directories")
-        # Create output directories
-        for dir in ["figures", "bbox_figures", "jsons", "outputs", "results"]:
-            if not os.path.exists(dir):
-                os.mkdir(dir)
+        # Get models from resource manager (will lazy load if needed)
+        cods = resource_manager.cods_model
+        detect_fn = resource_manager.detect_fn
         
         file_name = os.path.splitext(os.path.basename(file_path))[0]
         if not os.path.exists(f'outputs/{file_name}'):
@@ -560,13 +648,11 @@ def iaiDecision(file_path):
         # XAI Message
         message = f"Decision for {file_name}: \n"
         
-        log_step(f"Loading image: {file_name}")
         # Gather the images: Original, Binary Mapping, Fixation Mapping
         original_image = cv2.imread(file_path)
         if original_image is None:
             raise ValueError(f"Unable to load image from path: {file_path}")
 
-        log_step("Preprocessing image")
         # Preprocess the image
         image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (224, 224))  # Adjust size as needed
@@ -581,11 +667,9 @@ def iaiDecision(file_path):
         if torch.cuda.is_available():
             image = image.cuda()
         
-        log_step("Running inference")
         # Get the Fixation Mapping, and Binary Mapping Predictions
         fix_pred, _, cod_pred2 = cods.forward(image)
         
-        log_step("Postprocessing results")
         # Process fixation and binary mapping predictions
         fix_image = process_prediction(fix_pred, WW, HH)
         bm_image = process_prediction(cod_pred2, WW, HH)
@@ -596,7 +680,6 @@ def iaiDecision(file_path):
         bm_image_pil.save(f'outputs/{file_name}/binary_image.png')
         fix_image_pil.save(f'outputs/{file_name}/fixation_image.png')
         
-        log_step("Getting the Grad-CAM Predictions")
         #=======================================================================        
         # Grad-CAM for fix_pred
         target_layer_fix = [cods.get_x4_layer()]
@@ -612,13 +695,13 @@ def iaiDecision(file_path):
 
         try:
             grayscale_cam_fix = grad_cam_fix(input_tensor=image)
-            print(f"Shape of grayscale_cam_fix: {grayscale_cam_fix.shape}")
+            #print(f"Shape of grayscale_cam_fix: {grayscale_cam_fix.shape}")
         except Exception as e:
             print(f"Error in grad_cam_fix: {str(e)}")
         
         try:
             grayscale_cam_cod = grad_cam_cod(input_tensor=image)
-            print(f"Shape of grayscale_cam_cod: {grayscale_cam_cod.shape}")
+            #print(f"Shape of grayscale_cam_cod: {grayscale_cam_cod.shape}")
         except Exception as e:
             print(f"Error in grad_cam_cod: {str(e)}")
         
@@ -626,7 +709,7 @@ def iaiDecision(file_path):
         input_image = image.squeeze(0).permute(1, 2, 0).cpu().numpy()
         input_image = (input_image - input_image.min()) / (input_image.max() - input_image.min())  # Normalize to [0, 1]
         
-        print(f"Shape of input_image: {input_image.shape}")
+        #print(f"Shape of input_image: {input_image.shape}")
         
         # Convert grayscale heatmaps to RGB
         if grayscale_cam_fix is not None:
@@ -653,30 +736,25 @@ def iaiDecision(file_path):
         # Only get the weak camouflaged areas that are present in the binary map
         masked_fix_map = apply_mask(Image.fromarray(fix_image), img_np)
         
-        log_step("Processing fixation mapping")
         # Preprocess the Fixation Mapping
         weak_fix_map = findAreasOfWeakCamouflage(masked_fix_map)
         all_fix_map = processFixationMap(masked_fix_map)
         
-        log_step("Running through decision levels")
-        output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message, detect_fn)
+        output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message)
 
-        log_step("Saving output")
         org_image = Image.fromarray(cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB))
-        print(f'dim of org_image: {org_image.size}')
-        print(f'dim of bm_image: {Image.fromarray(bm_image).size}')
-        print(f'dim of fix_image: {Image.fromarray(fix_image).size}')
+        #print(f'dim of org_image: {org_image.size}')
+        #print(f'dim of bm_image: {Image.fromarray(bm_image).size}')
+        #print(f'dim of fix_image: {Image.fromarray(fix_image).size}')
     
         # Resize binary and fixation images to match original image size
         bm_image_resized = cv2.resize(bm_image, (org_image.width, org_image.height))
         fix_image_resized = cv2.resize(fix_image, (org_image.width, org_image.height))
     
         segmented_image = segment_image(org_image, Image.fromarray(bm_image_resized), Image.fromarray(fix_image_resized))
-        print(f'dim of segmented_image: {segmented_image.size}')
-        #add_label(segmented_image, output, (15, 15))
+        #print(f'dim of segmented_image: {segmented_image.size}')
         segmented_image.save(f'results/segmented_{file_name}.jpg')
 
-        log_step("iaiDecision completed")
         return output
 
     except Exception as e:
@@ -684,15 +762,13 @@ def iaiDecision(file_path):
         print(error_message)  # This will be captured by the redirected stdout in C#
         return f"Error occurred: {str(e)}"
 
+
 class MultiOutputGradCAM(GradCAM):
     def __init__(self, model, target_layers, output_index=0, reshape_transform=None):
         super(MultiOutputGradCAM, self).__init__(model, target_layers, reshape_transform)
         self.output_index = output_index
 
     def forward(self, input_tensor, targets=None, eigen_smooth=False):
-        # if self.cuda:
-        #     input_tensor = input_tensor.cuda()
-
         outputs = self.activations_and_grads(input_tensor)
         output = outputs[self.output_index]
         
@@ -730,25 +806,56 @@ def process_prediction(pred, WW, HH):
     pred = 255*(pred - pred.min()) / (pred.max() - pred.min() + 1e-8)
     return pred.astype(np.uint8)
 
+
 """
 ===================================================================================================
-    Main
+    Utility functions for managing resources
+===================================================================================================
+"""
+def preload_resources():
+    """
+    Preload all resources into memory. Useful for batch processing.
+    """
+    _ = resource_manager.cods_model
+    _ = resource_manager.detect_fn
+    _ = resource_manager.RdBl
+    _ = resource_manager.blGrRdBl
+    resource_manager.ensure_output_dirs()
+
+def clear_resources():
+    """
+    Clear all cached resources to free memory.
+    """
+    resource_manager.clear_cache()
+
+"""
+===================================================================================================
+    Main
 ===================================================================================================
 """
 if __name__ == "__main__":
-    # Counter
-    counter = 1
-
-    # Folder containing images
-    image_folder_path = 'C:\\Users\\pharm\\Documents\\0 - Debra PhD Courses\\2 - Academic Collaborations\\00 - OADII MURDOC\\dataset\\train\\imgs\\'
+    import sys
     
-    # List all images in the folder
-    image_files = [os.path.join(image_folder_path, file) for file in os.listdir(image_folder_path) if file.endswith(('jpg', 'jpeg', 'png'))]
-    
-    # Loop through each image in the folder
-    for image_file in image_files:
-        iaiDecision(image_file)
-        counter += 1
+    # CRITICAL: Ensure you have 3 arguments (Script Name, Image Path, Output Directory)
+    if len(sys.argv) > 1:
+        file_path_from_csharp = sys.argv[1] 
         
-        if counter >= 5:
-            break
+        try:
+            # Call the function with BOTH arguments
+            final_result = iaiDecision(file_path_from_csharp);
+            
+            # Print ONLY the final result to stdout for C# to capture
+            print(final_result) 
+            
+        except Exception as e:
+            # Print exception stack trace to stderr so C# captures it as an error
+            traceback.print_exc(file=sys.stderr)
+            sys.exit(1)
+        
+        finally:
+            # ALWAYS clear resources, whether success or failure
+            clear_resources()
+            
+    else:
+        print("Error: Missing required arguments. Usage: python script.py <image_path> <output_dir>", file=sys.stderr)
+        sys.exit(1)

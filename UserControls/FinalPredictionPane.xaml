@@ -10,7 +10,7 @@
         <StackPanel Background="LightGray" Orientation="Vertical" HorizontalAlignment="Right" Width="718" Margin="5">
             <Label Content="Final Prediction" HorizontalAlignment="Center" FontWeight="Bold" Margin="0"/>
             <StackPanel Orientation="Horizontal" Margin="20">
-                <Image Source="{Binding FACEPredictionImage}" Margin="5" Stretch="Uniform" MaxWidth="700" Height="Auto" HorizontalAlignment="Left" />
+                <Image Source="{Binding FinalImagePrediction}" Margin="5" Stretch="Uniform" MaxWidth="700" Height="Auto" HorizontalAlignment="Left" />
             </StackPanel>
         </StackPanel>
     </Grid>

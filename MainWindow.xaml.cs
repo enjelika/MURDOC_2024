@@ -52,7 +52,16 @@ namespace MURDOC_2024
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             Console.WriteLine("MainWindow Closed event fired");
-            // You can add any cleanup code that needs to run when the window is closed
+
+            // ------------------------------------------------------------------
+            // **CRITICAL CLEANUP FIX**
+            // ------------------------------------------------------------------
+            if (DataContext is IDisposable disposableViewModel)
+            {
+                Console.WriteLine("Calling Dispose() on MainWindowViewModel.");
+                disposableViewModel.Dispose(); // This calls PythonEngine.Shutdown()
+            }
+            // ------------------------------------------------------------------
         }
 
         private void LocalizationImage_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)

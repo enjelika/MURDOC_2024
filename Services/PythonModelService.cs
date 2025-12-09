@@ -1,23 +1,38 @@
 ﻿using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using Python.Runtime;
+using System.Diagnostics;
 
 namespace MURDOC_2024.Services
 {
-    /// <summary>
-    /// Thread-safe Python model service with proper async support
-    /// </summary>
     internal sealed class PythonModelService : IDisposable
     {
         private bool _isInitialized = false;
-        private readonly object _initLock = new object();
-        private readonly SemaphoreSlim _pythonSemaphore = new SemaphoreSlim(1, 1);
+
+        // NOTE: You must either define pythonHome as a class field 
+        // or repeat the path string here to use it in the constructor.
+        private readonly string _pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
 
         public PythonModelService()
         {
             InitializePythonRuntime();
+
+            // -------------------------------------------------------------
+            // **CRITICAL FIX: Add Python Home to the System PATH for all threads**
+            // -------------------------------------------------------------
+            if (Directory.Exists(_pythonHome))
+            {
+                string path = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
+
+                // Only add if it's not already present (case-insensitive check)
+                if (!path.ToLower().Contains(_pythonHome.ToLower()))
+                {
+                    Environment.SetEnvironmentVariable("PATH", _pythonHome + Path.PathSeparator + path, EnvironmentVariableTarget.Process);
+                    Console.WriteLine($"[DEBUG] Added {_pythonHome} to PATH for background threads.");
+                }
+            }
+            // -------------------------------------------------------------
         }
 
         /// <summary>
@@ -25,284 +40,127 @@ namespace MURDOC_2024.Services
         /// </summary>
         private void InitializePythonRuntime()
         {
-            lock (_initLock)
-            {
-                if (_isInitialized)
-                    return;
+            if (_isInitialized)
+                return;
 
-                try
-                {
-                    Console.WriteLine("Starting Python runtime initialization...");
-
-                    // Python installation paths
-                    string pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
-                    string pythonDll = Path.Combine(pythonHome, "python39.dll");
-
-                    if (!File.Exists(pythonDll))
-                    {
-                        // Try alternative common locations
-                        string[] alternativePaths = {
-                            @"C:\Python39",
-                            @"C:\Program Files\Python39",
-                            @"C:\Program Files (x86)\Python39",
-                            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Python", "Python39")
-                        };
-
-                        foreach (var altPath in alternativePaths)
-                        {
-                            var altDll = Path.Combine(altPath, "python39.dll");
-                            if (File.Exists(altDll))
-                            {
-                                pythonHome = altPath;
-                                pythonDll = altDll;
-                                break;
-                            }
-                        }
-
-                        if (!File.Exists(pythonDll))
-                            throw new FileNotFoundException($"Python 3.9 DLL not found. Please ensure Python 3.9 is installed.");
-                    }
-
-                    Console.WriteLine($"Python Home: {pythonHome}");
-                    Console.WriteLine($"Python DLL: {pythonDll}");
-
-                    // Required environment variables BEFORE PythonEngine.Initialize()
-                    Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pythonDll);
-                    Environment.SetEnvironmentVariable("PYTHONHOME", pythonHome);
-
-                    string pythonPath = string.Join(";",
-                        Path.Combine(pythonHome, "Lib"),
-                        Path.Combine(pythonHome, "Lib", "site-packages"),
-                        Path.Combine(pythonHome, "Scripts")
-                    );
-
-                    Environment.SetEnvironmentVariable("PYTHONPATH", pythonPath);
-
-                    // Initialize PythonEngine
-                    PythonEngine.Initialize();
-                    _isInitialized = true;
-
-                    Console.WriteLine("Python runtime initialized successfully.");
-
-                    // Validate Python with a simple import
-                    using (Py.GIL())
-                    {
-                        dynamic sys = Py.Import("sys");
-                        Console.WriteLine($"Python version: {sys.version}");
-
-                        // Add common paths
-                        Console.WriteLine("Python sys.path:");
-                        foreach (var p in sys.path)
-                            Console.WriteLine($"  {p}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error initializing Python engine: {ex.Message}");
-                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                    _isInitialized = false;
-                    throw new InvalidOperationException("Failed to initialize Python runtime. Please ensure Python 3.9 is installed.", ex);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Runs IAI models asynchronously
-        /// </summary>
-        public async Task<string> RunIAIModelsAsync(string imagePath)
-        {
-            if (string.IsNullOrEmpty(imagePath))
-                throw new ArgumentNullException(nameof(imagePath));
-
-            if (!File.Exists(imagePath))
-                throw new FileNotFoundException($"Image file not found: {imagePath}");
-
-            // Use semaphore to ensure only one Python operation at a time
-            await _pythonSemaphore.WaitAsync();
             try
             {
-                return await Task.Run(() => RunIAIModelsInternal(imagePath));
+                Console.WriteLine("Starting Python runtime initialization...");
+
+                // Python installation paths (use your actual paths)
+                string pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
+                string pythonDll = Path.Combine(pythonHome, "python39.dll");
+
+                if (!File.Exists(pythonDll))
+                    throw new FileNotFoundException($"Python DLL not found at {pythonDll}");
+
+                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pythonDll);
+                Environment.SetEnvironmentVariable("PYTHONHOME", pythonHome);
+
+                string pythonPath = string.Join(";",
+                    Path.Combine(pythonHome, "Lib"),
+                    Path.Combine(pythonHome, "Lib", "site-packages")
+                );
+
+                Environment.SetEnvironmentVariable("PYTHONPATH", pythonPath);
+
+                // Initialize PythonEngine on UI thread (C# side)
+                PythonEngine.Initialize();
+                _isInitialized = true;
+
+                Console.WriteLine("Python runtime initialized successfully.");
             }
-            finally
+            catch (Exception ex)
             {
-                _pythonSemaphore.Release();
+                Console.WriteLine("Error initializing Python engine: " + ex);
+                throw;
             }
         }
 
         /// <summary>
-        /// Synchronous version for backward compatibility
+        /// Runs the Python model on a background thread to prevent UI blocking.
         /// </summary>
-        public string RunIAIModels(string imagePath)
+        public Task<string> RunIAIModelsBypassAsync(string imagePath)
         {
-            if (string.IsNullOrEmpty(imagePath))
-                throw new ArgumentNullException(nameof(imagePath));
+            // 1. Get Python path (assuming it's in the PATH now)
+            string pythonExe = "python.exe";
 
-            if (!File.Exists(imagePath))
-                throw new FileNotFoundException($"Image file not found: {imagePath}");
+            // 2. Prepare arguments to call your script and function
+            string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\Model\IAI_Decision_Hierarchy.py");
 
-            _pythonSemaphore.Wait();
-            try
+            // Check if the script exists
+            if (!File.Exists(scriptPath))
             {
-                return RunIAIModelsInternal(imagePath);
+                throw new FileNotFoundException($"Python script not found at: {scriptPath}");
             }
-            finally
+
+            // The Python script will receive this as sys.argv[1]
+            // CRITICAL: Define the target output directory as the C# Debug folder
+            string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "results");
+
+            if (!Directory.Exists(outputDir))
+                Directory.CreateDirectory(outputDir);
+
+            // 2. Prepare arguments: Script path, image path, AND OUTPUT DIR
+            string arguments = $"\"{scriptPath}\" \"{imagePath}\"";
+
+            Console.WriteLine($"[PROCESS] Executing: {pythonExe} {arguments}");
+
+            return Task.Run(() =>
             {
-                _pythonSemaphore.Release();
-            }
+                ProcessStartInfo start = new ProcessStartInfo
+                {
+                    FileName = pythonExe,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true, // Capture output for result
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using (Process process = Process.Start(start))
+                {
+                    // Wait for the process to exit
+                    process.WaitForExit();
+
+                    // Read output (result) and errors
+                    string output = process.StandardOutput.ReadToEnd();
+                    string errors = process.StandardError.ReadToEnd();
+
+                    if (process.ExitCode != 0) // Process actually crashed
+                    {
+                        string fullError = errors + "\nOutput: " + output;
+                        Console.WriteLine($"[EXTERNAL PYTHON CRASH] {fullError}");
+                        throw new Exception($"Python process crashed with exit code {process.ExitCode}. Errors:\n{fullError}");
+                    }
+
+                    // --------------------------------------------------------------------------
+                    // CRITICAL FIX: Only throw if the process failed AND the output is empty.
+                    // If exit code is 0 (success) and we have standard output, the warnings can be ignored.
+                    // --------------------------------------------------------------------------
+                    if (!string.IsNullOrEmpty(errors))
+                    {
+                        // Log the warnings, but do NOT throw since ExitCode was 0.
+                        Console.WriteLine($"[EXTERNAL PYTHON WARNINGS/MESSAGES] Errors (Ignored): {errors}");
+                    }
+
+                    // NOTE: Your Python script must be modified to print ONLY the final result string to stdout.
+                    return output.Trim();
+                }
+            });
         }
 
-        /// <summary>
-        /// Internal method that actually runs the Python code
-        /// </summary>
-        private string RunIAIModelsInternal(string imagePath)
-        {
-            if (!_isInitialized)
-            {
-                InitializePythonRuntime();
-            }
-
-            using (Py.GIL())
-            {
-                try
-                {
-                    dynamic sys = Py.Import("sys");
-                    dynamic os = Py.Import("os");
-
-                    // Find the Model directory
-                    string projectRoot = FindProjectRoot();
-                    string scriptDir = Path.Combine(projectRoot, "Model");
-
-                    if (!Directory.Exists(scriptDir))
-                    {
-                        // Try alternative locations
-                        scriptDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Model");
-                        if (!Directory.Exists(scriptDir))
-                        {
-                            throw new DirectoryNotFoundException($"Model directory not found. Expected at: {scriptDir}");
-                        }
-                    }
-
-                    Console.WriteLine($"[Python] Adding script directory: {scriptDir}");
-
-                    // Clear and add the script directory to sys.path
-                    bool pathExists = false;
-                    foreach (var p in sys.path)
-                    {
-                        if (p.ToString() == scriptDir)
-                        {
-                            pathExists = true;
-                            break;
-                        }
-                    }
-
-                    if (!pathExists)
-                    {
-                        sys.path.insert(0, scriptDir);
-                    }
-
-                    // List files in the directory for debugging
-                    Console.WriteLine($"[Python] Files in {scriptDir}:");
-                    foreach (string f in Directory.GetFiles(scriptDir, "*.py"))
-                    {
-                        Console.WriteLine($"  - {Path.GetFileName(f)}");
-                    }
-
-                    // Import the script
-                    dynamic script = null;
-                    try
-                    {
-                        script = Py.Import("IAI_Decision_Hierarchy");
-                    }
-                    catch (PythonException pex)
-                    {
-                        Console.WriteLine($"[Python] Failed to import IAI_Decision_Hierarchy: {pex.Message}");
-                        // Try alternative import method
-                        dynamic importlib = Py.Import("importlib.util");
-                        string scriptPath = Path.Combine(scriptDir, "IAI_Decision_Hierarchy.py");
-                        if (File.Exists(scriptPath))
-                        {
-                            dynamic spec = importlib.spec_from_file_location("IAI_Decision_Hierarchy", scriptPath);
-                            script = importlib.module_from_spec(spec);
-                            spec.loader.exec_module(script);
-                        }
-                        else
-                        {
-                            throw new FileNotFoundException($"Script not found: {scriptPath}");
-                        }
-                    }
-
-                    Console.WriteLine($"[Python] Running iaiDecision({imagePath})");
-
-                    // Call the function
-                    string result = script.iaiDecision(imagePath).ToString();
-
-                    Console.WriteLine($"[Python] Result: {result}");
-
-                    return result;
-                }
-                catch (PythonException pex)
-                {
-                    Console.WriteLine($"[Python] Error: {pex.Message}");
-                    Console.WriteLine($"[Python] Stack trace: {pex.StackTrace}");
-                    throw new InvalidOperationException($"Python execution error: {pex.Message}", pex);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Python] Unexpected error: {ex.Message}");
-                    throw;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Finds the project root directory
-        /// </summary>
-        private string FindProjectRoot()
-        {
-            // Try to find the project root by looking for key markers
-            string currentDir = AppDomain.CurrentDomain.BaseDirectory;
-
-            // If running from bin\Debug or bin\Release
-            DirectoryInfo dir = new DirectoryInfo(currentDir);
-            while (dir != null)
-            {
-                // Look for project file or Model directory
-                if (Directory.Exists(Path.Combine(dir.FullName, "Model")) ||
-                    File.Exists(Path.Combine(dir.FullName, "MURDOC_2024.csproj")) ||
-                    File.Exists(Path.Combine(dir.FullName, "MURDOC_2024.sln")))
-                {
-                    return dir.FullName;
-                }
-
-                dir = dir.Parent;
-            }
-
-            // Fallback to the original method
-            return Path.GetFullPath(Path.Combine(currentDir, @"..\..\.."));
-        }
+        // **NOTE: The original synchronous 'public string RunIAIModels(string imagePath)' 
+        // has been removed/deleted from this class.**
 
         public void Dispose()
         {
-            lock (_initLock)
+            if (_isInitialized)
             {
-                if (_isInitialized)
-                {
-                    try
-                    {
-                        PythonEngine.Shutdown();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error shutting down Python engine: {ex.Message}");
-                    }
-                    finally
-                    {
-                        _isInitialized = false;
-                    }
-                }
+                Console.WriteLine("[DEBUG] Shutting down Python Engine."); // Add log
+                PythonEngine.Shutdown();
+                _isInitialized = false;
             }
-
-            _pythonSemaphore?.Dispose();
         }
     }
 }
