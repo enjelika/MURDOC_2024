@@ -92,10 +92,7 @@ namespace MURDOC_2024.ViewModel
 
         public void Clear()
         {
-            X1 = X2 = X3 = X4 = null;
-            FixationDecoder = FixationGradCAM = null;
-            X2_2 = X3_2 = X4_2 = null;
-            RefPred = CamouflageDecoder = CamouflageGradCAM = null;
+            PlaceholderAll();
         }
 
         // ----------------------------------------------------

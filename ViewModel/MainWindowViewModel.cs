@@ -203,7 +203,7 @@ namespace MURDOC_2024.ViewModel
 
         private void ResetAll()
         {
-            SelectedImagePath = null;
+            SelectedImagePath = string.Empty;
             _adjustedInputImage = null;
             _hasAdjustedImage = false;
             _latestAdjustedImagePath = null;

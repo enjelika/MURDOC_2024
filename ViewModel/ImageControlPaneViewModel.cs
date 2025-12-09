@@ -89,6 +89,8 @@ namespace MURDOC_2024.ViewModel
             IsRunButtonEnabled = false;
             IsBrowseEnabled = true;
             IsResetEnabled = false; // Typically starts disabled until there's something to reset
+
+            SelectedImagePath = string.Empty;
         }
 
         // Execute methods
@@ -106,6 +108,7 @@ namespace MURDOC_2024.ViewModel
                 _imageSelectedAction?.Invoke(dialog.FileName);
                 IsRunButtonEnabled = true;
                 IsResetEnabled = true;
+                SelectedImagePath = dialog.SafeFileName;
             }
         }
 
@@ -120,6 +123,7 @@ namespace MURDOC_2024.ViewModel
             IsRunButtonEnabled = false;
             IsResetEnabled = false;
             IsBrowseEnabled = true;
+            SelectedImagePath = string.Empty;
         }
 
         // CanExecute methods - return bool, not use properties directly

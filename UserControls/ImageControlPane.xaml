@@ -12,7 +12,7 @@
                 <Label Content="Select image:" FontWeight="Bold"/>
 
                 <StackPanel Orientation="Horizontal" Margin="5, -5, 5, 5">
-                    <TextBox Text="{Binding SelectedImageFileName, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
+                <TextBox Text="{Binding SelectedImagePath, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
                     <Button Content="Browse" Command="{Binding BrowseCommand}" Margin="5,5,5,5" />
                 </StackPanel>
 
