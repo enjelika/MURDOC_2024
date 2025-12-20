@@ -12,7 +12,8 @@ namespace MURDOC_2024.Services
 
         // NOTE: You must either define pythonHome as a class field 
         // or repeat the path string here to use it in the constructor.
-        private readonly string _pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
+        //private readonly string _pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
+        private readonly string _pythonHome = @"C:\ProgramData\Anaconda3\envs\murdoc";
 
         public PythonModelService()
         {
@@ -48,7 +49,8 @@ namespace MURDOC_2024.Services
                 Console.WriteLine("Starting Python runtime initialization...");
 
                 // Python installation paths (use your actual paths)
-                string pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
+                //string pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
+                string pythonHome = @"C:\ProgramData\Anaconda3\envs\murdoc";
                 string pythonDll = Path.Combine(pythonHome, "python39.dll");
 
                 if (!File.Exists(pythonDll))
