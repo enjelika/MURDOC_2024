@@ -76,6 +76,7 @@ namespace MURDOC_2024.Services
             {
                 var bitmap = new BitmapImage();
                 bitmap.BeginInit();
+                bitmap.UriSource = new Uri(filePath); // Needed for preview pane update on mouse-over
                 bitmap.CacheOption = BitmapCacheOption.OnLoad; // ⭐ Load FULLY into memory
                 bitmap.StreamSource = stream;
                 bitmap.EndInit();
