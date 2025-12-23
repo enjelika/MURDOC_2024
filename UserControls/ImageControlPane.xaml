@@ -21,19 +21,19 @@
                     <DockPanel VerticalAlignment="Center" Margin="5">
                         <Label DockPanel.Dock="Left" FontWeight="Bold">Brightness:</Label>
                         <TextBox Text="{Binding ElementName=sliderBrightness, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                        <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderBrightness" Value="{Binding SliderBrightness}" />
+                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderBrightness" Value="{Binding SliderBrightness}" IsEnabled="{Binding IsSlidersEnabled}"/>
                     </DockPanel>
 
                     <DockPanel VerticalAlignment="Center" Margin="5">
                         <Label DockPanel.Dock="Left" Width="72" FontWeight="Bold">Contrast:</Label>
                         <TextBox Text="{Binding ElementName=sliderContrast, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                        <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderContrast" Value="{Binding SliderContrast}"/>
+                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderContrast" Value="{Binding SliderContrast}" IsEnabled="{Binding IsSlidersEnabled}"/>
                     </DockPanel>
 
                     <DockPanel VerticalAlignment="Center" Margin="5">
                         <Label DockPanel.Dock="Left" FontWeight="Bold">Saturation:</Label>
                         <TextBox Text="{Binding ElementName=sliderSaturation, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                        <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderSaturation" Value="{Binding SliderSaturation}"/>
+                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderSaturation" Value="{Binding SliderSaturation}" IsEnabled="{Binding IsSlidersEnabled}"/>
                     </DockPanel>
                 </StackPanel>
 

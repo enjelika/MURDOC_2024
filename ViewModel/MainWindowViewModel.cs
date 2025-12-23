@@ -240,7 +240,7 @@ namespace MURDOC_2024.ViewModel
                 _hasAdjustedImage = true;
 
                 // Update UI
-                InputImageVM.InputImage = adjusted;
+                InputImageVM.InputImage = new BitmapImage(new Uri(_latestAdjustedImagePath));
             }
             catch (Exception ex)
             {

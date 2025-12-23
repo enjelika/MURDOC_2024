@@ -1,6 +1,7 @@
-﻿using System;
-using System.Windows.Input;
+﻿using ImageProcessor.Processors;
 using MURDOC_2024.ViewModel;
+using System;
+using System.Windows.Input;
 
 namespace MURDOC_2024.ViewModel
 {
@@ -14,15 +15,22 @@ namespace MURDOC_2024.ViewModel
         private bool _isRunButtonEnabled;
         private bool _isBrowseEnabled;
         private bool _isResetEnabled;
+        private bool _isSlidersEnabled;
+
+        private int _sliderBrightness;
+        private int _sliderContrast;
+        private int _sliderSaturation;
 
         // Commands
         private readonly RelayCommand _browseCommand;
         private readonly RelayCommand _runCommand;
         private readonly RelayCommand _resetCommand;
+        private readonly RelayCommand _slidersCommand;
 
         public ICommand BrowseCommand => _browseCommand;
         public ICommand RunCommand => _runCommand;
         public ICommand ResetCommand => _resetCommand;
+        public ICommand SlidersCommand => _slidersCommand;
 
         public bool IsRunButtonEnabled
         {
@@ -61,6 +69,57 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        public bool IsSlidersEnabled
+        {
+            get => _isSlidersEnabled;
+            set
+            {
+                if (SetProperty(ref _isSlidersEnabled, value))
+                {
+                    _slidersCommand?.RaiseCanExecuteChanged();
+                }
+            }
+        }
+
+        public int SliderBrightness
+        {
+            get => _sliderBrightness;
+            set
+            {
+                if (SetProperty(ref _sliderBrightness, value))
+                {
+                    _sliderBrightness = value;
+                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
+                }
+            }
+        }
+
+        public int SliderContrast
+        {
+            get => _sliderContrast;
+            set
+            {
+                if (SetProperty(ref _sliderContrast, value))
+                {
+                    _sliderContrast = value;
+                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
+                }
+            }
+        }
+
+        public int SliderSaturation
+        {
+            get => _sliderSaturation;
+            set
+            {
+                if (SetProperty(ref _sliderSaturation, value))
+                {
+                    _sliderSaturation = value;
+                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
+                }
+            }
+        }
+
         public ImageControlViewModel(
             Action runModelsAction,
             Action resetAction,
@@ -70,7 +129,7 @@ namespace MURDOC_2024.ViewModel
             _runModelsAction = runModelsAction ?? throw new ArgumentNullException(nameof(runModelsAction));
             _resetAction = resetAction ?? throw new ArgumentNullException(nameof(resetAction));
             _imageSelectedAction = imageSelectedAction ?? throw new ArgumentNullException(nameof(imageSelectedAction));
-            _slidersChangedAction = slidersChangedAction;
+            _slidersChangedAction = slidersChangedAction ?? throw new ArgumentNullException(nameof(slidersChangedAction));
 
             // FIXED: Use parameterless RelayCommand constructor since we're not using command parameters
             _browseCommand = new RelayCommand(
@@ -85,10 +144,15 @@ namespace MURDOC_2024.ViewModel
                 execute: () => ExecuteResetCommand(),
                 canExecute: () => CanReset());
 
+            _slidersCommand = new RelayCommand(
+                execute: () => ExecuteSlidersCommand(),
+                canExecute: () => CanSliders());
+
             // Initialize states
             IsRunButtonEnabled = false;
             IsBrowseEnabled = true;
             IsResetEnabled = false; // Typically starts disabled until there's something to reset
+            IsSlidersEnabled = false;
 
             SelectedImagePath = string.Empty;
         }
@@ -120,10 +184,18 @@ namespace MURDOC_2024.ViewModel
         private void ExecuteResetCommand()
         {
             _resetAction?.Invoke();
+            _sliderBrightness = 0;
+            _sliderContrast = 0;
+            _sliderSaturation = 0;
             IsRunButtonEnabled = false;
             IsResetEnabled = false;
             IsBrowseEnabled = true;
             SelectedImagePath = string.Empty;
+        }
+
+        private void ExecuteSlidersCommand()
+        {
+            _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
         }
 
         // CanExecute methods - return bool, not use properties directly
@@ -140,6 +212,11 @@ namespace MURDOC_2024.ViewModel
         private bool CanReset()
         {
             return IsResetEnabled;
+        }
+
+        private bool CanSliders()
+        {
+            return IsSlidersEnabled;
         }
 
         // Method to update command states when parent VM changes running state
@@ -159,6 +236,7 @@ namespace MURDOC_2024.ViewModel
                 IsBrowseEnabled = false;
                 IsRunButtonEnabled = false;
                 IsResetEnabled = false;
+                IsSlidersEnabled = false;
             }
             else
             {
@@ -166,6 +244,7 @@ namespace MURDOC_2024.ViewModel
                 IsBrowseEnabled = true;
                 IsRunButtonEnabled = !string.IsNullOrEmpty(SelectedImagePath);
                 IsResetEnabled = !string.IsNullOrEmpty(SelectedImagePath);
+                IsSlidersEnabled = true;
             }
 
             UpdateCommandStates();
@@ -182,6 +261,7 @@ namespace MURDOC_2024.ViewModel
                 {
                     IsRunButtonEnabled = !string.IsNullOrEmpty(value);
                     IsResetEnabled = !string.IsNullOrEmpty(value);
+                    IsSlidersEnabled = !string.IsNullOrEmpty(value);
                 }
             }
         }
