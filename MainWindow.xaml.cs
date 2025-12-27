@@ -63,18 +63,5 @@ namespace MURDOC_2024
             }
             // ------------------------------------------------------------------
         }
-
-        private void LocalizationImage_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
-        {
-            var imageItem = sender as System.Windows.Controls.Image;
-            if (imageItem != null)
-            {
-                var viewModel = DataContext as MainWindowViewModel;
-                if (viewModel != null)
-                {
-                    //viewModel.PreviewVM.UpdatePreview(img.Source.ToString());
-                }
-            }
-        }
     }
 }

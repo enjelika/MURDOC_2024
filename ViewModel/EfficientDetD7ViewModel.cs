@@ -22,15 +22,15 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _detectionText, value);
         }
 
-        public BitmapImage Placeholder { get; }
-
         private readonly Action<string> _previewCallback;
         private readonly ImageService _imageService = new ImageService();
 
+        private readonly string _placeholder =
+            "pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png";
+
         public EfficientDetD7ViewModel(Action<string> previewCallback)
         {
-            _previewCallback = previewCallback
-                ?? throw new ArgumentNullException(nameof(previewCallback));
+            _previewCallback = previewCallback;
 
             // Set default placeholder
             PlaceholderAll();
@@ -38,26 +38,11 @@ namespace MURDOC_2024.ViewModel
 
         private void PlaceholderAll()
         {
-            string ph = "pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png";
-            DetectionImage = new BitmapImage(new Uri(ph));
+            DetectionImage = new BitmapImage(new Uri(_placeholder));
             DetectionText = "No detection results yet.";
         }
 
         public string DetectionImagePath { get; set; }
-
-        public void LoadDetectionImage(string path)
-        {
-            DetectionImage = string.IsNullOrEmpty(path)
-                ? null
-                : new BitmapImage(new Uri(path));
-        }
-
-        public void LoadDetectionText(string path)
-        {
-            DetectionText = string.IsNullOrEmpty(path)
-                ? ""
-                : System.IO.File.ReadAllText(path);
-        }
 
         public void LoadResults(string detectionFolder, string outputsFolder, string imageName)
         {
@@ -100,7 +85,10 @@ namespace MURDOC_2024.ViewModel
             OnPropertyChanged(nameof(DetectionText));
         }
 
-        // MOUSEOVER BINDING
+        // ----------------------------------------------------
+        // MOUSEOVER SUPPORT
+        // Called by UserControl when user hovers over image.
+        // ----------------------------------------------------
         public void OnMouseOverImage(string imagePath)
         {
             _previewCallback?.Invoke(imagePath);
