@@ -108,20 +108,19 @@ namespace MURDOC_2024.ViewModel
 
         private void PlaceholderAll()
         {
-            string ph = "pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png";
-            X1 = new BitmapImage(new Uri(ph));
-            X2 = new BitmapImage(new Uri(ph));
-            X3 = new BitmapImage(new Uri(ph));
-            X4 = new BitmapImage(new Uri(ph));
-            FixationDecoder = new BitmapImage(new Uri(ph));
-            FixationGradCAM = new BitmapImage(new Uri(ph));
+            X1 = new BitmapImage(new Uri(_placeholder));
+            X2 = new BitmapImage(new Uri(_placeholder));
+            X3 = new BitmapImage(new Uri(_placeholder));
+            X4 = new BitmapImage(new Uri(_placeholder));
+            FixationDecoder = new BitmapImage(new Uri(_placeholder));
+            FixationGradCAM = new BitmapImage(new Uri(_placeholder));
 
-            X2_2 = new BitmapImage(new Uri(ph));
-            X3_2 = new BitmapImage(new Uri(ph));
-            X4_2 = new BitmapImage(new Uri(ph));
-            RefPred = new BitmapImage(new Uri(ph));
-            CamouflageDecoder = new BitmapImage(new Uri(ph));
-            CamouflageGradCAM = new BitmapImage(new Uri(ph));
+            X2_2 = new BitmapImage(new Uri(_placeholder));
+            X3_2 = new BitmapImage(new Uri(_placeholder));
+            X4_2 = new BitmapImage(new Uri(_placeholder));
+            RefPred = new BitmapImage(new Uri(_placeholder));
+            CamouflageDecoder = new BitmapImage(new Uri(_placeholder));
+            CamouflageGradCAM = new BitmapImage(new Uri(_placeholder));
         }
     }
 }

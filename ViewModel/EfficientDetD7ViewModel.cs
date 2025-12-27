@@ -35,6 +35,17 @@ namespace MURDOC_2024.ViewModel
             PlaceholderAll();
         }
 
+        // ----------------------------------------------------
+        // INTERNAL HELPERS
+        // ----------------------------------------------------
+        private BitmapImage LoadOrPlaceholder(string path)
+        {
+            if (File.Exists(path))
+                return _imageService.LoadBitmapFully(path);
+
+            return new BitmapImage(new Uri(_placeholder));
+        }
+
         private void PlaceholderAll()
         {
             DetectionImage = new BitmapImage(new Uri(_placeholder));
@@ -45,13 +56,10 @@ namespace MURDOC_2024.ViewModel
 
         public void LoadResults(string detectionFolder, string outputsFolder, string imageName)
         {
-            string placeholder = "pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png";
-
-            // PNG detection image
+            // PNG detection image - use the helper method
             string png = Path.Combine(detectionFolder, imageName + ".png");
-            DetectionImage = File.Exists(png)
-                ? LoadBitmapFully(png)
-                : new BitmapImage(new Uri(placeholder));
+            DetectionImage = LoadOrPlaceholder(png);
+            DetectionImagePath = png;
 
             // TXT detection results
             string txt = Path.Combine(detectionFolder, imageName + ".txt");
@@ -61,20 +69,6 @@ namespace MURDOC_2024.ViewModel
             DetectionText = File.Exists(txt)
                 ? File.ReadAllText(txt)
                 : "No detections.";
-        }
-
-        private BitmapImage LoadBitmapFully(string path)
-        {
-            var bmp = new BitmapImage();
-            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                bmp.BeginInit();
-                bmp.CacheOption = BitmapCacheOption.OnLoad;
-                bmp.StreamSource = fs;
-                bmp.EndInit();
-            }
-            bmp.Freeze();
-            return bmp;
         }
 
         public void Clear()
