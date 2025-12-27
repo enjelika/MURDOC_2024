@@ -1,0 +1,17 @@
+﻿<UserControl x:Class="MURDOC_2024.UserControls.FinalPredictionPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:MURDOC_2024.UserControls"
+             mc:Ignorable="d" 
+             d:DesignHeight="590" d:DesignWidth="720">
+    <Grid>
+        <StackPanel Background="LightGray" Orientation="Vertical" HorizontalAlignment="Right" Width="718" Margin="5">
+            <Label Content="Final Prediction" HorizontalAlignment="Center" FontWeight="Bold" Margin="0"/>
+            <StackPanel Orientation="Horizontal" Margin="20">
+                <Image Source="{Binding FinalImagePrediction}" Margin="5" Stretch="Uniform" MaxWidth="700" Height="Auto" HorizontalAlignment="Left" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

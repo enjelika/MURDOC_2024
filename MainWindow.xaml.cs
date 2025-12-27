@@ -1,5 +1,4 @@
 ﻿using MURDOC_2024.ViewModel;
-using System.Threading;
 using System;
 using System.Windows;
 
@@ -53,20 +52,16 @@ namespace MURDOC_2024
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             Console.WriteLine("MainWindow Closed event fired");
-            // You can add any cleanup code that needs to run when the window is closed
-        }
 
-        private void LocalizationImage_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
-        {
-            var imageItem = sender as System.Windows.Controls.Image;
-            if (imageItem != null)
+            // ------------------------------------------------------------------
+            // **CRITICAL CLEANUP FIX**
+            // ------------------------------------------------------------------
+            if (DataContext is IDisposable disposableViewModel)
             {
-                var viewModel = DataContext as MainWindowViewModel;
-                if (viewModel != null)
-                {
-                    viewModel.HandlePreviewImageChanged(imageItem.Source.ToString());
-                }
+                Console.WriteLine("Calling Dispose() on MainWindowViewModel.");
+                disposableViewModel.Dispose(); // This calls PythonEngine.Shutdown()
             }
+            // ------------------------------------------------------------------
         }
     }
 }

@@ -1,0 +1,49 @@
+﻿using System;
+using System.IO;
+using System.Windows.Media.Imaging;
+
+namespace MURDOC_2024.ViewModel
+{
+    public class FinalPredictionPaneViewModel : ViewModelBase
+    {
+        private BitmapImage _finalImagePrediction;
+        public BitmapImage FinalImagePrediction
+        {
+            get => _finalImagePrediction;
+            set => SetProperty(ref _finalImagePrediction, value);
+        }
+
+        private readonly string _placeholder =
+            "pack://application:,,,/MURDOC_2024;component/Assets/image_placeholder.png";
+
+
+        public void LoadImage(string imagePath)
+        {
+            if (string.IsNullOrEmpty(imagePath))
+            {
+                FinalImagePrediction = null;
+                return;
+            }
+
+            FinalImagePrediction = new BitmapImage(new Uri(imagePath));
+        }
+
+        // ----------------------------------------------------
+        // LOAD RESULTS FROM PYTHON OUTPUT
+        // ----------------------------------------------------
+        public void LoadResult(string imageFolder, string imageName)
+        {
+            string path = System.IO.Path.Combine(imageFolder, imageName + ".jpg");
+
+            if (File.Exists(path))
+                FinalImagePrediction = new BitmapImage(new Uri(path));
+            else
+                FinalImagePrediction = new BitmapImage(new Uri(_placeholder));
+        }
+
+        public void Clear()
+        {
+            FinalImagePrediction = null;
+        }
+    }
+}
