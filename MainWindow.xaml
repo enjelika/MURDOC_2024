@@ -46,7 +46,7 @@
 
                 <!-- Overlay layer: XAI Expander sits ON TOP of prediction -->
                 <Expander Header="XAI Panel"
-                    IsExpanded="True"
+                    IsExpanded="False"
                     Margin="5"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Top"
