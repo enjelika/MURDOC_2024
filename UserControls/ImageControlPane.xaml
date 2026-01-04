@@ -5,15 +5,15 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="250" d:DesignWidth="350">
+             d:DesignHeight="280" d:DesignWidth="320">
     <Grid>
-        <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Height="240">
+        <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Height="270">
                 <!-- Image file select/browse button and text box -->
                 <Label Content="Select image:" FontWeight="Bold"/>
 
-                <StackPanel Orientation="Horizontal" Margin="5, -5, 5, 5">
-                <TextBox Text="{Binding SelectedImagePath, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
-                    <Button Content="Browse" Command="{Binding BrowseCommand}" Margin="5,5,5,5" />
+                <StackPanel Orientation="Vertical" Margin="5, -5, 5, 5">
+                    <TextBox Text="{Binding SelectedImagePath, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
+                    <Button Content="Browse" Command="{Binding BrowseCommand}" Margin="75,5,75,5" />
                 </StackPanel>
 
                 <!-- Image Adjustment controls: Brightness, Contrast, Saturation -->
