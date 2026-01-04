@@ -5,15 +5,15 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="590" d:DesignWidth="725">
+             d:DesignHeight="530" d:DesignWidth="725">
     <Grid>
         <!-- RankNet -->
         <StackPanel Orientation="Vertical" Background="LightGray">
 
-            <Label Content="RankNet" FontWeight="Bold" Margin="10,0,0,0"/>
+            <Label Content="AI Model: RankNet" FontWeight="Bold" Margin="10,0,0,0"/>
 
-            <StackPanel Orientation="Horizontal" MaxHeight="600">
-                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="560">
+            <StackPanel Orientation="Horizontal" MaxHeight="510">
+                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="500">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Localization" FontWeight="DemiBold" HorizontalAlignment="Left" Margin="10,5,5,0"/>
 
@@ -71,7 +71,7 @@
 
                 </Border>
 
-                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="560">
+                <Border BorderBrush="DarkGray" BorderThickness="1"  Height="500">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Ranking" FontWeight="DemiBold" HorizontalAlignment="Left" Margin="10,5,5,0"/>
 

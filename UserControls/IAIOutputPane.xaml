@@ -9,7 +9,9 @@
     <Grid>
         <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray">
             <Label Content="Informative AI Output" FontWeight="Bold" Margin="5,0,20,0"/>
-            <TextBlock Text="{Binding IAIOutputMessage}" FontSize="14" TextWrapping="Wrap" Height="300" Width="280"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Height="280">
+                <TextBox Text="{Binding IAIOutputMessage}" FontSize="14" IsReadOnly="True" TextWrapping="Wrap" Height="275" Width="280"/>
+            </ScrollViewer>
         </StackPanel>
     </Grid>
 </UserControl>

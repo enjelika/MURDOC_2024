@@ -5,9 +5,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="320" d:DesignWidth="460">
+             d:DesignHeight="320" d:DesignWidth="280">
     <Grid>
-        <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Width="450" Height="320">
+        <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Width="270" Height="320">
             <Label Content="Preview" FontWeight="Bold" Margin="5,0,20,0"/>
             <Image Source="{Binding PreviewImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="300" />
         </StackPanel>

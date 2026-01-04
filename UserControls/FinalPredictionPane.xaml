@@ -5,12 +5,12 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="590" d:DesignWidth="720">
+             d:DesignHeight="590" d:DesignWidth="1000">
     <Grid>
-        <StackPanel Background="LightGray" Orientation="Vertical" HorizontalAlignment="Right" Width="718" Margin="5">
-            <Label Content="Final Prediction" HorizontalAlignment="Center" FontWeight="Bold" Margin="0"/>
-            <StackPanel Orientation="Horizontal" Margin="20">
-                <Image Source="{Binding FinalImagePrediction}" Margin="5" Stretch="Uniform" MaxWidth="700" Height="Auto" HorizontalAlignment="Left" />
+        <StackPanel Background="LightGray" Orientation="Vertical" HorizontalAlignment="Center" Width="995" Margin="5">
+            <Label Content="Final Model Prediction" HorizontalAlignment="Center" FontWeight="Bold" Margin="0"/>
+            <StackPanel Orientation="Horizontal" Margin="10">
+                <Image Source="{Binding FinalImagePrediction}" Margin="5" Stretch="Uniform" MaxWidth="900" Height="Auto" HorizontalAlignment="Left" />
             </StackPanel>
         </StackPanel>
     </Grid>

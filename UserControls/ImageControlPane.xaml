@@ -5,9 +5,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="320" d:DesignWidth="350">
+             d:DesignHeight="250" d:DesignWidth="350">
     <Grid>
-        <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Height="315">
+        <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Height="240">
                 <!-- Image file select/browse button and text box -->
                 <Label Content="Select image:" FontWeight="Bold"/>
 

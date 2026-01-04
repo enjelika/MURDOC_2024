@@ -6,8 +6,9 @@
         xmlns:local="clr-namespace:MURDOC_2024"
         xmlns:controls="clr-namespace:MURDOC_2024.UserControls"
         mc:Ignorable="d"
-        Height="995" Width="1840"
+        Height="995" Width="1740"
         ResizeMode="NoResize"
+        Background="LightGray"
         WindowStartupLocation="CenterScreen">
     <DockPanel>
         <!-- Your window content here -->
@@ -15,51 +16,57 @@
         <Grid>
             <Grid.ColumnDefinitions>
                 <!-- Define three columns with appropriate widths -->
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="1085" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Main pane -->
-            <StackPanel Grid.Column="0" Background="LightGray" Margin="5,5,441,5" Grid.ColumnSpan="2">
+            <!-- Left Controls: Selection of Image File, Image Adjustment Controls, IAI Output -->
+            <StackPanel Orientation="Vertical" MaxWidth="300" Grid.Column="0" Margin="5">
+                <!-- Image Selection and Control Pane -->
+                <controls:ImageControlPane DataContext="{Binding ImageControlVM}"/>
 
-                <StackPanel Orientation="Horizontal">
-                    <!-- Image Selection and Control Pane -->
-                    <controls:ImageControlPane DataContext="{Binding ImageControlVM}"/>
+                <!-- Selected Image -->
+                <controls:InputImagePane DataContext="{Binding InputImageVM}"/>
 
-                    <!-- Selected Image -->
-                    <controls:InputImagePane DataContext="{Binding InputImageVM}"/>
-
-                    <!-- Preview for mouse over -->
-                    <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}"/>
-
-                    <!-- IAI Output Message -->
-                    <controls:IAIOutputPane DataContext="{Binding IAIOutputVM}" />
-
-                    <!-- MICA Control Pane -->
-                    <controls:MICAControlPane />
-                </StackPanel>
-
-
-                <StackPanel Orientation="Vertical" Margin="5" MaxHeight="610">
-                    <StackPanel Orientation="Horizontal">
-                        <!-- RankNet Output Pane -->
-                        <controls:RankNetOutputPane DataContext="{Binding RankNetVM}" />
-
-                        <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
-
-                        <!-- EfficientDetD7 Output Pane -->
-                        <controls:EfficientDetD7OutputPane DataContext="{Binding EfficientDetVM}" />
-
-                        <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
-
-                        <!-- Final Prediction Output Pane -->
-                        <controls:FinalPredictionPane DataContext="{Binding FinalPredictionVM}"/>
-                    </StackPanel>
-
-
-                </StackPanel>
+                <!-- IAI Output Message -->
+                <controls:IAIOutputPane DataContext="{Binding IAIOutputVM}" />
 
             </StackPanel>
 
+            <StackPanel Orientation="Vertical" MaxWidth="1085" Grid.Column="1" Margin="5">
+                <Expander Header="XAI Panel" IsExpanded="True" Margin="5">
+                    <Expander.HeaderTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="XAI Panel" FontWeight="Bold" FontSize="14"/>
+                        </DataTemplate>
+                    </Expander.HeaderTemplate>
+
+                    <StackPanel Orientation="Horizontal">
+                        <!-- RankNet Output Pane -->
+                        <controls:RankNetOutputPane DataContext="{Binding RankNetVM}" />
+                        <TextBlock FontFamily="Segoe UI Symbol" FontSize="40" FontWeight="Bold" 
+                            Text="&#x2B46;" VerticalAlignment="Center" Foreground="Black" Margin="2"/>
+                        
+                        <!-- EfficientDetD7 Output Pane -->
+                        <controls:EfficientDetD7OutputPane DataContext="{Binding EfficientDetVM}" />
+                    </StackPanel>
+                </Expander>
+
+                <!-- Final Prediction Output Pane -->
+                <controls:FinalPredictionPane DataContext="{Binding FinalPredictionVM}" Height="400"/>
+
+            </StackPanel>
+            
+            <!-- Main pane -->
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Right" Grid.Column="2" Margin="5">
+                <!-- Preview for mouse over -->
+                <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}"/>
+
+                <!-- MICA Control Pane -->
+                <controls:MICAControlPane />
+
+            </StackPanel>
 
         </Grid>
 
