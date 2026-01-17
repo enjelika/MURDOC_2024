@@ -61,10 +61,13 @@ namespace MURDOC_2024.ViewModel
         public RankNetViewModel RankNetVM { get; }
         public EfficientDetD7ViewModel EfficientDetVM { get; }
         public FinalPredictionPaneViewModel FinalPredictionVM { get; }
+        public MICAControlViewModel MICAControlVM { get; }
+
 
         public MainWindowViewModel()
         {
             _python = new PythonModelService();
+            _python.SetDetectionParameters(1.5, 0.0);
             _imageService = new ImageService();
 
             // Create child VMs
@@ -86,6 +89,12 @@ namespace MURDOC_2024.ViewModel
             RankNetVM = new RankNetViewModel(previewPath => HandlePreviewImageChanged(previewPath));
             EfficientDetVM = new EfficientDetD7ViewModel(HandlePreviewImageChanged);
             FinalPredictionVM = new FinalPredictionPaneViewModel();
+
+            MICAControlVM = new MICAControlViewModel(
+                pythonService: _python,             // ideally via IPythonService
+                runModelsAction: () => RunModelsCommand()
+            );
+
         }
 
         /// <summary>
@@ -198,7 +207,12 @@ namespace MURDOC_2024.ViewModel
         /// </summary>
         private async Task<string> RunPythonModelAsync(string imagePath)
         {
-            return await Task.Run(() => _python.RunIAIModelsBypassAsync(imagePath));
+            // If you add a dedicated UseMICA toggle later, replace this condition.
+            bool useMica = MICAControlVM?.AutoUpdate == true;
+
+            return useMica
+                ? await _python.RunIAIModelsWithMICAAsync(imagePath)
+                : await _python.RunIAIModelsBypassAsync(imagePath);
         }
 
         private void ResetAll()

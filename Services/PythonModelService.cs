@@ -3,12 +3,16 @@ using System.IO;
 using System.Threading.Tasks;
 using Python.Runtime;
 using System.Diagnostics;
+using Newtonsoft.Json;
 
 namespace MURDOC_2024.Services
 {
-    internal sealed class PythonModelService : IDisposable
+    internal sealed class PythonModelService : IPythonService, IDisposable
     {
         private bool _isInitialized = false;
+
+        private double _currentSensitivity = 1.5;  // Default (no change)
+        private double _currentBias = 0.0;         // Default (no change)
 
         // NOTE: You must either define pythonHome as a class field 
         // or repeat the path string here to use it in the constructor.
@@ -82,6 +86,9 @@ namespace MURDOC_2024.Services
         /// </summary>
         public Task<string> RunIAIModelsBypassAsync(string imagePath)
         {
+            // Always write current parameters before running
+            SetDetectionParameters(_currentSensitivity, _currentBias);
+
             // 1. Get Python path (assuming it's in the PATH now)
             string pythonExe = "python.exe";
 
@@ -145,6 +152,94 @@ namespace MURDOC_2024.Services
                     }
 
                     // NOTE: Your Python script must be modified to print ONLY the final result string to stdout.
+                    return output.Trim();
+                }
+            });
+        }
+
+        /// <summary>
+        /// Sets detection parameters for MICA controls
+        /// </summary>
+        public void SetDetectionParameters(double sensitivity, double bias)
+        {
+            _currentSensitivity = sensitivity;
+            _currentBias = bias;
+
+            // Write to the location Python expects
+            string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "models", "mica_params.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(configPath)); // Ensure directory exists
+
+            var config = new
+            {
+                sensitivity = sensitivity,
+                bias = bias,
+                timestamp = DateTime.Now
+            };
+            File.WriteAllText(configPath, JsonConvert.SerializeObject(config));
+        }
+
+        /// <summary>
+        /// Runs model with MICA parameters
+        /// </summary>
+        public Task<string> RunIAIModelsWithMICAAsync(string imagePath)
+        {
+            // 1. Get Python path (assuming it's in the PATH now)
+            string pythonExe = "python.exe";
+
+            // 2. Prepare script path
+            string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                @"..\..\..\Model\IAI_Decision_Hierarchy.py");
+
+            // Check if the script exists
+            if (!File.Exists(scriptPath))
+            {
+                throw new FileNotFoundException($"Python script not found at: {scriptPath}");
+            }
+
+            // Define the target output directory as the C# Debug folder
+            string outputDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "results");
+
+            if (!Directory.Exists(outputDir))
+                Directory.CreateDirectory(outputDir);
+
+            // 3. Pass parameters as command line arguments INCLUDING MICA parameters
+            string arguments = $"\"{scriptPath}\" \"{imagePath}\" --sensitivity {_currentSensitivity} --bias {_currentBias}";
+
+            Console.WriteLine($"[PROCESS] Executing: {pythonExe} {arguments}");
+
+            return Task.Run(() =>
+            {
+                ProcessStartInfo start = new ProcessStartInfo
+                {
+                    FileName = pythonExe,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                using (Process process = Process.Start(start))
+                {
+                    // Wait for the process to exit
+                    process.WaitForExit();
+
+                    // Read output (result) and errors
+                    string output = process.StandardOutput.ReadToEnd();
+                    string errors = process.StandardError.ReadToEnd();
+
+                    if (process.ExitCode != 0)
+                    {
+                        string fullError = errors + "\nOutput: " + output;
+                        Console.WriteLine($"[EXTERNAL PYTHON CRASH] {fullError}");
+                        throw new Exception($"Python process crashed with exit code {process.ExitCode}. Errors:\n{fullError}");
+                    }
+
+                    if (!string.IsNullOrEmpty(errors))
+                    {
+                        Console.WriteLine($"[EXTERNAL PYTHON WARNINGS/MESSAGES] Errors (Ignored): {errors}");
+                    }
+
                     return output.Trim();
                 }
             });

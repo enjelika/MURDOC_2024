@@ -1,65 +1,63 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 27 13:10:39 2023
-Updated on Sun Dec 07 19:09:42 2025 - Lazy Loading
-
-@author: Debra Hogue
+IAI_Decision_Hierarchy.py (cleaned)
 
 Description: Decision Hierarchy for CODS XAI
-             Lvl 1 - Binary mask evaluation  - Is anything present?
-             Lvl 2 - Ranking mask evaluation - Where is the weak camouflage located?
-             Lvl 3 - Object Part Identification of weak camouflage - What part of the object breaks the camouflage concealment?
+    Lvl 1 - Binary mask evaluation  - Is anything present?
+    Lvl 2 - Ranking mask evaluation - Where is the weak camouflage located?
+    Lvl 3 - Object Part Identification of weak camouflage - What part of the object breaks the camouflage concealment?
+
+Key fixes:
+- Loads MICA params from ./models/mica_params.json and applies to binary thresholding
+- Fixes incorrect thresholding (bm_image is 0..255, not 0..1)
+- Fixes Grad-CAM saving (no double-save + no undefined variable crash)
+- Avoids show_cam_on_image name collision (uses imported function, not overriding)
+- Cleans argv usage: python script.py <image_path> [output_dir] [--force-reload] [--clear]
+- Fixed marked_image unbound error when bboxes is empty
+- Added segmented output generation for Final Model Prediction display
 """
 
-import cv2
 import os
+import sys
 import json
+import time
+import traceback
+
+import cv2
 import numpy as np
-from PIL import Image, ImageFile
+from PIL import Image, ImageFile, ImageDraw, ImageFont
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 import matplotlib.colors as color
 import matplotlib.pyplot as plt
 from skimage.measure import label, regionprops, find_contours
-import tensorflow as tf
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-from matplotlib.patches import Rectangle
 
-import traceback
-import time
-import sys
+import tensorflow as tf
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-
-import numpy as np
-import pdb, os, argparse
 
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
-from pytorch_grad_cam.utils.image import show_cam_on_image, preprocess_image
+from pytorch_grad_cam.utils.image import show_cam_on_image as cam_overlay
 
-from scipy import misc
 from model.ResNet_models import Generator
 
-"""
-===================================================================================================
-    Lazy Loading Manager - Singleton pattern for managing resources
-===================================================================================================
-"""
+
+# ================================================================================================
+# Lazy Loading Manager - Singleton pattern for managing resources
+# ================================================================================================
 class LazyResourceManager:
     _instance = None
     _initialized = False
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(LazyResourceManager, cls).__new__(cls)
         return cls._instance
-    
+
     def __init__(self):
-        # Only initialize once
         if not LazyResourceManager._initialized:
             self._cods_model = None
             self._detect_fn = None
@@ -67,795 +65,639 @@ class LazyResourceManager:
             self._bl_gr_rd_bl_colormap = None
             self._output_dirs_created = False
             LazyResourceManager._initialized = True
-    
+
     @property
     def cods_model(self):
-        """Lazy load the CODS ResNet model"""
         if self._cods_model is None:
-            #log_step("Lazy loading CODS model")
             self._cods_model = self._load_cods_model()
         return self._cods_model
-    
+
     @property
     def detect_fn(self):
-        """Lazy load the TensorFlow detection model"""
         if self._detect_fn is None:
-            #log_step("Lazy loading TensorFlow detection model")
             self._detect_fn = self._load_tensorflow_model()
         return self._detect_fn
-    
+
     @property
     def RdBl(self):
-        """Lazy load the RdBl colormap"""
         if self._rd_bl_colormap is None:
             self._create_colormaps()
         return self._rd_bl_colormap
-    
+
     @property
     def blGrRdBl(self):
-        """Lazy load the blGrRdBl colormap"""
         if self._bl_gr_rd_bl_colormap is None:
             self._create_colormaps()
         return self._bl_gr_rd_bl_colormap
-    
+
     def _load_cods_model(self):
-        """Load the CODS ResNet model"""
-        # Turning off gpu since loading 2 models takes too much VRAM
-        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-        
-        # Loading the model and handling the CUDA availability
         cods = Generator(channel=32)
-        
-        # Load the model with appropriate handling for CPU-only environments
-        model_path = './models/Resnet/Model_50_gen.pth'
+        model_path = "./models/Resnet/Model_50_gen.pth"
+
         if torch.cuda.is_available():
             cods.load_state_dict(torch.load(model_path))
             cods.cuda()
         else:
-            cods.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-        
+            cods.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
+
         cods.eval()
         return cods
-    
+
     def _load_tensorflow_model(self):
-        """Load the TensorFlow detection model"""
         PATH_TO_SAVED_MODEL = "models/d7_f/saved_model"
-        
-        detect_fn = None
-        with tf.device('/CPU:0'):
+        with tf.device("/CPU:0"):
             detect_fn = tf.saved_model.load(PATH_TO_SAVED_MODEL)
-        
-        #log_step("TensorFlow model loaded successfully")
         return detect_fn
-    
+
     def _create_colormaps(self):
-        """Create custom colormaps"""
-        #log_step("Creating custom colormaps")
-        
-        # Create RdBl colormap
-        if 'RdBl' not in plt.colormaps():
+        # RdBl
+        if "RdBl" not in plt.colormaps():
             RdBl_colors = ["black", "black", "red", "red"]
-            self._rd_bl_colormap = color.LinearSegmentedColormap.from_list('RdBl', RdBl_colors)
+            self._rd_bl_colormap = color.LinearSegmentedColormap.from_list("RdBl", RdBl_colors)
             plt.register_cmap(cmap=self._rd_bl_colormap)
         else:
-            self._rd_bl_colormap = plt.get_cmap('RdBl')
-        
-        # Create blGrRdBl colormap
-        if 'blGrRdBl' not in plt.colormaps():
+            self._rd_bl_colormap = plt.get_cmap("RdBl")
+
+        # blGrRdBl
+        if "blGrRdBl" not in plt.colormaps():
             blGrRdBl_colors = ["black", "blue", "green", "red", "red"]
-            self._bl_gr_rd_bl_colormap = color.LinearSegmentedColormap.from_list('blGrRdBl', blGrRdBl_colors)
+            self._bl_gr_rd_bl_colormap = color.LinearSegmentedColormap.from_list("blGrRdBl", blGrRdBl_colors)
             plt.register_cmap(cmap=self._bl_gr_rd_bl_colormap)
         else:
-            self._bl_gr_rd_bl_colormap = plt.get_cmap('blGrRdBl')
-    
+            self._bl_gr_rd_bl_colormap = plt.get_cmap("blGrRdBl")
+
     def ensure_output_dirs(self):
-        """Create output directories if they haven't been created yet"""
         if not self._output_dirs_created:
-            #log_step("Creating output directories")
-            for dir in ["figures", "bbox_figures", "jsons", "outputs", "results"]:
-                if not os.path.exists(dir):
-                    os.mkdir(dir)
+            for d in ["figures", "bbox_figures", "jsons", "outputs", "results", "detection_results"]:
+                os.makedirs(d, exist_ok=True)
             self._output_dirs_created = True
-    
+
     def clear_cache(self):
-        """Clear cached models and resources (useful for memory management)"""
-        #log_step("Clearing cached resources")
         self._cods_model = None
         self._detect_fn = None
-        torch.cuda.empty_cache()  # Clear GPU cache if using CUDA
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
-# Global instance of the resource manager
+
 resource_manager = LazyResourceManager()
 
-"""
-===================================================================================================
-    Helper function
-        - Converts the grayscale CAMs to RGB and overlay them on the original image
-===================================================================================================
-"""
-def show_cam_on_image(img: np.ndarray, mask: np.ndarray, use_rgb: bool = False, colormap: int = cv2.COLORMAP_JET) -> np.ndarray:
-    heatmap = cv2.applyColorMap(np.uint8(255 * mask), colormap)
-    if use_rgb:
-        heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-    heatmap = np.float32(heatmap) / 255
 
-    if img.shape != heatmap.shape:
-        heatmap = np.transpose(heatmap, (1, 0, 2))
+# ================================================================================================
+# MICA parameter loading + threshold mapping
+# ================================================================================================
+def load_mica_params(params_path=None):
+    """Load MICA parameters, with fallback to defaults"""
+    if params_path is None:
+        # Look in models subdirectory relative to the Debug folder
+        params_path = os.path.join(".", "models", "mica_params.json")
+    
+    default = {"sensitivity": 1.5, "bias": 0.0}
+    
+    try:
+        if os.path.exists(params_path):
+            with open(params_path, "r") as f:
+                data = json.load(f)
+            s = float(data.get("sensitivity", default["sensitivity"]))
+            b = float(data.get("bias", default["bias"]))
+            print(f"[INFO] Loaded MICA params: sensitivity={s}, bias={b}")
+            return {"sensitivity": s, "bias": b}
+    except Exception as e:
+        print(f"[INFO] Using default params (could not read {params_path}: {e})")
+    
+    return default
 
-    if np.max(img) > 1:
-        raise Exception("The input image should np.float32 in the range [0, 1]")
 
-    cam = heatmap + img
-    cam = cam / np.max(cam)
-    return np.uint8(255 * cam)
+def compute_binary_threshold(mica_params, base_thresh=0.5):
+    """
+    Maps sensitivity/bias -> threshold in [0.05, 0.95].
+    - Higher sensitivity => lower threshold (more positives)
+    - Bias shifts threshold directly
+    """
+    s = mica_params.get("sensitivity", 1.5)
+    b = mica_params.get("bias", 0.0)
 
-"""
-===================================================================================================
-    Helper function
-        - Adds the XAI message as a label onto a copy of th esegmented image
-===================================================================================================
-"""
-from PIL import ImageDraw
-from PIL import ImageFont
+    # Example mapping:
+    # sensitivity=1.0 => ~base_thresh
+    # sensitivity=2.0 => ~base_thresh - 0.1
+    thresh = base_thresh - 0.1 * (s - 1.0) + b
+    thresh = float(np.clip(thresh, 0.05, 0.95))
+    return thresh
 
+
+# ================================================================================================
+# Helper functions
+# ================================================================================================
 def add_label(image, label_text, label_position):
-
-    # Create a drawing object
     draw = ImageDraw.Draw(image)
-
-    # Define the font and font size
-    font = ImageFont.truetype('arial.ttf', 20)
-
-     # Draw the label on the image
-    draw.text(label_position, label_text, fill='white', font=font, stroke_width=2, stroke_fill='black')
-
-    # Save the image with the label
-    image.save('labeled_image.jpg')
+    try:
+        font = ImageFont.truetype("arial.ttf", 20)
+    except Exception:
+        font = ImageFont.load_default()
+    draw.text(label_position, label_text, fill="white", font=font, stroke_width=2, stroke_fill="black")
+    return image
 
 
-"""
-===================================================================================================
-    Helper function
-        - Segments the detected object in yellow and the weak camo regions in red
-===================================================================================================
-"""
-def get_color_based_on_rank(rank_value):
-    # Define a color mapping based on rank
-    color_mapping = {
-        1: (255, 0, 0),    # Red for rank 1
-        2: (0, 255, 0),    # Green for rank 2
-        3: (0, 0, 255),    # Blue for rank 3
-        # Add more colors for other ranks if needed
-    }
-    
-    # Assign the color based on the rank value
-    color = color_mapping.get(rank_value, (255, 255, 0))  # Default to yellow for unknown ranks
-    
-    return color
-
-def segment_image(original_image, mask_image, rank_mask, alpha=128):
-    # Convert the mask and rank masks to mode 1
-    mask_image = mask_image.convert('1')
-    rank_mask = rank_mask.convert('1')
-
-    # Check that the mask, rank mask, and image have the same size
-    if original_image.size != mask_image.size or original_image.size != rank_mask.size:
-        raise ValueError('Image, mask, and rank mask must have the same size.')
-
-    # Convert the original image and masks to NumPy arrays
-    original_array = np.array(original_image)
-    mask_array = np.array(mask_image, dtype=bool)
-    rank_array = np.array(rank_mask, dtype=bool)
-
-    # Create a copy of the original image
-    segmented_image = original_array.copy()
-
-    # Apply the segmentation to the image
-    indices = np.nonzero(mask_array)
-    for idx in zip(*indices):
-        pixel_color = original_array[idx]
-        rank_value = rank_array[idx]
-        color = get_color_based_on_rank(rank_value)  # Custom function to determine color based on rank
-        highlighted_color = list(color) + [alpha]
-        new_color = tuple([int((c1 * (255 - alpha) + c2 * alpha) / 255) for c1, c2 in zip(pixel_color, highlighted_color)])
-        segmented_image[idx] = new_color
-
-    # Convert the numpy array back to a PIL Image
-    segmented_image = Image.fromarray(segmented_image)
-
-    return segmented_image
-
-
-"""
-===================================================================================================
-    Helper function
-        - Reassigns grayscale values to colors: (Hard: Blue, Medium: Green, Weak: Red)
-        -- Only the red will be visible, the medium and hard areas will be black
-===================================================================================================
-"""
-def processFixationMap(fix_image):   
-    # Get colormap from resource manager
+def processFixationMap(fix_image):
     blGrRdBl = resource_manager.blGrRdBl
-    
-    # Input data should range from 0-1
-    img_np = np.asarray(fix_image)/255
-    
-    # Ensure the array is 2D
+    img_np = np.asarray(fix_image) / 255.0
+
     if img_np.ndim > 2:
-        img_np = img_np.squeeze()  # Remove single-dimensional entries
+        img_np = img_np.squeeze()
         if img_np.ndim > 2:
-            img_np = img_np[:,:,0]  # Take only the first channel if still 3D
-            
-    # print("Shape of img_np after processing:", img_np.shape)
-    # print("Data type of img_np:", img_np.dtype)
-    
-    # Colorize the fixation map
-    color_map = Image.fromarray(blGrRdBl(img_np, bytes=True))
-    # color_map.show()
-    
-    return color_map
+            img_np = img_np[:, :, 0]
+
+    return Image.fromarray(blGrRdBl(img_np, bytes=True))
 
 
-"""
-===================================================================================================
-    Helper function
-        - Reassigns grayscale values to colors: (Hard: Blue, Medium: Green, Weak: Red)
-        -- Only the red will be visible, the medium and hard areas will be black
-===================================================================================================
-"""
-def findAreasOfWeakCamouflage(fix_image):  
-    # Get colormap from resource manager
+def findAreasOfWeakCamouflage(fix_image):
     RdBl = resource_manager.RdBl
-    
-    # Input data should range from 0-1
-    img_np = np.asarray(fix_image)/255
-    
-    # Ensure the array is 2D
+    img_np = np.asarray(fix_image) / 255.0
+
     if img_np.ndim > 2:
-        img_np = img_np.squeeze()  # Remove single-dimensional entries
+        img_np = img_np.squeeze()
         if img_np.ndim > 2:
-            img_np = img_np[:,:,0]  # Take only the first channel if still 3D
-    
-    # print("Shape of img_np after processing:", img_np.shape)
-    # print("Data type of img_np:", img_np.dtype)
-    
-    # Colorize the fixation map
-    color_map = Image.fromarray((RdBl(img_np) * 255).astype(np.uint8))
-    # color_map.show()
-    
-    return color_map
+            img_np = img_np[:, :, 0]
+
+    return Image.fromarray((RdBl(img_np) * 255).astype(np.uint8))
 
 
-"""
-===================================================================================================
-    Helper function
-        - Convert a mask to border image
-===================================================================================================
-"""
 def mask_to_border(mask):
-    # Convert PIL image (RGB), mask, to cv2 image (BGR), cv_mask
     open_cv_image = cv2.cvtColor(np.asarray(mask), cv2.COLOR_RGB2GRAY)
-    
-    # Get the height and width    
-    h = open_cv_image.shape[0]
-    w = open_cv_image.shape[1]
-    border = np.zeros((h, w))
+    h, w = open_cv_image.shape[:2]
+    border = np.zeros((h, w), dtype=np.uint8)
 
     contours = find_contours(open_cv_image, 1)
     for contour in contours:
         for c in contour:
             x = int(c[0])
             y = int(c[1])
-            border[x][y] = 255
+            border[x, y] = 255
 
     return border
 
 
-"""
-===================================================================================================
-    Helper function
-        - Mask to bounding boxes
-===================================================================================================
-"""
 def mask_to_bbox(mask):
     bboxes = []
-
     mask = mask_to_border(mask)
     lbl = label(mask)
     props = regionprops(lbl)
-    
+
     for prop in props:
         x1 = prop.bbox[1]
         y1 = prop.bbox[0]
-
         x2 = prop.bbox[3]
         y2 = prop.bbox[2]
-
         bboxes.append([x1, y1, x2, y2])
 
     return bboxes
 
 
-"""
-===================================================================================================
-    Helper function
-        - Parsing mask for drawing bounding box(es) on an image
-===================================================================================================
-"""
-def parse_mask(mask):
-    mask = np.expand_dims(mask, axis=-1)
-    mask = np.concatenate([mask, mask, mask], axis=-1)
-    return mask
-
-
-"""
-===================================================================================================
-    Helper function
-        - Returns overlapping boxes 
-        box format [xmin, xmax, ymin, ymax]
-===================================================================================================
-"""
-def overlap(bbox1,bbox2):
-    def overlap1D(b1,b2):
+def overlap(bbox1, bbox2):
+    def overlap1D(b1, b2):
         return b1[1] >= b2[0] and b2[1] >= b1[0]
-    
-    return overlap1D(bbox1[:2],bbox2[:2]) and overlap1D(bbox1[2:],bbox2[2:])
+
+    return overlap1D(bbox1[:2], bbox2[:2]) and overlap1D(bbox1[2:], bbox2[2:])
 
 
-
-"""
-===================================================================================================
-    Lvl 3 - What part of the object breaks the camouflage concealment?
-===================================================================================================
-"""
-def levelThree(original_image, bbox, message, filename):   
-    # Get detection function from resource manager
-    detect_fn = resource_manager.detect_fn
-    
-    y_size, x_size, channel = original_image.shape
-    
-    label_map = ["leg","mouth","shadow","tail","arm","eye"]
-    
-    # The input needs to be a tensor, convert it using `tf.convert_to_tensor`.
-    input_tensor = tf.convert_to_tensor(original_image)
-    
-    # The model expects a batch of images, so add an axis with `tf.newaxis`.
-    input_tensor = input_tensor[tf.newaxis, ...]
-    detections = detect_fn(input_tensor)
-        
-    d_class = []
-    d_box = []
-    
-    if not os.path.exists('detection_results'):
-        os.makedirs('detection_results')
-    
-    for i,s in enumerate(detections['detection_scores'].numpy()[0]):
-        if s > 0.05:
-            d_class.append(detections['detection_classes'].numpy()[0][i])
-            d_box.append(detections['detection_boxes'].numpy()[0][i])
-    
-    # Create a figure with no axes
-    fig, axis = plt.subplots(1, figsize=(12,6))
-    axis.imshow(original_image)
-    axis.axis('off')  # Turn off the axis
-               
-    for i,b in enumerate(detections['detection_boxes'].numpy()[0]):
-        if  detections['detection_scores'].numpy()[0][i] > 0.3:
-            axis.add_patch(plt.Rectangle((b[1]*x_size, b[0]*y_size),  (b[3]-b[1])*x_size,  (b[2]-b[0])*y_size, label="Test", fill=False, linewidth=2, color=(1,0,0)))
-            axis.text(b[1]*x_size, b[0]*y_size-10,label_map[int(detections['detection_classes'].numpy()[0][i])-1] + " " + str(detections['detection_scores'].numpy()[0][i]), fontweight=400, color=(1,0,0))
-    
-    # Save the plot as a PNG file
-    fig.savefig('detection_results/'+filename+'.png', bbox_inches='tight', pad_inches=0)
-    plt.close(fig)  # Close the figure to free up memory
-    
-    weak = []
-    
-    # Prepare data for the TXT file
-    txt_content = []
-    
-    # Do not need the prediction label on the photo in MURDOC/MICA
-    for box1 in bbox:
-        feat = []
-        for count, box2 in enumerate(d_box):
-            if overlap([box1['x1'], box1['x2'], box1['y1'], box1['y2']], [box2[1]*x_size, box2[3]*x_size, box2[0]*y_size,  box2[2]*y_size]):
-                detected_class = label_map[int(d_class[count])-1]
-                detection_score = detections['detection_scores'].numpy()[0][count]
-                message += f"Object's {detected_class}, Detection Score: {detection_score:.2%}\n"
-                feat.append(detected_class)
-                txt_content.append(f"Class: {detected_class}, Score: {detection_score:.4f}")
-        weak.append(feat)        
-    
-    # Save the detected classes and scores to a TXT file
-    with open('detection_results/'+filename+'.txt', 'w') as f:
-        f.write('\n'.join(txt_content))
-        
-    return message
-
-
-"""
-===================================================================================================
-    Lvl 2 - Where is the weak camouflage located?
-        Input:  original_image & fixation_map from Lvl 1 (Camouflage Ranking Map)
-        Output: original image & list of bounding boxes
-===================================================================================================
-"""
-def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
-    
-    # Mask the red area(s) in the fixation map (weak camouflaged area(s))
-    fig, axis = plt.subplots(1,2, figsize=(12,6))
-    axis[0].imshow(original_image);
-    axis[0].set_title('Original Image')
-    axis[1].imshow(all_fix_map)
-    axis[1].set_title('Fixation Map')
-    plt.tight_layout()
-    
-    # Save plot to output folder for paper
-    plt.savefig("figures/fig_"+filename)
-    
-    # Applying bounding box(es) with the original image for output to lvl 3
-    bboxes = mask_to_bbox(fixation_map)
-    
-    # Convert original_image to cv2 image (BGR) and apply the bounding box
-    open_cv_orImage1 = original_image.copy()
-    open_cv_orImage2 = original_image.copy()
-    
-    # Crop areas of weak camo into a collection of images
-    cropped_images = []
-    data = {"item": 
-            {
-                "name": filename + ".jpg",
-                "num_of_weak_areas": len(bboxes)
-            },
-            "weak_area_bbox": []
-        }
-    index = 1
-    
-    marked_image = []
-    
-    # Looping through the bounding boxes
-    for bbox in bboxes:
-        # Marking red bounding box(es) on the original image
-        starting_point = (bbox[0], bbox[1])
-        ending_point = (bbox[2], bbox[3])
-        marked_image = cv2.rectangle(open_cv_orImage1, starting_point, ending_point, (255,0,0), 2)
-        
-        # Slicing to crop the image (y1:y2, x1:x2)
-        ci = open_cv_orImage2[bbox[1]:bbox[3], bbox[0]:bbox[2]]
-        cropped_images.append(ci)
-        # cv2.imwrite("bbox_figures/cropped_"+filename+str(index)+".png", ci)
-        
-        # Create json of bounding box(es)
-        data["weak_area_bbox"].append(
-            {
-                    "x1":bbox[0],
-                    "y1":bbox[1],
-                    "x2":bbox[2],
-                    "y2":bbox[3]
-            })
-        
-        # Increase Index
-        index = index + 1
-    
-    # the json file to save the output data   
-    with open("jsons/"+filename+".json", "w")  as f: 
-        json.dump(data, f, indent = 6)  
-        f.close() 
-        
-    # Figure of original image and marked image
-    fig, axis = plt.subplots(1,2, figsize=(12,6))
-    axis[0].imshow(marked_image)
-    axis[0].set_title('Identified Weak Camo')
-    if not (cropped_images[0].shape[0] ==0 or cropped_images[0].shape[1]==0):
-        axis[1].imshow(cropped_images[0])
-    axis[1].set_title('Cropped Weak Camo Area')
-    
-    # Save plot to output folder for paper
-    plt.savefig("bbox_figures/fig_"+filename)
-    
-    message += "Identified " + str(index-1) + " weak camouflaged area(s).  \n"
-    
-    # Weak camouflaged area annotated image
-    output = levelThree(original_image, data["weak_area_bbox"], message, filename)
-    
-    return output
-
-
-"""
-===================================================================================================
-    Lvl 1 - Is anything present?
-        Input:  binary_map & fix_map
-        Output: fix_map (if a camouflaged object is detected)
-===================================================================================================
-"""
-def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, message):
-
-    # Does the numpy array contain any non-zero values?
-    all_zeros = not binary_map.any()
-    
-    if all_zeros:
-        # No object detected, no need to continue to lower levels
-        message += "No object present. \n"
-        #print("No object present.")
-        output = message
-    else:
-        # Object detected, continue to Lvl 2
-        message += "Object present. \n"
-        #print("Object detected.")
-        output = levelTwo(filename, original_image, all_fix_map, fix_image, message)
-        
-    return output
-
-
-"""
-===================================================================================================
-    Helper Function - 
-        Retrieves the overlap areas of weak camouflage within the binary map
-===================================================================================================
-"""
 def apply_mask(heatmap, mask):
-    # print("heatmap type:", type(heatmap))
-    
-    # Convert the heatmap to a NumPy array if it's an image
+    """
+    Apply a binary mask to a heatmap.
+    Used to isolate regions of interest in the fixation/ranking map.
+    """
     if isinstance(heatmap, Image.Image):
         heatmap = np.asarray(heatmap)
         trans_heatmap = np.transpose(heatmap)
-        # print("heatmap shape:", trans_heatmap.shape)
-        
-    # Broadcast the mask to match the shape of the heatmap
-    mask_broadcasted = np.broadcast_to(mask, trans_heatmap.shape)
-    
-    # Apply the mask by multiplying the heatmap with the mask
-    masked_heatmap = mask_broadcasted * trans_heatmap
-    
-    masked_heatmap = np.transpose(masked_heatmap)
+    else:
+        trans_heatmap = np.transpose(heatmap)
 
+    mask_broadcasted = np.broadcast_to(mask, trans_heatmap.shape)
+    masked_heatmap = mask_broadcasted * trans_heatmap
+    masked_heatmap = np.transpose(masked_heatmap)
     return masked_heatmap
 
 
-"""
-===================================================================================================
-    IAI Function - Main entry point with lazy loading
-===================================================================================================
-"""
-def iaiDecision(file_path, force_reload=False):
+def process_prediction(pred, WW, HH):
+    pred = F.upsample(pred, size=[HH, WW], mode="bilinear", align_corners=False)  # CORRECT: [H, W]
+    pred = pred.sigmoid().data.cpu().numpy().squeeze()
+    pred = 255 * (pred - pred.min()) / (pred.max() - pred.min() + 1e-8)
+    return pred.astype(np.uint8)
+
+
+def create_segmented_overlay(original_image, rank_map, binary_mask, alpha=0.5):
     """
-    Process an image through the IAI decision hierarchy.
+    Create a segmented overlay showing the camouflaged object prediction.
     
     Args:
-        file_path: Path to the image file to process
-        force_reload: If True, forces reloading of all cached resources
+        original_image: BGR image (OpenCV format)
+        rank_map: Grayscale ranking/fixation map (0-255) showing detection confidence
+        binary_mask: Binary mask (0 or 1) indicating detected object regions
+        alpha: Blending factor for overlay (0.0 = only original, 1.0 = only heatmap)
     
     Returns:
-        str: The decision message output
+        BGR image with heatmap overlay on detected regions
     """
+    # Ensure original is in the right format
+    if original_image.dtype != np.uint8:
+        original_image = original_image.astype(np.uint8)
     
-    try:       
-        # Clear cache if requested
-        if force_reload:
-            resource_manager.clear_cache()
-        
-        # Ensure output directories exist
-        resource_manager.ensure_output_dirs()
-        
-        # Get models from resource manager (will lazy load if needed)
-        cods = resource_manager.cods_model
-        detect_fn = resource_manager.detect_fn
-        
-        file_name = os.path.splitext(os.path.basename(file_path))[0]
-        if not os.path.exists(f'outputs/{file_name}'):
-            os.makedirs(f'outputs/{file_name}')
-                        
-        # XAI Message
-        message = f"Decision for {file_name}: \n"
-        
-        # Gather the images: Original, Binary Mapping, Fixation Mapping
-        original_image = cv2.imread(file_path)
-        if original_image is None:
-            raise ValueError(f"Unable to load image from path: {file_path}")
-
-        # Preprocess the image
-        image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (224, 224))  # Adjust size as needed
-        image = image.transpose((2, 0, 1))  # Change from HWC to CHW format
-        image = image / 255.0  # Normalize to [0, 1]
-        image = torch.from_numpy(image).float().unsqueeze(0)  # Add batch dimension
-
-        # Get original image dimensions
-        HH, WW = original_image.shape[:2]
-        
-        # Move image to GPU if available
-        if torch.cuda.is_available():
-            image = image.cuda()
-        
-        # Get the Fixation Mapping, and Binary Mapping Predictions
-        fix_pred, _, cod_pred2 = cods.forward(image)
-        
-        # Process fixation and binary mapping predictions
-        fix_image = process_prediction(fix_pred, WW, HH)
-        bm_image = process_prediction(cod_pred2, WW, HH)
-        
-        bm_image_pil = Image.fromarray(bm_image).convert('L')
-        fix_image_pil = Image.fromarray(fix_image).convert('L')
-        
-        bm_image_pil.save(f'outputs/{file_name}/binary_image.png')
-        fix_image_pil.save(f'outputs/{file_name}/fixation_image.png')
-        
-        #=======================================================================        
-        # Grad-CAM for fix_pred
-        target_layer_fix = [cods.get_x4_layer()]
-        grad_cam_fix = MultiOutputGradCAM(model=cods, target_layers=target_layer_fix, output_index=0)
-        
-        # Grad-CAM for cod_pred2
-        target_layer_cod = [cods.get_x4_2_layer()]
-        grad_cam_cod = MultiOutputGradCAM(model=cods, target_layers=target_layer_cod, output_index=2)
-        
-        # Compute Grad-CAM
-        grayscale_cam_fix = None
-        grayscale_cam_cod = None
-
-        try:
-            grayscale_cam_fix = grad_cam_fix(input_tensor=image)
-            #print(f"Shape of grayscale_cam_fix: {grayscale_cam_fix.shape}")
-        except Exception as e:
-            print(f"Error in grad_cam_fix: {str(e)}")
-        
-        try:
-            grayscale_cam_cod = grad_cam_cod(input_tensor=image)
-            #print(f"Shape of grayscale_cam_cod: {grayscale_cam_cod.shape}")
-        except Exception as e:
-            print(f"Error in grad_cam_cod: {str(e)}")
-        
-        # Convert the input tensor to a numpy array for visualization
-        input_image = image.squeeze(0).permute(1, 2, 0).cpu().numpy()
-        input_image = (input_image - input_image.min()) / (input_image.max() - input_image.min())  # Normalize to [0, 1]
-        
-        #print(f"Shape of input_image: {input_image.shape}")
-        
-        # Convert grayscale heatmaps to RGB
-        if grayscale_cam_fix is not None:
-            heatmap_fix = show_cam_on_image(input_image, grayscale_cam_fix[0], use_rgb=True)
-            cv2.imwrite(f'outputs/{file_name}/gradcam_fix.png', cv2.cvtColor(heatmap_fix, cv2.COLOR_RGB2BGR))
+    h, w = original_image.shape[:2]
+    
+    # Resize rank_map to match original image dimensions
+    if rank_map.shape[:2] != (h, w):
+        rank_map = cv2.resize(rank_map, (w, h), interpolation=cv2.INTER_LINEAR)
+    
+    # Resize binary_mask to match original image dimensions
+    if binary_mask.shape[:2] != (h, w):
+        # binary_mask might be transposed, handle both cases
+        if binary_mask.shape == (w, h):
+            binary_mask = binary_mask.T
         else:
-            print("Unable to generate heatmap for fix_pred")
-        
-        if grayscale_cam_cod is not None:
-            heatmap_cod = show_cam_on_image(input_image, grayscale_cam_cod[0], use_rgb=True)
-            cv2.imwrite(f'outputs/{file_name}/gradcam_cod.png', cv2.cvtColor(heatmap_cod, cv2.COLOR_RGB2BGR))
-        else:
-            print("Unable to generate heatmap for cod_pred2")
-        
-        # Save the heatmaps
-        cv2.imwrite(f'outputs/{file_name}/gradcam_fix.png', cv2.cvtColor(heatmap_fix, cv2.COLOR_RGB2BGR))
-        cv2.imwrite(f'outputs/{file_name}/gradcam_cod.png', cv2.cvtColor(heatmap_cod, cv2.COLOR_RGB2BGR))
-        #=======================================================================
-
-        # Normalize the Binary Mapping 
-        trans_img = np.transpose(np.where(bm_image>0.5,1,0))
-        img_np = np.asarray(trans_img)
-        
-        # Only get the weak camouflaged areas that are present in the binary map
-        masked_fix_map = apply_mask(Image.fromarray(fix_image), img_np)
-        
-        # Preprocess the Fixation Mapping
-        weak_fix_map = findAreasOfWeakCamouflage(masked_fix_map)
-        all_fix_map = processFixationMap(masked_fix_map)
-        
-        output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message)
-
-        org_image = Image.fromarray(cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB))
-        #print(f'dim of org_image: {org_image.size}')
-        #print(f'dim of bm_image: {Image.fromarray(bm_image).size}')
-        #print(f'dim of fix_image: {Image.fromarray(fix_image).size}')
+            binary_mask = cv2.resize(binary_mask.astype(np.uint8), (w, h), interpolation=cv2.INTER_NEAREST)
     
-        # Resize binary and fixation images to match original image size
-        bm_image_resized = cv2.resize(bm_image, (org_image.width, org_image.height))
-        fix_image_resized = cv2.resize(fix_image, (org_image.width, org_image.height))
+    # Apply colormap to rank_map (JET gives nice blue->green->yellow->red gradient)
+    heatmap_colored = cv2.applyColorMap(rank_map, cv2.COLORMAP_JET)
     
-        segmented_image = segment_image(org_image, Image.fromarray(bm_image_resized), Image.fromarray(fix_image_resized))
-        #print(f'dim of segmented_image: {segmented_image.size}')
-        segmented_image.save(f'results/segmented_{file_name}.jpg')
+    # Create mask for blending (expand to 3 channels)
+    mask_3ch = np.stack([binary_mask] * 3, axis=-1).astype(np.float32)
+    
+    # Blend: where mask is 1, show heatmap overlay; where mask is 0, show original
+    # Inside detected region: blend original with heatmap
+    # Outside detected region: show original unchanged
+    blended = original_image.copy().astype(np.float32)
+    
+    # Apply heatmap only where mask indicates detection
+    blended = blended * (1 - mask_3ch * alpha) + heatmap_colored.astype(np.float32) * (mask_3ch * alpha)
+    
+    return blended.astype(np.uint8)
 
-        return output
 
-    except Exception as e:
-        error_message = f"An error occurred: {str(e)}\nTraceback: {traceback.format_exc()}"
-        print(error_message)  # This will be captured by the redirected stdout in C#
-        return f"Error occurred: {str(e)}"
+# ================================================================================================
+# Level Three
+# ================================================================================================
+def levelThree(original_image, bbox, message, filename):
+    detect_fn = resource_manager.detect_fn
+
+    y_size, x_size, _ = original_image.shape
+    label_map = ["leg", "mouth", "shadow", "tail", "arm", "eye"]
+
+    input_tensor = tf.convert_to_tensor(original_image)[tf.newaxis, ...]
+    detections = detect_fn(input_tensor)
+
+    d_class = []
+    d_box = []
+
+    for i, s in enumerate(detections["detection_scores"].numpy()[0]):
+        if s > 0.05:
+            d_class.append(detections["detection_classes"].numpy()[0][i])
+            d_box.append(detections["detection_boxes"].numpy()[0][i])
+
+    # Save a detection visualization
+    fig, axis = plt.subplots(1, figsize=(12, 6))
+    axis.imshow(original_image)
+    axis.axis("off")
+
+    for i, b in enumerate(detections["detection_boxes"].numpy()[0]):
+        score = detections["detection_scores"].numpy()[0][i]
+        if score > 0.3:
+            axis.add_patch(
+                plt.Rectangle(
+                    (b[1] * x_size, b[0] * y_size),
+                    (b[3] - b[1]) * x_size,
+                    (b[2] - b[0]) * y_size,
+                    fill=False,
+                    linewidth=2,
+                    color=(1, 0, 0),
+                )
+            )
+            cls = int(detections["detection_classes"].numpy()[0][i]) - 1
+            cls_name = label_map[cls] if 0 <= cls < len(label_map) else "unknown"
+            axis.text(b[1] * x_size, b[0] * y_size - 10, f"{cls_name} {score:.2f}", color=(1, 0, 0))
+
+    fig.savefig(f"detection_results/{filename}.png", bbox_inches="tight", pad_inches=0)
+    plt.close(fig)
+
+    txt_content = []
+    for box1 in bbox:
+        for count, box2 in enumerate(d_box):
+            if overlap(
+                [box1["x1"], box1["x2"], box1["y1"], box1["y2"]],
+                [box2[1] * x_size, box2[3] * x_size, box2[0] * y_size, box2[2] * y_size],
+            ):
+                detected_class = label_map[int(d_class[count]) - 1]
+                detection_score = detections["detection_scores"].numpy()[0][count]
+                message += f"Object's {detected_class}, Detection Score: {detection_score:.2%}\n"
+                txt_content.append(f"Class: {detected_class}, Score: {detection_score:.4f}")
+
+    # Provide feedback even when no overlaps found
+    if not txt_content:
+        txt_content.append("No object parts detected in weak camouflage areas.")
+
+    with open(f"detection_results/{filename}.txt", "w") as f:
+        f.write("\n".join(txt_content))
+
+    return message
 
 
+# ================================================================================================
+# Level Two
+# ================================================================================================
+def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
+    # Save overview figure
+    fig, axis = plt.subplots(1, 2, figsize=(12, 6))
+    axis[0].imshow(original_image)
+    axis[0].set_title("Original Image")
+    axis[1].imshow(all_fix_map)
+    axis[1].set_title("Fixation Map")
+    plt.tight_layout()
+    plt.savefig(f"figures/fig_{filename}")
+    plt.close(fig)
+
+    # Bounding boxes from weak fixation
+    bboxes = mask_to_bbox(fixation_map)
+
+    open_cv_orImage1 = original_image.copy()
+    open_cv_orImage2 = original_image.copy()
+
+    cropped_images = []
+    marked_image = open_cv_orImage1  # Initialize here in case bboxes is empty
+    data = {
+        "item": {"name": filename + ".jpg", "num_of_weak_areas": len(bboxes)},
+        "weak_area_bbox": [],
+    }
+
+    for bbox in bboxes:
+        starting_point = (bbox[0], bbox[1])
+        ending_point = (bbox[2], bbox[3])
+        marked_image = cv2.rectangle(open_cv_orImage1, starting_point, ending_point, (255, 0, 0), 2)
+
+        ci = open_cv_orImage2[bbox[1] : bbox[3], bbox[0] : bbox[2]]
+        cropped_images.append(ci)
+
+        data["weak_area_bbox"].append({"x1": bbox[0], "y1": bbox[1], "x2": bbox[2], "y2": bbox[3]})
+
+    with open(f"jsons/{filename}.json", "w") as f:
+        json.dump(data, f, indent=6)
+
+    # Figure of marked + first crop
+    fig, axis = plt.subplots(1, 2, figsize=(12, 6))
+    axis[0].imshow(marked_image)
+    axis[0].set_title("Identified Weak Camo")
+    if cropped_images and cropped_images[0].size != 0:
+        axis[1].imshow(cropped_images[0])
+    axis[1].set_title("Cropped Weak Camo Area")
+    plt.savefig(f"bbox_figures/fig_{filename}")
+    plt.close(fig)
+
+    message += f"Identified {len(bboxes)} weak camouflaged area(s).\n"
+    output = levelThree(original_image, data["weak_area_bbox"], message, filename)
+    return output
+
+
+# ================================================================================================
+# Level One
+# ================================================================================================
+def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, message):
+    all_zeros = not binary_map.any()
+    if all_zeros:
+        message += "No object present.\n"
+        return message
+
+    message += "Object present.\n"
+    return levelTwo(filename, original_image, all_fix_map, fix_image, message)
+
+
+# ================================================================================================
+# GradCAM helper
+# ================================================================================================
 class MultiOutputGradCAM(GradCAM):
     def __init__(self, model, target_layers, output_index=0, reshape_transform=None):
-        super(MultiOutputGradCAM, self).__init__(model, target_layers, reshape_transform)
+        super().__init__(model, target_layers, reshape_transform)
         self.output_index = output_index
 
     def forward(self, input_tensor, targets=None, eigen_smooth=False):
         outputs = self.activations_and_grads(input_tensor)
         output = outputs[self.output_index]
-        
+
         if targets is None:
             target_categories = np.argmax(output.cpu().data.numpy(), axis=-1)
             targets = [ClassifierOutputTarget(category) for category in target_categories]
-        
+
         if self.uses_gradients:
             self.model.zero_grad()
-            # Sum the output tensor to create a scalar value
             loss = output.sum()
             loss.backward(retain_graph=True)
 
-        # In most of the saliency attribution papers, the saliency is
-        # computed with a single target layer.
-        # Commonly it is the last convolutional layer.
-        # Here we support passing a list with multiple target layers.
-        # It will compute the saliency image for every image,
-        # and then aggregate them (with a default mean aggregation).
-        # This gives you more flexibility in case you just want to
-        # use all conv layers for example, all Batchnorm layers,
-        # or something else.
-        cam_per_layer = self.compute_cam_per_layer(input_tensor,
-                                                   targets,
-                                                   eigen_smooth)
+        cam_per_layer = self.compute_cam_per_layer(input_tensor, targets, eigen_smooth)
         return self.aggregate_multi_layers(cam_per_layer)
-    
-def log_step(step_name):
-    print(f"{time.time()}: Starting {step_name}")
-    sys.stdout.flush()  # Ensure the output is immediately visible
-
-def process_prediction(pred, WW, HH):
-    pred = F.upsample(pred, size=[WW,HH], mode='bilinear', align_corners=False)
-    pred = pred.sigmoid().data.cpu().numpy().squeeze()
-    pred = 255*(pred - pred.min()) / (pred.max() - pred.min() + 1e-8)
-    return pred.astype(np.uint8)
 
 
-"""
-===================================================================================================
-    Utility functions for managing resources
-===================================================================================================
-"""
+# ================================================================================================
+# Main IAI entry point
+# ================================================================================================
+def iaiDecision(file_path, output_root=None, force_reload=False):
+    try:
+        if force_reload:
+            resource_manager.clear_cache()
+
+        resource_manager.ensure_output_dirs()
+
+        cods = resource_manager.cods_model  # lazy
+        _ = resource_manager.detect_fn       # lazy (Lvl3 needs it)
+
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+
+        # Output directory per image
+        if output_root:
+            os.makedirs(output_root, exist_ok=True)
+            out_dir = os.path.join(output_root, file_name)
+        else:
+            out_dir = os.path.join("outputs", file_name)
+        os.makedirs(out_dir, exist_ok=True)
+
+        message = f"Decision for {file_name}:\n"
+
+        original_image = cv2.imread(file_path)
+        if original_image is None:
+            raise ValueError(f"Unable to load image from path: {file_path}")
+
+        # Preprocess image for CODS model
+        image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+        image = cv2.resize(image, (224, 224))
+        image = image.transpose((2, 0, 1))
+        image = image / 255.0
+        image = torch.from_numpy(image).float().unsqueeze(0)
+
+        HH, WW = original_image.shape[:2]
+
+        if torch.cuda.is_available():
+            image = image.cuda()
+
+        # Model forward
+        fix_pred, _, cod_pred2 = cods.forward(image)
+
+        # Resize preds to original dims
+        fix_image = process_prediction(fix_pred, WW, HH)
+        bm_image = process_prediction(cod_pred2, WW, HH)
+
+        # Save raw output maps
+        Image.fromarray(bm_image).convert("L").save(os.path.join(out_dir, "binary_image.png"))
+        Image.fromarray(fix_image).convert("L").save(os.path.join(out_dir, "fixation_image.png"))
+
+        # -------------------
+        # Grad-CAM (safe save)
+        # -------------------
+        target_layer_fix = [cods.get_x4_layer()]
+        grad_cam_fix = MultiOutputGradCAM(model=cods, target_layers=target_layer_fix, output_index=0)
+
+        target_layer_cod = [cods.get_x4_2_layer()]
+        grad_cam_cod = MultiOutputGradCAM(model=cods, target_layers=target_layer_cod, output_index=2)
+
+        grayscale_cam_fix = None
+        grayscale_cam_cod = None
+
+        try:
+            grayscale_cam_fix = grad_cam_fix(input_tensor=image)
+        except Exception as e:
+            print(f"[WARN] grad_cam_fix failed: {e}")
+
+        try:
+            grayscale_cam_cod = grad_cam_cod(input_tensor=image)
+        except Exception as e:
+            print(f"[WARN] grad_cam_cod failed: {e}")
+
+        # Build input_image for overlay (H,W,C) float32 0..1
+        input_image = image.squeeze(0).permute(1, 2, 0).detach().cpu().numpy()
+        denom = (input_image.max() - input_image.min()) + 1e-8
+        input_image = (input_image - input_image.min()) / denom
+        input_image = input_image.astype(np.float32)
+
+        if grayscale_cam_fix is not None:
+            heatmap_fix = cam_overlay(input_image, grayscale_cam_fix[0], use_rgb=True)
+            cv2.imwrite(os.path.join(out_dir, "gradcam_fix.png"), cv2.cvtColor(heatmap_fix, cv2.COLOR_RGB2BGR))
+        else:
+            print("[INFO] No heatmap for fix_pred")
+
+        if grayscale_cam_cod is not None:
+            heatmap_cod = cam_overlay(input_image, grayscale_cam_cod[0], use_rgb=True)
+            cv2.imwrite(os.path.join(out_dir, "gradcam_cod.png"), cv2.cvtColor(heatmap_cod, cv2.COLOR_RGB2BGR))
+        else:
+            print("[INFO] No heatmap for cod_pred2")
+
+        # -------------------
+        # MICA thresholding fix
+        # -------------------
+        mica = load_mica_params()
+        thresh = compute_binary_threshold(mica_params=mica, base_thresh=0.5)
+        bm_thresh_255 = int(round(255 * thresh))
+
+        # bm_image is uint8 0..255, so threshold must be in that scale
+        trans_img = np.transpose(np.where(bm_image > bm_thresh_255, 1, 0))
+        img_np = np.asarray(trans_img, dtype=np.uint8)
+
+        # Only get the weak camouflaged areas that are present in the binary map
+        masked_fix_map = apply_mask(Image.fromarray(fix_image), img_np)
+
+        # Preprocess fixation mapping
+        weak_fix_map = findAreasOfWeakCamouflage(masked_fix_map)
+        all_fix_map = processFixationMap(masked_fix_map)
+
+        # -------------------
+        # Create segmented overlay for Final Model Prediction
+        # -------------------
+        # Create the binary mask (no transpose needed now)
+        binary_mask_for_overlay = np.where(bm_image > bm_thresh_255, 1, 0).astype(np.uint8)
+        
+        # Create segmented output (no transpose needed now)
+        segmented_output = create_segmented_overlay(
+            original_image=original_image,
+            rank_map=fix_image,
+            binary_mask=binary_mask_for_overlay,
+            alpha=0.6
+        )
+        
+        # Save segmented output to results folder
+        results_dir = "results"
+        os.makedirs(results_dir, exist_ok=True)
+        segmented_path = os.path.join(results_dir, f"segmented_{file_name}.jpg")
+        cv2.imwrite(segmented_path, segmented_output)
+        print(f"[INFO] Saved segmented output to: {segmented_path}")
+
+        # Also save a copy to the per-image output directory
+        cv2.imwrite(os.path.join(out_dir, "segmented_overlay.jpg"), segmented_output)
+
+        # -------------------
+        # Run decision hierarchy
+        # -------------------
+        output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message)
+
+        return output
+
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}\nTraceback:\n{traceback.format_exc()}"
+        print(error_message)
+        return f"Error occurred: {str(e)}"
+
+
+# ================================================================================================
+# Optional utilities
+# ================================================================================================
 def preload_resources():
-    """
-    Preload all resources into memory. Useful for batch processing.
-    """
     _ = resource_manager.cods_model
     _ = resource_manager.detect_fn
     _ = resource_manager.RdBl
     _ = resource_manager.blGrRdBl
     resource_manager.ensure_output_dirs()
 
+
 def clear_resources():
-    """
-    Clear all cached resources to free memory.
-    """
     resource_manager.clear_cache()
 
-"""
-===================================================================================================
-    Main
-===================================================================================================
-"""
+
+# ================================================================================================
+# Main
+# ================================================================================================
+def parse_args(argv):
+    """
+    Usage:
+      python IAI_Decision_Hierarchy.py <image_path> [output_dir] [--force-reload] [--clear]
+    """
+    if len(argv) < 2:
+        return None
+
+    image_path = argv[1]
+    output_dir = None
+    force_reload = False
+    do_clear = False
+
+    # Optional output dir is argv[2] if it doesn't look like a flag
+    if len(argv) >= 3 and not argv[2].startswith("--"):
+        output_dir = argv[2]
+
+    for a in argv[2:]:
+        if a == "--force-reload":
+            force_reload = True
+        if a == "--clear":
+            do_clear = True
+
+    return image_path, output_dir, force_reload, do_clear
+
+
 if __name__ == "__main__":
-    import sys
-    
-    # CRITICAL: Ensure you have 3 arguments (Script Name, Image Path, Output Directory)
-    if len(sys.argv) > 1:
-        file_path_from_csharp = sys.argv[1] 
-        
-        try:
-            # Call the function with BOTH arguments
-            final_result = iaiDecision(file_path_from_csharp);
-            
-            # Print ONLY the final result to stdout for C# to capture
-            print(final_result) 
-            
-        except Exception as e:
-            # Print exception stack trace to stderr so C# captures it as an error
-            traceback.print_exc(file=sys.stderr)
-            sys.exit(1)
-        
-        finally:
-            # ALWAYS clear resources, whether success or failure
-            clear_resources()
-            
-    else:
-        print("Error: Missing required arguments. Usage: python script.py <image_path> <output_dir>", file=sys.stderr)
+    parsed = parse_args(sys.argv)
+    if parsed is None:
+        print("Error: Missing required arguments. Usage: python script.py <image_path> [output_dir] [--force-reload] [--clear]",
+              file=sys.stderr)
         sys.exit(1)
+
+    image_path, output_dir, force_reload, do_clear = parsed
+
+    try:
+        final_result = iaiDecision(image_path, output_root=output_dir, force_reload=force_reload)
+        print(final_result)
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        sys.exit(1)
+    finally:
+        # Only clear if explicitly requested (useful if you later keep Python alive)
+        if do_clear:
+            clear_resources()

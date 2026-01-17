@@ -1,4 +1,5 @@
-﻿using MURDOC_2024.ViewModel;
+﻿using MURDOC_2024.Services;
+using MURDOC_2024.ViewModel;
 using System;
 using System.Windows;
 
@@ -15,7 +16,7 @@ namespace MURDOC_2024
             {
                 Console.WriteLine("MainWindow constructor started");
                 InitializeComponent();
-                Console.WriteLine("InitializeComponent completed");
+                Console.WriteLine("InitializeComponent completed");            
 
                 try
                 {

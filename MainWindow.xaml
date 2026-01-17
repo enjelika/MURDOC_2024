@@ -24,14 +24,15 @@
 
             <!-- Left Controls: Selection of Image File, Image Adjustment Controls, IAI Output -->
             <StackPanel Orientation="Vertical" MaxWidth="300" Grid.Column="0" Margin="5">
-                <!-- Image Selection and Control Pane -->
-                <controls:ImageControlPane DataContext="{Binding ImageControlVM}"/>
-
+                
                 <!-- Selected Image -->
                 <controls:InputImagePane DataContext="{Binding InputImageVM}"/>
 
-                <!-- IAI Output Message -->
-                <controls:IAIOutputPane DataContext="{Binding IAIOutputVM}" />
+                <!-- Image Selection and Control Pane -->
+                <controls:ImageControlPane DataContext="{Binding ImageControlVM}"/>
+
+                <!-- MICA Control Pane -->
+                <controls:MICAControlPane Margin="0,20,0,0" DataContext="{Binding MICAControlVM}" />
 
             </StackPanel>
 
@@ -79,8 +80,10 @@
                 <!-- Preview for mouse over -->
                 <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}"/>
 
-                <!-- MICA Control Pane -->
-                <controls:MICAControlPane />
+                <!-- IAI Output Message -->
+                <controls:IAIOutputPane DataContext="{Binding IAIOutputVM}" />
+
+              
 
             </StackPanel>
 

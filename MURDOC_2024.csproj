@@ -58,6 +58,9 @@
     <Reference Include="ImageProcessor, Version=2.9.0.207, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\ImageProcessor.2.9.0\lib\net452\ImageProcessor.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="Python.Runtime, Version=3.0.3.0, Culture=neutral, PublicKeyToken=5000fea6cba702dd, processorArchitecture=MSIL">
       <HintPath>packages\pythonnet.3.0.3\lib\netstandard2.0\Python.Runtime.dll</HintPath>
     </Reference>
@@ -89,6 +92,7 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Services\ImageService.cs" />
+    <Compile Include="Services\IPythonService.cs" />
     <Compile Include="Services\PythonModelService.cs" />
     <Compile Include="UserControls\EfficientDetD7OutputPane.xaml.cs">
       <DependentUpon>EfficientDetD7OutputPane.xaml</DependentUpon>
@@ -120,6 +124,7 @@
     <Compile Include="ViewModel\ImageControlPaneViewModel.cs" />
     <Compile Include="ViewModel\InputImagePaneViewModel.cs" />
     <Compile Include="ViewModel\MainWindowViewModel.cs" />
+    <Compile Include="ViewModel\MICAControlViewModel.cs" />
     <Compile Include="ViewModel\PreviewPaneViewModel.cs" />
     <Compile Include="ViewModel\RankNetPaneViewModel.cs" />
     <Compile Include="ViewModel\RelayCommand.cs" />

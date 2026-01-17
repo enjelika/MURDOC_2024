@@ -8,8 +8,44 @@
              d:DesignHeight="350" d:DesignWidth="280">
     <Grid>
         <StackPanel Orientation="Vertical" Background="Lightgray" Width="270" Height="320">
-            <Label Content="MICA Controls" FontWeight="Bold" Margin="5,0,5,0"/>
-            
+            <Label Content="Detection Controls" FontWeight="Bold" Margin="5,0,5,10"/>
+
+            <!-- Sensitivity Control -->
+            <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="0,0,0,8">
+                <StackPanel>
+                    <TextBlock Text="Sensitivity (d')" FontWeight="SemiBold" FontSize="12"/>
+                    <Slider x:Name="SensitivitySlider" 
+                        Minimum="0.5" Maximum="3.0" Value="1.5"
+                        Margin="0,5"/>
+                    <TextBlock Text="{Binding ElementName=SensitivitySlider, Path=Value, StringFormat='Value: {0:F2}'}" 
+                           HorizontalAlignment="Center" FontSize="10" Foreground="#666"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Bias Control -->
+            <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="0,0,0,8">
+                <StackPanel>
+                    <TextBlock Text="Response Bias (β)" FontWeight="SemiBold" FontSize="12"/>
+                    <Slider x:Name="BiasSlider" 
+                        Minimum="-2.0" Maximum="2.0" Value="0"
+                        Margin="0,5"/>
+                    <TextBlock Text="{Binding ElementName=BiasSlider, Path=Value, StringFormat='Value: {0:F2}'}" 
+                           HorizontalAlignment="Center" FontSize="10" Foreground="#666"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Feedback Section (for later) -->
+            <Border Background="#E8F4FD" CornerRadius="3" Padding="8" BorderBrush="#2196F3" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Quick Feedback" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,5"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="✓ Correct" Width="70" Height="25" Margin="0,0,5,0" 
+                            Background="#4CAF50" Foreground="White" FontSize="11"/>
+                        <Button Content="✗ Missed" Width="70" Height="25" 
+                            Background="#F44336" Foreground="White" FontSize="11"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </Grid>
 </UserControl>
