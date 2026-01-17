@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         Height="995" Width="1740"
         ResizeMode="NoResize"
-        Title="Mixed-Initiative Camouflage Analysis"
+        Title="Mixed-Initiative Camouflage Analysis Tool"
         Background="LightGray"
         WindowStartupLocation="CenterScreen">
     <DockPanel>
