@@ -55,6 +55,12 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _autoUpdate, value);
         }
 
+        public void ResetAll()
+        {
+            Sensitivity = 1.5;
+            Bias = 0.0;
+        }
+
         private Task UpdateDetectionParametersAsync()
         {
             if (_isUpdating)

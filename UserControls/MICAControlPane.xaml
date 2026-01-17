@@ -14,9 +14,7 @@
             <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="0,0,0,8">
                 <StackPanel>
                     <TextBlock Text="Sensitivity (d')" FontWeight="SemiBold" FontSize="12"/>
-                    <Slider x:Name="SensitivitySlider" 
-                        Minimum="0.5" Maximum="3.0" Value="1.5"
-                        Margin="0,5"/>
+                    <Slider x:Name="SensitivitySlider" Minimum="0.5" Maximum="3.0" Value="{Binding Sensitivity}" Margin="0,5" />
                     <TextBlock Text="{Binding ElementName=SensitivitySlider, Path=Value, StringFormat='Value: {0:F2}'}" 
                            HorizontalAlignment="Center" FontSize="10" Foreground="#666"/>
                 </StackPanel>
@@ -26,9 +24,7 @@
             <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="0,0,0,8">
                 <StackPanel>
                     <TextBlock Text="Response Bias (β)" FontWeight="SemiBold" FontSize="12"/>
-                    <Slider x:Name="BiasSlider" 
-                        Minimum="-2.0" Maximum="2.0" Value="0"
-                        Margin="0,5"/>
+                    <Slider x:Name="BiasSlider" Minimum="-2.0" Maximum="2.0" Value="{Binding Bias}" Margin="0,5"/>
                     <TextBlock Text="{Binding ElementName=BiasSlider, Path=Value, StringFormat='Value: {0:F2}'}" 
                            HorizontalAlignment="Center" FontSize="10" Foreground="#666"/>
                 </StackPanel>

@@ -233,6 +233,7 @@ namespace MURDOC_2024.ViewModel
             // Force command updates after reset
             ImageControlVM?.UpdateCommandStates();
             CommandManager.InvalidateRequerySuggested();
+            MICAControlVM.ResetAll();
         }
 
         private void AdjustInputImage(int brightness, int contrast, int saturation)
