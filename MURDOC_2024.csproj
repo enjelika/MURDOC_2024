@@ -91,6 +91,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Controls\PolygonROICanvas.cs" />
+    <Compile Include="Model\DetectionFeedback.cs" />
+    <Compile Include="Model\PolygonROI.cs" />
     <Compile Include="Services\ImageService.cs" />
     <Compile Include="Services\IPythonService.cs" />
     <Compile Include="Services\PythonModelService.cs" />
