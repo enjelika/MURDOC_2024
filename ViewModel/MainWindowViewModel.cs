@@ -45,6 +45,7 @@ namespace MURDOC_2024.ViewModel
                     Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         ImageControlVM?.UpdateCommandStates();
+                        MICAControlVM?.UpdateCommandStates();  // ADD THIS
                         CommandManager.InvalidateRequerySuggested();
                     });
                 }
@@ -63,7 +64,6 @@ namespace MURDOC_2024.ViewModel
         public FinalPredictionPaneViewModel FinalPredictionVM { get; }
         public MICAControlViewModel MICAControlVM { get; }
 
-
         public MainWindowViewModel()
         {
             _python = new PythonModelService();
@@ -78,11 +78,7 @@ namespace MURDOC_2024.ViewModel
             ImageControlVM = new ImageControlViewModel(
                 runModelsAction: () => RunModelsCommand(),
                 resetAction: ResetAll,
-                imageSelectedAction: path =>
-                {
-                    SelectedImagePath = path;
-                    InputImageVM.LoadImage(path);
-                },
+                imageSelectedAction: path => OnImageSelected(path),  // CHANGED: Use dedicated method
                 slidersChangedAction: (b, c, s) => AdjustInputImage(b, c, s)
             );
 
@@ -91,10 +87,24 @@ namespace MURDOC_2024.ViewModel
             FinalPredictionVM = new FinalPredictionPaneViewModel();
 
             MICAControlVM = new MICAControlViewModel(
-                pythonService: _python,             // ideally via IPythonService
-                runModelsAction: () => RunModelsCommand()
+                pythonService: _python,
+                runModelsAction: () => RunModelsCommand(),
+                resetAction: ResetAll
             );
+        }
 
+        // ADD THIS METHOD
+        /// <summary>
+        /// Called when an image is selected via the Browse button
+        /// </summary>
+        private void OnImageSelected(string path)
+        {
+            SelectedImagePath = path;
+            InputImageVM.LoadImage(path);
+
+            // CRITICAL: Notify MICA Control that an image has been selected
+            // This enables the Run and Reset buttons
+            MICAControlVM.OnImageSelected(path);
         }
 
         /// <summary>
@@ -137,8 +147,14 @@ namespace MURDOC_2024.ViewModel
             try
             {
                 LogStateChange("Before setting IsRunningModels = true");
-                // Set running state - this will disable buttons
+
+                // Set running state - this will disable buttons in BOTH ViewModels
                 IsRunningModels = true;
+
+                // UPDATE: Explicitly disable buttons in both ViewModels
+                ImageControlVM?.SetButtonStates(true);
+                MICAControlVM?.SetButtonStates(true);
+
                 LogStateChange("After setting IsRunningModels = true");
 
                 // Set wait cursor on UI thread
@@ -185,8 +201,12 @@ namespace MURDOC_2024.ViewModel
                 });
 
                 // IMPORTANT: Set IsRunningModels to false OUTSIDE of Dispatcher.Invoke
-                // This ensures property change notifications work correctly
                 IsRunningModels = false;
+
+                // UPDATE: Explicitly re-enable buttons in both ViewModels
+                ImageControlVM?.SetButtonStates(false);
+                MICAControlVM?.SetButtonStates(false);
+
                 LogStateChange("After setting IsRunningModels = false");
 
                 // Additional safety: Force a final command update after a small delay
@@ -196,6 +216,7 @@ namespace MURDOC_2024.ViewModel
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     ImageControlVM?.UpdateCommandStates();
+                    MICAControlVM?.UpdateCommandStates();  // ADD THIS
                     CommandManager.InvalidateRequerySuggested();
                     LogStateChange("After forcing command update");
                 });
@@ -230,10 +251,16 @@ namespace MURDOC_2024.ViewModel
             EfficientDetVM.Clear();
             FinalPredictionVM.Clear();
 
+            // UPDATE: Reset both ViewModels
+            ImageControlVM?.SetButtonStates(false);
+            // Note: MICAControlVM.ResetAll() is called internally via its ExecuteReset
+            // But we should also reset its button states here for consistency
+            MICAControlVM?.SetButtonStates(false);
+
             // Force command updates after reset
             ImageControlVM?.UpdateCommandStates();
+            MICAControlVM?.UpdateCommandStates();  // ADD THIS
             CommandManager.InvalidateRequerySuggested();
-            MICAControlVM.ResetAll();
         }
 
         private void AdjustInputImage(int brightness, int contrast, int saturation)

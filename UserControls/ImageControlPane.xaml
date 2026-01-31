@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="280" d:DesignWidth="320">
+             d:DesignHeight="220" d:DesignWidth="320">
     <Grid>
         <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Height="270">
                 <!-- Image file select/browse button and text box -->
@@ -37,11 +37,6 @@
                     </DockPanel>
                 </StackPanel>
 
-                <!-- Model controls: Run models to gather prediction and outputs -->
-                <Button Content="Run Models" Command="{Binding RunCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
-
-                <!-- Reset control: clears the GUI -->
-                <Button Content="Reset" Command="{Binding ResetCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
             </StackPanel>
 
     </Grid>

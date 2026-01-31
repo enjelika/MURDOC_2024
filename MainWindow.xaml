@@ -18,18 +18,18 @@
             <Grid.ColumnDefinitions>
                 <!-- Define three columns with appropriate widths -->
                 <ColumnDefinition Width="320" />
-                <ColumnDefinition Width="1040" />
+                <ColumnDefinition Width="1070" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <!-- Left Controls: Selection of Image File, Image Adjustment Controls, IAI Output -->
             <StackPanel Orientation="Vertical" MaxWidth="300" Grid.Column="0" Margin="5">
-                
+
                 <!-- Selected Image -->
                 <controls:InputImagePane DataContext="{Binding InputImageVM}"/>
 
                 <!-- Image Selection and Control Pane -->
-                <controls:ImageControlPane DataContext="{Binding ImageControlVM}"/>
+                <controls:ImageControlPane DataContext="{Binding ImageControlVM}" Height="210"/>
 
                 <!-- MICA Control Pane -->
                 <controls:MICAControlPane Margin="0,20,0,0" DataContext="{Binding MICAControlVM}" />
@@ -46,7 +46,7 @@
                     Panel.ZIndex="0"/>
 
                 <!-- Overlay layer: XAI Expander sits ON TOP of prediction -->
-                <Expander Header="XAI Panel"
+                <Expander Header="eXplainable AI Panel"
                     IsExpanded="False"
                     Margin="5"
                     HorizontalAlignment="Stretch"
@@ -75,17 +75,53 @@
                 </Expander>
             </Grid>
 
-            <!-- Right Controls: Preview Mouse-Over Image & MICA Controls -->
-            <StackPanel Orientation="Vertical" HorizontalAlignment="Right" Grid.Column="2" Margin="5">
-                <!-- Preview for mouse over -->
-                <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}"/>
+            <!-- Right Controls: Preview Mouse-Over Image & Editor Controls -->
+            <Grid Grid.Column="2" Margin="5" Width="300">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                <!-- IAI Output Message -->
-                <controls:IAIOutputPane DataContext="{Binding IAIOutputVM}" />
+                <!-- Base layer: Preview and Editor Controls (never move) -->
+                <StackPanel Grid.Row="0" Grid.RowSpan="2" 
+                Orientation="Vertical" 
+                HorizontalAlignment="Center"
+                Panel.ZIndex="0" Width="300">
+                    <!-- Preview for mouse over -->
+                    <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}" Margin="0,30,0,5" Height="240"/>
 
-              
+                    <!-- Editor Controls -->
+                    <controls:EditorControlsPane Margin="0,10,0,0" Width="287"/>
+                </StackPanel>
 
-            </StackPanel>
+                <!-- Overlay layer: IAI Output Expander sits ON TOP -->
+                <Expander Header="Informative AI Panel"
+                  IsExpanded="False"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  Panel.ZIndex="10"
+                  Opacity="0.95"
+                  Background="#CCFFFFFF"
+                  MaxWidth="500" Width="300" Margin="0,5,0,0">
+
+                    <Expander.HeaderTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="Informative AI Output" 
+                              FontWeight="Bold" 
+                              FontSize="14"/>
+                        </DataTemplate>
+                    </Expander.HeaderTemplate>
+
+                    <Border BorderBrush="#CCCCCC" 
+                    BorderThickness="1" 
+                    Background="White"
+                    CornerRadius="4"
+                    Margin="0,5,0,0">
+                        <controls:IAIOutputPane DataContext="{Binding IAIOutputVM}" 
+                                   Margin="10"/>
+                    </Border>
+                </Expander>
+            </Grid>
 
         </Grid>
 

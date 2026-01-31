@@ -92,11 +92,15 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Controls\PolygonROICanvas.cs" />
+    <Compile Include="Converters\BoolToVisibilityConverter.cs" />
     <Compile Include="Model\DetectionFeedback.cs" />
     <Compile Include="Model\PolygonROI.cs" />
     <Compile Include="Services\ImageService.cs" />
     <Compile Include="Services\IPythonService.cs" />
     <Compile Include="Services\PythonModelService.cs" />
+    <Compile Include="UserControls\EditorControlsPane.xaml.cs">
+      <DependentUpon>EditorControlsPane.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UserControls\EfficientDetD7OutputPane.xaml.cs">
       <DependentUpon>EfficientDetD7OutputPane.xaml</DependentUpon>
     </Compile>
@@ -144,6 +148,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="UserControls\EditorControlsPane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="UserControls\EfficientDetD7OutputPane.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

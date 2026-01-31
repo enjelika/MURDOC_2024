@@ -5,9 +5,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="350" d:DesignWidth="280">
+             d:DesignHeight="270" d:DesignWidth="280">
     <Grid>
-        <StackPanel Orientation="Vertical" Background="Lightgray" Width="270" Height="320">
+        <StackPanel Orientation="Vertical" Background="Lightgray" Width="270" Margin="5,0,5,0">
             <Label Content="Detection Controls" FontWeight="Bold" Margin="5,0,5,10"/>
 
             <!-- Sensitivity Control -->
@@ -30,18 +30,12 @@
                 </StackPanel>
             </Border>
 
-            <!-- Feedback Section (for later) -->
-            <Border Background="#E8F4FD" CornerRadius="3" Padding="8" BorderBrush="#2196F3" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="Quick Feedback" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,5"/>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Content="✓ Correct" Width="70" Height="25" Margin="0,0,5,0" 
-                            Background="#4CAF50" Foreground="White" FontSize="11"/>
-                        <Button Content="✗ Missed" Width="70" Height="25" 
-                            Background="#F44336" Foreground="White" FontSize="11"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+            <!-- Model controls: Run models to gather prediction and outputs -->
+            <Button Content="Run Models" Command="{Binding RunCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
+
+            <!-- Reset control: clears the GUI -->
+            <Button Content="Reset" Command="{Binding ResetCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
+
         </StackPanel>
     </Grid>
 </UserControl>

@@ -1,0 +1,211 @@
+﻿<UserControl x:Class="MURDOC_2024.UserControls.EditorControlsPane"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:MURDOC_2024.UserControls"
+             xmlns:converters="clr-namespace:MURDOC_2024.Converters"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="380">
+
+    <UserControl.Resources>
+        <!-- Add the converter here -->
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
+    </UserControl.Resources>
+    
+    <Border BorderBrush="#CCCCCC" 
+            BorderThickness="1" 
+            Background="White"
+            CornerRadius="4">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="12">
+
+                <!-- ROI Drawing Tools Section -->
+                <TextBlock Text="Region of Interest (ROI)"/>
+
+                <TextBlock Text="Draw mode:" 
+                           FontSize="11" 
+                           Foreground="#666666" 
+                           Margin="0,0,0,5"/>
+
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" 
+                            Content="🖊️ Polygon" 
+                            Command="{Binding SetPolygonModeCommand}"
+                            Margin="0,0,3,5"
+                            ToolTip="Click points to create ROI polygon&#x0a;Right-click or Enter to finish"/>
+
+                    <Button Grid.Column="1" 
+                            Content="✏️ Freehand" 
+                            Command="{Binding SetFreehandModeCommand}"
+                            Margin="3,0,0,5"
+                            ToolTip="Draw ROI freely with mouse"/>
+                </Grid>
+
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" 
+                            Content="🗑️ Clear" 
+                            Command="{Binding ClearROIsCommand}"
+                            Margin="0,0,3,5"/>
+
+                    <Button Grid.Column="1" 
+                            Content="💾 Export" 
+                            Command="{Binding ExportROIMasksCommand}"
+                            Margin="3,0,0,5"
+                            ToolTip="Save ROI masks as PNG files"/>
+                </Grid>
+
+                <!-- ROI Status Display -->
+                <Border Background="#F0F0F0" 
+                        Padding="8,5" 
+                        CornerRadius="3"
+                        Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock>
+                            <Run Text="Active ROIs: " FontSize="11"/>
+                            <Run Text="{Binding ROICount, Mode=OneWay}" 
+                                 FontWeight="Bold" 
+                                 FontSize="11"
+                                 Foreground="#2196F3"/>
+                        </TextBlock>
+                        <TextBlock FontSize="10" 
+                                   Foreground="#666666"
+                                   Visibility="{Binding IsDrawingROI, Converter={StaticResource BoolToVisConverter}}">
+                            <Run Text="⚠️ Drawing in progress..."/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <Separator Margin="0,10,0,15" Background="#E0E0E0"/>
+
+                <!-- Detection Feedback Section -->
+                <TextBlock Text="Detection Feedback" />
+
+                <TextBlock Text="Select a detection to provide feedback"
+                           FontSize="11"
+                           Foreground="#666666"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,8"/>
+
+                <!-- Feedback Stats -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" 
+                            Background="#E8F5E9" 
+                            Padding="8,5" 
+                            CornerRadius="3"
+                            Margin="0,0,3,0">
+                        <TextBlock TextAlignment="Center" FontSize="11">
+                            <Run Text="✓ " Foreground="#4CAF50" FontWeight="Bold"/>
+                            <Run Text="{Binding ConfirmedCount, Mode=OneWay}" 
+                                 FontWeight="Bold"/>
+                        </TextBlock>
+                    </Border>
+
+                    <Border Grid.Column="1" 
+                            Background="#FFEBEE" 
+                            Padding="8,5" 
+                            CornerRadius="3"
+                            Margin="3,0,0,0">
+                        <TextBlock TextAlignment="Center" FontSize="11">
+                            <Run Text="✗ " Foreground="#F44336" FontWeight="Bold"/>
+                            <Run Text="{Binding RejectedCount, Mode=OneWay}" 
+                                 FontWeight="Bold"/>
+                        </TextBlock>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Column="0" 
+                        Background="#FFF3E0" 
+                        Padding="8,5" 
+                        CornerRadius="3"
+                        Margin="0,0,0,8">
+                    <TextBlock TextAlignment="Center" FontSize="11">
+                        <Run Text="➕ " Foreground="#FF9800" FontWeight="Bold"/>
+                        <Run Text="Corrections: "/>
+                        <Run Text="{Binding CorrectionCount, Mode=OneWay}" 
+                             FontWeight="Bold"/>
+                    </TextBlock>
+                </Border>
+
+                <!-- Correction Mode Button -->
+                <Button Content="➕ Add Missed Object" 
+                        Command="{Binding EnableCorrectionModeCommand}"
+                        ToolTip="Draw polygon around object the system missed&#x0a;Or Ctrl+Click on image"
+                        Background="#FFF3E0"
+                        BorderBrush="#FFB74D">
+                </Button>
+
+                <Button Content="📊 View Feedback History" 
+                        Command="{Binding ViewFeedbackHistoryCommand}"/>
+
+                <Button Content="💾 Export Feedback Data" 
+                        Command="{Binding ExportFeedbackCommand}"
+                        ToolTip="Save feedback history as JSON"/>
+
+                <Separator Margin="0,10,0,15" Background="#E0E0E0"/>
+
+                <!-- Display Options Section -->
+                <TextBlock Text="Display Options" />
+
+                <CheckBox Content="Show ROI Overlays" 
+                          IsChecked="{Binding ShowROIs}"
+                          Margin="0,0,0,5"/>
+
+                <CheckBox Content="Show Detection Confidence" 
+                          IsChecked="{Binding ShowConfidence}"
+                          Margin="0,0,0,5"/>
+
+                <CheckBox Content="Highlight Feedback Status" 
+                          IsChecked="{Binding HighlightFeedback}"
+                          Margin="0,0,0,5"/>
+
+                <CheckBox Content="Show Attention Maps" 
+                          IsChecked="{Binding ShowAttentionMaps}"
+                          Margin="0,0,0,10"/>
+
+                <Separator Margin="0,10,0,15" Background="#E0E0E0"/>
+
+                <!-- Session Info -->
+                <TextBlock Text="Session Information"/>
+
+                <Border Background="#F5F5F5" 
+                        Padding="8" 
+                        CornerRadius="3">
+                    <StackPanel>
+                        <TextBlock FontSize="10">
+                            <Run Text="Total Interactions: "/>
+                            <Run Text="{Binding TotalInteractions, Mode=OneWay}" 
+                                 FontWeight="Bold"/>
+                        </TextBlock>
+                        <TextBlock FontSize="10" Margin="0,3,0,0">
+                            <Run Text="Session Start: "/>
+                            <Run Text="{Binding SessionStartTime, StringFormat='HH:mm:ss'}" 
+                                 FontWeight="Bold"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <Button Content="🔄 Reset Session" 
+                        Command="{Binding ResetSessionCommand}"
+                        Margin="0,8,0,0"
+                        ToolTip="Clear all ROIs and feedback"/>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>
