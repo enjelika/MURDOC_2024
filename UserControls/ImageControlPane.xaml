@@ -7,37 +7,37 @@
              mc:Ignorable="d" 
              d:DesignHeight="220" d:DesignWidth="320">
     <Grid>
-        <StackPanel Orientation="Vertical" Margin="5" Background="Lightgray" Height="270">
-                <!-- Image file select/browse button and text box -->
-                <Label Content="Select image:" FontWeight="Bold"/>
+        <StackPanel Orientation="Vertical" Margin="5,5,5,0" Background="Lightgray">
+            <!-- Image file select/browse button and text box -->
+            <Label Content="Select Image:" FontWeight="Bold"/>
 
-                <StackPanel Orientation="Vertical" Margin="5, -5, 5, 5">
-                    <TextBox Text="{Binding SelectedImagePath, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
-                    <Button Content="Browse" Command="{Binding BrowseCommand}" Margin="75,5,75,5" />
-                </StackPanel>
-
-                <!-- Image Adjustment controls: Brightness, Contrast, Saturation -->
-                <StackPanel VerticalAlignment="Center">
-                    <DockPanel VerticalAlignment="Center" Margin="5">
-                        <Label DockPanel.Dock="Left" FontWeight="Bold">Brightness:</Label>
-                        <TextBox Text="{Binding ElementName=sliderBrightness, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderBrightness" Value="{Binding SliderBrightness}" IsEnabled="{Binding IsSlidersEnabled}"/>
-                    </DockPanel>
-
-                    <DockPanel VerticalAlignment="Center" Margin="5">
-                        <Label DockPanel.Dock="Left" Width="72" FontWeight="Bold">Contrast:</Label>
-                        <TextBox Text="{Binding ElementName=sliderContrast, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderContrast" Value="{Binding SliderContrast}" IsEnabled="{Binding IsSlidersEnabled}"/>
-                    </DockPanel>
-
-                    <DockPanel VerticalAlignment="Center" Margin="5">
-                        <Label DockPanel.Dock="Left" FontWeight="Bold">Saturation:</Label>
-                        <TextBox Text="{Binding ElementName=sliderSaturation, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderSaturation" Value="{Binding SliderSaturation}" IsEnabled="{Binding IsSlidersEnabled}"/>
-                    </DockPanel>
-                </StackPanel>
-
+            <StackPanel Orientation="Vertical" Margin="5, -5, 5, 5">
+                <TextBox Text="{Binding SelectedImagePath, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
+                <Button Content="Browse" Command="{Binding BrowseCommand}" Margin="75,5,75,5" />
             </StackPanel>
+
+            <!-- Image Adjustment controls: Brightness, Contrast, Saturation -->
+            <StackPanel VerticalAlignment="Center">
+                <DockPanel VerticalAlignment="Center" Margin="5">
+                    <Label DockPanel.Dock="Left" FontWeight="Bold">Brightness:</Label>
+                    <TextBox Text="{Binding ElementName=sliderBrightness, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
+                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderBrightness" Value="{Binding SliderBrightness}" IsEnabled="{Binding IsSlidersEnabled}"/>
+                </DockPanel>
+
+                <DockPanel VerticalAlignment="Center" Margin="5">
+                    <Label DockPanel.Dock="Left" Width="72" FontWeight="Bold">Contrast:</Label>
+                    <TextBox Text="{Binding ElementName=sliderContrast, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
+                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderContrast" Value="{Binding SliderContrast}" IsEnabled="{Binding IsSlidersEnabled}"/>
+                </DockPanel>
+
+                <DockPanel VerticalAlignment="Center" Margin="5">
+                    <Label DockPanel.Dock="Left" FontWeight="Bold">Saturation:</Label>
+                    <TextBox Text="{Binding ElementName=sliderSaturation, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
+                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderSaturation" Value="{Binding SliderSaturation}" IsEnabled="{Binding IsSlidersEnabled}"/>
+                </DockPanel>
+            </StackPanel>
+
+        </StackPanel>
 
     </Grid>
 </UserControl>

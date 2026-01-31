@@ -32,7 +32,7 @@
                 <controls:ImageControlPane DataContext="{Binding ImageControlVM}" Height="210"/>
 
                 <!-- MICA Control Pane -->
-                <controls:MICAControlPane Margin="0,20,0,0" DataContext="{Binding MICAControlVM}" />
+                <controls:MICAControlPane Margin="0,15,0,0" DataContext="{Binding MICAControlVM}" />
 
             </StackPanel>
 
@@ -57,7 +57,7 @@
 
                     <Expander.HeaderTemplate>
                         <DataTemplate>
-                            <TextBlock Text="XAI Panel" FontWeight="Bold" FontSize="14"/>
+                            <TextBlock Text="eXplainable AI (XAI) Panel" FontWeight="Bold" FontSize="14"/>
                         </DataTemplate>
                     </Expander.HeaderTemplate>
 
@@ -106,7 +106,7 @@
 
                     <Expander.HeaderTemplate>
                         <DataTemplate>
-                            <TextBlock Text="Informative AI Output" 
+                            <TextBlock Text="Informative AI (IAI) Panel" 
                               FontWeight="Bold" 
                               FontSize="14"/>
                         </DataTemplate>

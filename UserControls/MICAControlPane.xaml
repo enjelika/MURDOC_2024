@@ -5,13 +5,13 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="270" d:DesignWidth="280">
+             d:DesignHeight="270" d:DesignWidth="320">
     <Grid>
-        <StackPanel Orientation="Vertical" Background="Lightgray" Width="270" Margin="5,0,5,0">
-            <Label Content="Detection Controls" FontWeight="Bold" Margin="5,0,5,10"/>
+        <StackPanel Orientation="Vertical" Background="Lightgray" Margin="5,0,5,0">
+            <Label Content="Detection Controls:" FontWeight="Bold" Margin="0,0,5,10"/>
 
             <!-- Sensitivity Control -->
-            <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="0,0,0,8">
+            <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="5,0,5,8">
                 <StackPanel>
                     <TextBlock Text="Sensitivity (d')" FontWeight="SemiBold" FontSize="12"/>
                     <Slider x:Name="SensitivitySlider" Minimum="0.5" Maximum="3.0" Value="{Binding Sensitivity}" Margin="0,5" />
@@ -21,7 +21,7 @@
             </Border>
 
             <!-- Bias Control -->
-            <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="0,0,0,8">
+            <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="5,0,5,8">
                 <StackPanel>
                     <TextBlock Text="Response Bias (β)" FontWeight="SemiBold" FontSize="12"/>
                     <Slider x:Name="BiasSlider" Minimum="-2.0" Maximum="2.0" Value="{Binding Bias}" Margin="0,5"/>
