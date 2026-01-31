@@ -7,6 +7,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Media.Imaging;
+using MURDOC_2024.Model;
+using System.Collections.ObjectModel;
 
 namespace MURDOC_2024.Controls
 {
