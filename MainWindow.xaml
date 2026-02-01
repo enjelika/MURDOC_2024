@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:MURDOC_2024"
         xmlns:controls="clr-namespace:MURDOC_2024.UserControls"
         mc:Ignorable="d"
-        Height="950" Width="1720"
+        Height="955" Width="1720"
         ResizeMode="NoResize"
         Title="Mixed-Initiative Camouflage Analysis Tool"
         Background="LightGray"
