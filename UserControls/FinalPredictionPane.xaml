@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="950" d:DesignWidth="1000">
+             d:DesignHeight="920" d:DesignWidth="1000">
     <Grid Margin="5">
         <Grid.RowDefinitions>
             <!-- Title -->
@@ -22,7 +22,7 @@
                    FontWeight="Bold" 
                    FontSize="14"
                    HorizontalAlignment="Center"
-                   Margin="0,50,0,10"/>
+                   Margin="0,45,0,10"/>
 
         <!-- ==================== MAIN PREDICTION IMAGE ==================== -->
         <Border Grid.Row="1" 

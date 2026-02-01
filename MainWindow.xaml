@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:MURDOC_2024"
         xmlns:controls="clr-namespace:MURDOC_2024.UserControls"
         mc:Ignorable="d"
-        Height="995" Width="1740"
+        Height="965" Width="1740"
         ResizeMode="NoResize"
         Title="Mixed-Initiative Camouflage Analysis Tool"
         Background="LightGray"
@@ -37,11 +37,11 @@
             </StackPanel>
 
             <!-- Main Pane with XAI Pane and Final Prediction -->
-            <Grid Grid.Column="1" Margin="5" MaxWidth="1085">
+            <Grid Grid.Column="1" Margin="5" MaxWidth="1060">
                 <!-- Base layer: Final Prediction (never moves) -->
                 <controls:FinalPredictionPane
                     DataContext="{Binding FinalPredictionVM}"
-                    Height="969"
+                    Height="940"
                     VerticalAlignment="Center"
                     Panel.ZIndex="0"/>
 
