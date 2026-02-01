@@ -125,6 +125,7 @@
     <Compile Include="UserControls\RankNetOutputPane.xaml.cs">
       <DependentUpon>RankNetOutputPane.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ViewModel\EditorControlsViewModel.cs" />
     <Compile Include="ViewModel\EfficientDetD7ViewModel.cs" />
     <Compile Include="ViewModel\FinalPredictionPaneViewModel.cs" />
     <Compile Include="ViewModel\IAIOutputPaneViewModel.cs" />

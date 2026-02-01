@@ -1,20 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-IAI_Decision_Hierarchy.py (cleaned)
+IAI_Decision_Hierarchy.py (with Detection Consolidation)
 
-Description: Decision Hierarchy for CODS XAI
+Description: Decision Hierarchy for CODS XAI with MICA parameter support
+    and consolidated detection output
+    
     Lvl 1 - Binary mask evaluation  - Is anything present?
     Lvl 2 - Ranking mask evaluation - Where is the weak camouflage located?
-    Lvl 3 - Object Part Identification of weak camouflage - What part of the object breaks the camouflage concealment?
-
-Key fixes:
-- Loads MICA params from ./models/mica_params.json and applies to binary thresholding
-- Fixes incorrect thresholding (bm_image is 0..255, not 0..1)
-- Fixes Grad-CAM saving (no double-save + no undefined variable crash)
-- Avoids show_cam_on_image name collision (uses imported function, not overriding)
-- Cleans argv usage: python script.py <image_path> [output_dir] [--force-reload] [--clear]
-- Fixed marked_image unbound error when bboxes is empty
-- Added segmented output generation for Final Model Prediction display
+    Lvl 3 - Object Part Identification with Consolidation - What parts break camouflage?
 """
 
 import os
@@ -22,6 +15,7 @@ import sys
 import json
 import time
 import traceback
+from collections import defaultdict
 
 import cv2
 import numpy as np
@@ -43,6 +37,241 @@ from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image as cam_overlay
 
 from model.ResNet_models import Generator
+
+
+# ================================================================================================
+# Detection Consolidation Classes
+# ================================================================================================
+class DetectionConsolidator:
+    """
+    Consolidates overlapping and nearby detections into coherent objects
+    """
+    
+    def __init__(self, 
+                 iou_threshold: float = 0.25,
+                 distance_threshold: float = 80.0,
+                 min_confidence: float = 0.10):
+        """
+        Args:
+            iou_threshold: IoU threshold for considering boxes as overlapping
+            distance_threshold: Distance threshold (pixels) for grouping nearby boxes
+            min_confidence: Minimum confidence to keep a detection
+        """
+        self.iou_threshold = iou_threshold
+        self.distance_threshold = distance_threshold
+        self.min_confidence = min_confidence
+    
+    def consolidate_detections(self, detections):
+        """
+        Main consolidation pipeline
+        
+        Args:
+            detections: List of detection dicts with keys:
+                - 'bbox': [x1, y1, x2, y2]
+                - 'confidence': float
+                - 'label': str (e.g., "Object's leg")
+                
+        Returns:
+            Consolidated list of detections
+        """
+        if not detections:
+            return []
+        
+        # Step 1: Filter by minimum confidence
+        filtered = [d for d in detections if d['confidence'] >= self.min_confidence]
+        
+        if not filtered:
+            return []
+        
+        # Step 2: Apply Non-Maximum Suppression
+        nms_detections = self.non_max_suppression(filtered)
+        
+        # Step 3: Group nearby detections (parts of same object)
+        grouped = self.group_nearby_detections(nms_detections)
+        
+        # Step 4: Merge groups into single detections
+        consolidated = self.merge_groups(grouped)
+        
+        return consolidated
+    
+    def non_max_suppression(self, detections):
+        """Apply NMS to remove highly overlapping detections"""
+        if len(detections) == 0:
+            return []
+        
+        # Sort by confidence (descending)
+        detections = sorted(detections, key=lambda x: x['confidence'], reverse=True)
+        
+        kept = []
+        suppressed = set()
+        
+        for i, det in enumerate(detections):
+            if i in suppressed:
+                continue
+                
+            kept.append(det)
+            
+            # Suppress overlapping boxes
+            for j in range(i + 1, len(detections)):
+                if j in suppressed:
+                    continue
+                
+                iou = self.calculate_iou(det['bbox'], detections[j]['bbox'])
+                
+                if iou > self.iou_threshold:
+                    suppressed.add(j)
+        
+        return kept
+    
+    def group_nearby_detections(self, detections):
+        """Group detections that are close to each other (likely same object)"""
+        if len(detections) == 0:
+            return []
+        
+        # Calculate centroids
+        centroids = []
+        for det in detections:
+            bbox = det['bbox']
+            cx = (bbox[0] + bbox[2]) / 2
+            cy = (bbox[1] + bbox[3]) / 2
+            centroids.append((cx, cy))
+        
+        # Group by proximity
+        groups = []
+        assigned = set()
+        
+        for i, det in enumerate(detections):
+            if i in assigned:
+                continue
+            
+            # Start new group
+            group = [det]
+            assigned.add(i)
+            
+            # Find nearby detections
+            for j in range(i + 1, len(detections)):
+                if j in assigned:
+                    continue
+                
+                dist = self.euclidean_distance(centroids[i], centroids[j])
+                
+                if dist < self.distance_threshold:
+                    group.append(detections[j])
+                    assigned.add(j)
+            
+            groups.append(group)
+        
+        return groups
+    
+    def merge_groups(self, groups):
+        """Merge each group into a single consolidated detection"""
+        consolidated = []
+        
+        for group in groups:
+            if not group:
+                continue
+            
+            # Calculate merged bounding box (union of all boxes)
+            merged_bbox = self.merge_bboxes([d['bbox'] for d in group])
+            
+            # Average confidence
+            avg_confidence = np.mean([d['confidence'] for d in group])
+            
+            # Max confidence
+            max_confidence = max([d['confidence'] for d in group])
+            
+            # Determine label (most common or highest confidence)
+            label = self.determine_label(group)
+            
+            # Count parts
+            part_counts = defaultdict(int)
+            for d in group:
+                base_label = self.extract_base_label(d['label'])
+                part_counts[base_label] += 1
+            
+            consolidated.append({
+                'bbox': merged_bbox,
+                'confidence': max_confidence,
+                'avg_confidence': avg_confidence,
+                'label': label,
+                'part_count': len(group),
+                'parts': dict(part_counts)
+            })
+        
+        # Sort by confidence
+        consolidated.sort(key=lambda x: x['confidence'], reverse=True)
+        
+        return consolidated
+    
+    def calculate_iou(self, bbox1, bbox2):
+        """Calculate Intersection over Union"""
+        x1_min, y1_min, x1_max, y1_max = bbox1
+        x2_min, y2_min, x2_max, y2_max = bbox2
+        
+        # Calculate intersection
+        x_inter_min = max(x1_min, x2_min)
+        y_inter_min = max(y1_min, y2_min)
+        x_inter_max = min(x1_max, x2_max)
+        y_inter_max = min(y1_max, y2_max)
+        
+        if x_inter_max < x_inter_min or y_inter_max < y_inter_min:
+            return 0.0
+        
+        intersection = (x_inter_max - x_inter_min) * (y_inter_max - y_inter_min)
+        
+        # Calculate union
+        area1 = (x1_max - x1_min) * (y1_max - y1_min)
+        area2 = (x2_max - x2_min) * (y2_max - y2_min)
+        union = area1 + area2 - intersection
+        
+        return intersection / union if union > 0 else 0.0
+    
+    def euclidean_distance(self, point1, point2):
+        """Calculate Euclidean distance between two points"""
+        return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+    
+    def merge_bboxes(self, bboxes):
+        """Merge multiple bounding boxes into one (union)"""
+        x_mins = [bbox[0] for bbox in bboxes]
+        y_mins = [bbox[1] for bbox in bboxes]
+        x_maxs = [bbox[2] for bbox in bboxes]
+        y_maxs = [bbox[3] for bbox in bboxes]
+        
+        return [
+            min(x_mins),
+            min(y_mins),
+            max(x_maxs),
+            max(y_maxs)
+        ]
+    
+    def determine_label(self, group):
+        """Determine the best label for a merged group"""
+        # Count label frequencies
+        label_counts = defaultdict(int)
+        label_max_conf = defaultdict(float)
+        
+        for det in group:
+            base_label = self.extract_base_label(det['label'])
+            label_counts[base_label] += 1
+            label_max_conf[base_label] = max(
+                label_max_conf[base_label], 
+                det['confidence']
+            )
+        
+        # If multiple different parts (>2), call it "Camouflaged object"
+        if len(label_counts) > 2:
+            return "Camouflaged object"
+        
+        # Otherwise return most confident label
+        best_label = max(label_max_conf.items(), key=lambda x: x[1])[0]
+        
+        return f"Object ({best_label})"
+    
+    def extract_base_label(self, label):
+        """Extract base part name from label like "Object's leg" """
+        if "'s " in label:
+            return label.split("'s ")[-1].strip()
+        return label.strip()
 
 
 # ================================================================================================
@@ -148,7 +377,6 @@ resource_manager = LazyResourceManager()
 def load_mica_params(params_path=None):
     """Load MICA parameters, with fallback to defaults"""
     if params_path is None:
-        # Look in models subdirectory relative to the Debug folder
         params_path = os.path.join(".", "models", "mica_params.json")
     
     default = {"sensitivity": 1.5, "bias": 0.0}
@@ -176,9 +404,6 @@ def compute_binary_threshold(mica_params, base_thresh=0.5):
     s = mica_params.get("sensitivity", 1.5)
     b = mica_params.get("bias", 0.0)
 
-    # Example mapping:
-    # sensitivity=1.0 => ~base_thresh
-    # sensitivity=2.0 => ~base_thresh - 0.1
     thresh = base_thresh - 0.1 * (s - 1.0) + b
     thresh = float(np.clip(thresh, 0.05, 0.95))
     return thresh
@@ -260,10 +485,7 @@ def overlap(bbox1, bbox2):
 
 
 def apply_mask(heatmap, mask):
-    """
-    Apply a binary mask to a heatmap.
-    Used to isolate regions of interest in the fixation/ranking map.
-    """
+    """Apply a binary mask to a heatmap."""
     if isinstance(heatmap, Image.Image):
         heatmap = np.asarray(heatmap)
         trans_heatmap = np.transpose(heatmap)
@@ -277,64 +499,43 @@ def apply_mask(heatmap, mask):
 
 
 def process_prediction(pred, WW, HH):
-    pred = F.upsample(pred, size=[HH, WW], mode="bilinear", align_corners=False)  # CORRECT: [H, W]
+    pred = F.upsample(pred, size=[HH, WW], mode="bilinear", align_corners=False)
     pred = pred.sigmoid().data.cpu().numpy().squeeze()
     pred = 255 * (pred - pred.min()) / (pred.max() - pred.min() + 1e-8)
     return pred.astype(np.uint8)
 
 
 def create_segmented_overlay(original_image, rank_map, binary_mask, alpha=0.5):
-    """
-    Create a segmented overlay showing the camouflaged object prediction.
-    
-    Args:
-        original_image: BGR image (OpenCV format)
-        rank_map: Grayscale ranking/fixation map (0-255) showing detection confidence
-        binary_mask: Binary mask (0 or 1) indicating detected object regions
-        alpha: Blending factor for overlay (0.0 = only original, 1.0 = only heatmap)
-    
-    Returns:
-        BGR image with heatmap overlay on detected regions
-    """
-    # Ensure original is in the right format
+    """Create a segmented overlay showing the camouflaged object prediction."""
     if original_image.dtype != np.uint8:
         original_image = original_image.astype(np.uint8)
     
     h, w = original_image.shape[:2]
     
-    # Resize rank_map to match original image dimensions
     if rank_map.shape[:2] != (h, w):
         rank_map = cv2.resize(rank_map, (w, h), interpolation=cv2.INTER_LINEAR)
     
-    # Resize binary_mask to match original image dimensions
     if binary_mask.shape[:2] != (h, w):
-        # binary_mask might be transposed, handle both cases
         if binary_mask.shape == (w, h):
             binary_mask = binary_mask.T
         else:
             binary_mask = cv2.resize(binary_mask.astype(np.uint8), (w, h), interpolation=cv2.INTER_NEAREST)
     
-    # Apply colormap to rank_map (JET gives nice blue->green->yellow->red gradient)
     heatmap_colored = cv2.applyColorMap(rank_map, cv2.COLORMAP_JET)
-    
-    # Create mask for blending (expand to 3 channels)
     mask_3ch = np.stack([binary_mask] * 3, axis=-1).astype(np.float32)
-    
-    # Blend: where mask is 1, show heatmap overlay; where mask is 0, show original
-    # Inside detected region: blend original with heatmap
-    # Outside detected region: show original unchanged
     blended = original_image.copy().astype(np.float32)
-    
-    # Apply heatmap only where mask indicates detection
     blended = blended * (1 - mask_3ch * alpha) + heatmap_colored.astype(np.float32) * (mask_3ch * alpha)
     
     return blended.astype(np.uint8)
 
 
 # ================================================================================================
-# Level Three
+# Level Three (WITH CONSOLIDATION)
 # ================================================================================================
-def levelThree(original_image, bbox, message, filename):
+def levelThree(original_image, bbox, message, filename, mica_params):
+    """
+    Object part detection with consolidation
+    """
     detect_fn = resource_manager.detect_fn
 
     y_size, x_size, _ = original_image.shape
@@ -343,54 +544,121 @@ def levelThree(original_image, bbox, message, filename):
     input_tensor = tf.convert_to_tensor(original_image)[tf.newaxis, ...]
     detections = detect_fn(input_tensor)
 
-    d_class = []
-    d_box = []
-
-    for i, s in enumerate(detections["detection_scores"].numpy()[0]):
-        if s > 0.05:
-            d_class.append(detections["detection_classes"].numpy()[0][i])
-            d_box.append(detections["detection_boxes"].numpy()[0][i])
-
-    # Save a detection visualization
-    fig, axis = plt.subplots(1, figsize=(12, 6))
-    axis.imshow(original_image)
-    axis.axis("off")
-
-    for i, b in enumerate(detections["detection_boxes"].numpy()[0]):
-        score = detections["detection_scores"].numpy()[0][i]
-        if score > 0.3:
-            axis.add_patch(
-                plt.Rectangle(
-                    (b[1] * x_size, b[0] * y_size),
-                    (b[3] - b[1]) * x_size,
-                    (b[2] - b[0]) * y_size,
-                    fill=False,
-                    linewidth=2,
-                    color=(1, 0, 0),
-                )
-            )
-            cls = int(detections["detection_classes"].numpy()[0][i]) - 1
-            cls_name = label_map[cls] if 0 <= cls < len(label_map) else "unknown"
-            axis.text(b[1] * x_size, b[0] * y_size - 10, f"{cls_name} {score:.2f}", color=(1, 0, 0))
-
-    fig.savefig(f"detection_results/{filename}.png", bbox_inches="tight", pad_inches=0)
-    plt.close(fig)
-
-    txt_content = []
+    # Collect all raw detections
+    raw_detections = []
+    
     for box1 in bbox:
-        for count, box2 in enumerate(d_box):
+        for i, score in enumerate(detections["detection_scores"].numpy()[0]):
+            if score < 0.05:  # Skip very low confidence
+                continue
+                
+            box2 = detections["detection_boxes"].numpy()[0][i]
+            
+            # Check if detection overlaps with weak camouflage region
             if overlap(
                 [box1["x1"], box1["x2"], box1["y1"], box1["y2"]],
                 [box2[1] * x_size, box2[3] * x_size, box2[0] * y_size, box2[2] * y_size],
             ):
-                detected_class = label_map[int(d_class[count]) - 1]
-                detection_score = detections["detection_scores"].numpy()[0][count]
-                message += f"Object's {detected_class}, Detection Score: {detection_score:.2%}\n"
-                txt_content.append(f"Class: {detected_class}, Score: {detection_score:.4f}")
+                detected_class_idx = int(detections["detection_classes"].numpy()[0][i]) - 1
+                if 0 <= detected_class_idx < len(label_map):
+                    detected_class = label_map[detected_class_idx]
+                else:
+                    detected_class = "unknown"
+                
+                raw_detections.append({
+                    'bbox': [
+                        box2[1] * x_size,  # x1
+                        box2[0] * y_size,  # y1
+                        box2[3] * x_size,  # x2
+                        box2[2] * y_size   # y2
+                    ],
+                    'confidence': float(score),
+                    'label': f"Object's {detected_class}"
+                })
+    
+    # CONSOLIDATE DETECTIONS
+    sensitivity = mica_params.get("sensitivity", 1.5)
+    
+    # Adjust consolidation parameters based on sensitivity
+    iou_threshold = 0.25
+    distance_threshold = 100.0 if sensitivity < 1.0 else 50.0
+    min_confidence = 0.10
+    
+    consolidator = DetectionConsolidator(
+        iou_threshold=iou_threshold,
+        distance_threshold=distance_threshold,
+        min_confidence=min_confidence
+    )
+    
+    consolidated = consolidator.consolidate_detections(raw_detections)
+    
+    # Save visualization with consolidated detections
+    fig, axis = plt.subplots(1, figsize=(12, 6))
+    axis.imshow(original_image)
+    axis.axis("off")
 
-    # Provide feedback even when no overlaps found
-    if not txt_content:
+    for det in consolidated:
+        bbox_coords = det['bbox']
+        axis.add_patch(
+            plt.Rectangle(
+                (bbox_coords[0], bbox_coords[1]),
+                bbox_coords[2] - bbox_coords[0],
+                bbox_coords[3] - bbox_coords[1],
+                fill=False,
+                linewidth=2,
+                color=(1, 0, 0),
+            )
+        )
+        axis.text(
+            bbox_coords[0], 
+            bbox_coords[1] - 10, 
+            f"{det['label']} {det['confidence']:.2%}", 
+            color=(1, 0, 0),
+            fontsize=10,
+            weight='bold'
+        )
+
+    fig.savefig(f"detection_results/{filename}.png", bbox_inches="tight", pad_inches=0)
+    plt.close(fig)
+
+    # Format consolidated message
+    txt_content = []
+    
+    if not consolidated:
+        message += "No camouflaged object parts detected.\n"
         txt_content.append("No object parts detected in weak camouflage areas.")
+    elif len(consolidated) == 1:
+        det = consolidated[0]
+        part_word = "part" if det['part_count'] == 1 else "parts"
+        message += f"Consolidated detection from {det['part_count']} {part_word}.\n"
+        message += f"{det['label']}, Confidence: {det['confidence']:.2%}\n"
+        
+        # Show parts breakdown
+        parts_str = ", ".join([f"{k} ({v})" for k, v in det['parts'].items()])
+        message += f"Parts found: {parts_str}\n"
+        
+        txt_content.append(f"Consolidated Detection: {det['label']}")
+        txt_content.append(f"Confidence: {det['confidence']:.4f}")
+        txt_content.append(f"Part Count: {det['part_count']}")
+        txt_content.append(f"Parts: {parts_str}")
+    else:
+        message += f"Identified {len(consolidated)} consolidated region(s).\n"
+        for i, det in enumerate(consolidated[:5], 1):  # Top 5
+            part_word = "part" if det['part_count'] == 1 else "parts"
+            parts_str = ", ".join([f"{k}({v})" for k, v in det['parts'].items()])
+            
+            message += (
+                f"{i}. {det['label']}, "
+                f"Confidence: {det['confidence']:.2%} "
+                f"({det['part_count']} {part_word})\n"
+                f"   Parts: {parts_str}\n"
+            )
+            
+            txt_content.append(f"\nRegion {i}:")
+            txt_content.append(f"  Label: {det['label']}")
+            txt_content.append(f"  Confidence: {det['confidence']:.4f}")
+            txt_content.append(f"  Part Count: {det['part_count']}")
+            txt_content.append(f"  Parts: {parts_str}")
 
     with open(f"detection_results/{filename}.txt", "w") as f:
         f.write("\n".join(txt_content))
@@ -401,7 +669,7 @@ def levelThree(original_image, bbox, message, filename):
 # ================================================================================================
 # Level Two
 # ================================================================================================
-def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
+def levelTwo(filename, original_image, all_fix_map, fixation_map, message, mica_params):
     # Save overview figure
     fig, axis = plt.subplots(1, 2, figsize=(12, 6))
     axis[0].imshow(original_image)
@@ -419,7 +687,7 @@ def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
     open_cv_orImage2 = original_image.copy()
 
     cropped_images = []
-    marked_image = open_cv_orImage1  # Initialize here in case bboxes is empty
+    marked_image = open_cv_orImage1
     data = {
         "item": {"name": filename + ".jpg", "num_of_weak_areas": len(bboxes)},
         "weak_area_bbox": [],
@@ -449,21 +717,21 @@ def levelTwo(filename, original_image, all_fix_map, fixation_map, message):
     plt.close(fig)
 
     message += f"Identified {len(bboxes)} weak camouflaged area(s).\n"
-    output = levelThree(original_image, data["weak_area_bbox"], message, filename)
+    output = levelThree(original_image, data["weak_area_bbox"], message, filename, mica_params)
     return output
 
 
 # ================================================================================================
 # Level One
 # ================================================================================================
-def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, message):
+def levelOne(filename, binary_map, all_fix_map, fix_image, original_image, message, mica_params):
     all_zeros = not binary_map.any()
     if all_zeros:
         message += "No object present.\n"
         return message
 
     message += "Object present.\n"
-    return levelTwo(filename, original_image, all_fix_map, fix_image, message)
+    return levelTwo(filename, original_image, all_fix_map, fix_image, message, mica_params)
 
 
 # ================================================================================================
@@ -501,8 +769,8 @@ def iaiDecision(file_path, output_root=None, force_reload=False):
 
         resource_manager.ensure_output_dirs()
 
-        cods = resource_manager.cods_model  # lazy
-        _ = resource_manager.detect_fn       # lazy (Lvl3 needs it)
+        cods = resource_manager.cods_model
+        _ = resource_manager.detect_fn
 
         file_name = os.path.splitext(os.path.basename(file_path))[0]
 
@@ -543,9 +811,7 @@ def iaiDecision(file_path, output_root=None, force_reload=False):
         Image.fromarray(bm_image).convert("L").save(os.path.join(out_dir, "binary_image.png"))
         Image.fromarray(fix_image).convert("L").save(os.path.join(out_dir, "fixation_image.png"))
 
-        # -------------------
-        # Grad-CAM (safe save)
-        # -------------------
+        # Grad-CAM
         target_layer_fix = [cods.get_x4_layer()]
         grad_cam_fix = MultiOutputGradCAM(model=cods, target_layers=target_layer_fix, output_index=0)
 
@@ -565,7 +831,6 @@ def iaiDecision(file_path, output_root=None, force_reload=False):
         except Exception as e:
             print(f"[WARN] grad_cam_cod failed: {e}")
 
-        # Build input_image for overlay (H,W,C) float32 0..1
         input_image = image.squeeze(0).permute(1, 2, 0).detach().cpu().numpy()
         denom = (input_image.max() - input_image.min()) + 1e-8
         input_image = (input_image - input_image.min()) / denom
@@ -574,40 +839,27 @@ def iaiDecision(file_path, output_root=None, force_reload=False):
         if grayscale_cam_fix is not None:
             heatmap_fix = cam_overlay(input_image, grayscale_cam_fix[0], use_rgb=True)
             cv2.imwrite(os.path.join(out_dir, "gradcam_fix.png"), cv2.cvtColor(heatmap_fix, cv2.COLOR_RGB2BGR))
-        else:
-            print("[INFO] No heatmap for fix_pred")
 
         if grayscale_cam_cod is not None:
             heatmap_cod = cam_overlay(input_image, grayscale_cam_cod[0], use_rgb=True)
             cv2.imwrite(os.path.join(out_dir, "gradcam_cod.png"), cv2.cvtColor(heatmap_cod, cv2.COLOR_RGB2BGR))
-        else:
-            print("[INFO] No heatmap for cod_pred2")
 
-        # -------------------
-        # MICA thresholding fix
-        # -------------------
+        # MICA thresholding
         mica = load_mica_params()
         thresh = compute_binary_threshold(mica_params=mica, base_thresh=0.5)
         bm_thresh_255 = int(round(255 * thresh))
 
-        # bm_image is uint8 0..255, so threshold must be in that scale
         trans_img = np.transpose(np.where(bm_image > bm_thresh_255, 1, 0))
         img_np = np.asarray(trans_img, dtype=np.uint8)
 
-        # Only get the weak camouflaged areas that are present in the binary map
         masked_fix_map = apply_mask(Image.fromarray(fix_image), img_np)
 
-        # Preprocess fixation mapping
         weak_fix_map = findAreasOfWeakCamouflage(masked_fix_map)
         all_fix_map = processFixationMap(masked_fix_map)
 
-        # -------------------
-        # Create segmented overlay for Final Model Prediction
-        # -------------------
-        # Create the binary mask (no transpose needed now)
+        # Create segmented overlay
         binary_mask_for_overlay = np.where(bm_image > bm_thresh_255, 1, 0).astype(np.uint8)
         
-        # Create segmented output (no transpose needed now)
         segmented_output = create_segmented_overlay(
             original_image=original_image,
             rank_map=fix_image,
@@ -615,20 +867,16 @@ def iaiDecision(file_path, output_root=None, force_reload=False):
             alpha=0.6
         )
         
-        # Save segmented output to results folder
         results_dir = "results"
         os.makedirs(results_dir, exist_ok=True)
         segmented_path = os.path.join(results_dir, f"segmented_{file_name}.jpg")
         cv2.imwrite(segmented_path, segmented_output)
         print(f"[INFO] Saved segmented output to: {segmented_path}")
 
-        # Also save a copy to the per-image output directory
         cv2.imwrite(os.path.join(out_dir, "segmented_overlay.jpg"), segmented_output)
 
-        # -------------------
-        # Run decision hierarchy
-        # -------------------
-        output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message)
+        # Run decision hierarchy (now with consolidation)
+        output = levelOne(file_name, img_np, all_fix_map, weak_fix_map, original_image, message, mica)
 
         return output
 
@@ -669,7 +917,6 @@ def parse_args(argv):
     force_reload = False
     do_clear = False
 
-    # Optional output dir is argv[2] if it doesn't look like a flag
     if len(argv) >= 3 and not argv[2].startswith("--"):
         output_dir = argv[2]
 
@@ -698,6 +945,5 @@ if __name__ == "__main__":
         traceback.print_exc(file=sys.stderr)
         sys.exit(1)
     finally:
-        # Only clear if explicitly requested (useful if you later keep Python alive)
         if do_clear:
             clear_resources()

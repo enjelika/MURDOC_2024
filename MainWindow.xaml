@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:MURDOC_2024"
         xmlns:controls="clr-namespace:MURDOC_2024.UserControls"
         mc:Ignorable="d"
-        Height="965" Width="1740"
+        Height="990" Width="1730"
         ResizeMode="NoResize"
         Title="Mixed-Initiative Camouflage Analysis Tool"
         Background="LightGray"
@@ -91,7 +91,7 @@
                     <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}" Margin="0,30,0,5" Height="240"/>
 
                     <!-- Editor Controls -->
-                    <controls:EditorControlsPane Margin="0,10,0,0" Width="287"/>
+                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}"  Margin="0,10,0,0" Width="287"/>
                 </StackPanel>
 
                 <!-- Overlay layer: IAI Output Expander sits ON TOP -->

@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              xmlns:converters="clr-namespace:MURDOC_2024.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="380">
+             d:DesignHeight="650" d:DesignWidth="380">
 
     <UserControl.Resources>
         <!-- Add the converter here -->
@@ -21,10 +21,10 @@
             <StackPanel Margin="12">
 
                 <!-- ROI Drawing Tools Section -->
-                <TextBlock Text="Region of Interest (ROI)"/>
+                <Label Content="Region of Interest (ROI)" FontWeight="Bold" FontSize="13"/>
 
                 <TextBlock Text="Draw mode:" 
-                           FontSize="11" 
+                           FontSize="12" 
                            Foreground="#666666" 
                            Margin="0,0,0,5"/>
 
@@ -86,13 +86,13 @@
                     </StackPanel>
                 </Border>
 
-                <Separator Margin="0,10,0,15" Background="#E0E0E0"/>
+                <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 
                 <!-- Detection Feedback Section -->
-                <TextBlock Text="Detection Feedback" />
+                <Label Content="Detection Feedback" FontWeight="Bold" FontSize="13"/>
 
                 <TextBlock Text="Select a detection to provide feedback"
-                           FontSize="11"
+                           FontSize="12"
                            Foreground="#666666"
                            TextWrapping="Wrap"
                            Margin="0,0,0,8"/>
@@ -157,10 +157,10 @@
                         Command="{Binding ExportFeedbackCommand}"
                         ToolTip="Save feedback history as JSON"/>
 
-                <Separator Margin="0,10,0,15" Background="#E0E0E0"/>
+                <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 
                 <!-- Display Options Section -->
-                <TextBlock Text="Display Options" />
+                <Label Content="Display Options" FontWeight="Bold" FontSize="13"/>
 
                 <CheckBox Content="Show ROI Overlays" 
                           IsChecked="{Binding ShowROIs}"
@@ -178,21 +178,21 @@
                           IsChecked="{Binding ShowAttentionMaps}"
                           Margin="0,0,0,10"/>
 
-                <Separator Margin="0,10,0,15" Background="#E0E0E0"/>
+                <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 
                 <!-- Session Info -->
-                <TextBlock Text="Session Information"/>
+                <Label Content="Session Information" FontWeight="Bold" FontSize="13"/>
 
                 <Border Background="#F5F5F5" 
                         Padding="8" 
                         CornerRadius="3">
                     <StackPanel>
-                        <TextBlock FontSize="10">
+                        <TextBlock FontSize="11">
                             <Run Text="Total Interactions: "/>
                             <Run Text="{Binding TotalInteractions, Mode=OneWay}" 
                                  FontWeight="Bold"/>
                         </TextBlock>
-                        <TextBlock FontSize="10" Margin="0,3,0,0">
+                        <TextBlock FontSize="11" Margin="0,3,0,0">
                             <Run Text="Session Start: "/>
                             <Run Text="{Binding SessionStartTime, StringFormat='HH:mm:ss'}" 
                                  FontWeight="Bold"/>

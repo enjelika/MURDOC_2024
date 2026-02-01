@@ -1,4 +1,5 @@
-﻿using MURDOC_2024.Services;
+﻿using MURDOC_2024.Model;
+using MURDOC_2024.Services;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -63,6 +64,7 @@ namespace MURDOC_2024.ViewModel
         public EfficientDetD7ViewModel EfficientDetVM { get; }
         public FinalPredictionPaneViewModel FinalPredictionVM { get; }
         public MICAControlViewModel MICAControlVM { get; }
+        public EditorControlsPaneViewModel EditorControlsVM { get; }
 
         public MainWindowViewModel()
         {
@@ -91,9 +93,112 @@ namespace MURDOC_2024.ViewModel
                 runModelsAction: () => RunModelsCommand(),
                 resetAction: ResetAll
             );
+
+            EditorControlsVM = new EditorControlsPaneViewModel();
+
+            // Subscribe to EditorControls events
+            EditorControlsVM.CorrectionModeToggled += OnCorrectionModeToggled;
+            EditorControlsVM.FeedbackHistoryViewRequested += OnFeedbackHistoryViewRequested;
+            EditorControlsVM.FeedbackExportRequested += OnFeedbackExportRequested;
+            EditorControlsVM.SessionResetRequested += OnSessionResetRequested;
         }
 
-        // ADD THIS METHOD
+        #region EditorControls Event Handlers
+
+        private void OnCorrectionModeToggled(object sender, EventArgs e)
+        {
+            // TODO: Enable/disable correction drawing mode on the main canvas
+            bool isActive = EditorControlsVM.IsCorrectionModeActive;
+            System.Diagnostics.Debug.WriteLine($"Correction mode: {(isActive ? "ACTIVE" : "INACTIVE")}");
+
+            // You'll wire this up to your polygon drawing canvas later
+        }
+
+        private void OnFeedbackHistoryViewRequested(object sender, EventArgs e)
+        {
+            // TODO: Show feedback history window/dialog
+            var feedbackHistory = EditorControlsVM.GetFeedbackHistory();
+
+            MessageBox.Show(
+                $"Total feedback items: {feedbackHistory.Count}\n" +
+                $"Confirmed: {EditorControlsVM.ConfirmedCount}\n" +
+                $"Rejected: {EditorControlsVM.RejectedCount}\n" +
+                $"Corrections: {EditorControlsVM.CorrectionCount}",
+                "Feedback History",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        private void OnFeedbackExportRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                    DefaultExt = ".json",
+                    FileName = $"feedback_session_{DateTime.Now:yyyyMMdd_HHmmss}.json"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    var feedbackHistory = EditorControlsVM.GetFeedbackHistory();
+                    var json = Newtonsoft.Json.JsonConvert.SerializeObject(
+                        feedbackHistory,
+                        Newtonsoft.Json.Formatting.Indented);
+
+                    System.IO.File.WriteAllText(dialog.FileName, json);
+
+                    MessageBox.Show(
+                        $"Feedback exported successfully!\n{feedbackHistory.Count} items saved.",
+                        "Export Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error exporting feedback:\n{ex.Message}",
+                    "Export Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void OnSessionResetRequested(object sender, EventArgs e)
+        {
+            var result = MessageBox.Show(
+                "Are you sure you want to reset the session?\n\n" +
+                "This will clear all:\n" +
+                "• Detection feedback\n" +
+                "• ROI selections\n" +
+                "• Session statistics\n\n" +
+                "This action cannot be undone.",
+                "Reset Session",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                EditorControlsVM.ClearFeedback();
+                // TODO: Clear ROIs when implemented
+
+                MessageBox.Show(
+                    "Session reset complete.",
+                    "Reset Session",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
+
+        #endregion
+
+        public void AddDetectionFeedback(DetectionFeedback feedback)
+        {
+            EditorControlsVM.AddFeedback(feedback);
+        }
+
         /// <summary>
         /// Called when an image is selected via the Browse button
         /// </summary>
@@ -261,7 +366,7 @@ namespace MURDOC_2024.ViewModel
 
             // Force command updates after reset
             ImageControlVM?.UpdateCommandStates();
-            MICAControlVM?.UpdateCommandStates();  // ADD THIS
+            MICAControlVM?.UpdateCommandStates();
             CommandManager.InvalidateRequerySuggested();
         }
 
