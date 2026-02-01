@@ -26,7 +26,7 @@
             <StackPanel Orientation="Vertical" MaxWidth="300" Grid.Column="0" Margin="5">
 
                 <!-- Selected Image -->
-                <controls:InputImagePane DataContext="{Binding InputImageVM}"/>
+                <controls:InputImagePane DataContext="{Binding InputImageVM}" Margin="0,5,0,0"/>
 
                 <!-- Image Selection and Control Pane -->
                 <controls:ImageControlPane DataContext="{Binding ImageControlVM}" Height="210"/>
