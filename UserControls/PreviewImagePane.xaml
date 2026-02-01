@@ -8,8 +8,6 @@
              d:DesignHeight="300" d:DesignWidth="330">
     <Grid>
         <StackPanel Orientation="Vertical" Background="Lightgray" Width="270" Height="320">
-            <Label Content="Preview" FontWeight="Bold" Margin="5,0,5,0"/>
-            
             <Image Source="{Binding PreviewImage}" Margin="5" Stretch="Uniform" Width="Auto" MaxHeight="310" />
         </StackPanel>
     </Grid>

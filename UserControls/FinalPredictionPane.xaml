@@ -22,7 +22,7 @@
                    FontWeight="Bold" 
                    FontSize="14"
                    HorizontalAlignment="Center"
-                   Margin="0,45,0,10"/>
+                   Margin="0,30,0,5"/>
 
         <!-- ==================== MAIN PREDICTION IMAGE ==================== -->
         <Border Grid.Row="1" 

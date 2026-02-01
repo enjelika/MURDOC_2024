@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              xmlns:converters="clr-namespace:MURDOC_2024.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="650" d:DesignWidth="380">
+             d:DesignHeight="775" d:DesignWidth="380">
 
     <UserControl.Resources>
         <!-- Add the converter here -->
@@ -92,70 +92,145 @@
                 <Label Content="Detection Feedback" FontWeight="Bold" FontSize="13"/>
 
                 <TextBlock Text="Select a detection to provide feedback"
-                           FontSize="12"
-                           Foreground="#666666"
-                           TextWrapping="Wrap"
-                           Margin="0,0,0,8"/>
+           FontSize="12"
+           Foreground="#666666"
+           TextWrapping="Wrap"
+           Margin="0,0,0,8"/>
 
-                <!-- Feedback Stats -->
+                <!-- Current Selection Display -->
+                <Border Background="#E3F2FD" 
+        Padding="8,5" 
+        CornerRadius="3"
+        Margin="0,0,0,8"
+        Visibility="{Binding HasSelectedDetection, Converter={StaticResource BoolToVisConverter}}">
+                    <TextBlock FontSize="11" TextWrapping="Wrap">
+        <Run Text="Selected: " FontWeight="Bold"/>
+        <Run Text="{Binding SelectedDetectionLabel, Mode=OneWay}"/>
+        <LineBreak/>
+        <Run Text="Confidence: " FontWeight="Bold"/>
+        <Run Text="{Binding SelectedDetectionConfidence, StringFormat='{}{0:P2}', Mode=OneWay}"/>
+                    </TextBlock>
+                </Border>
+
+                <!-- Feedback Action Buttons -->
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" 
-                            Background="#E8F5E9" 
-                            Padding="8,5" 
-                            CornerRadius="3"
-                            Margin="0,0,3,0">
-                        <TextBlock TextAlignment="Center" FontSize="11">
-                            <Run Text="✓ " Foreground="#4CAF50" FontWeight="Bold"/>
-                            <Run Text="{Binding ConfirmedCount, Mode=OneWay}" 
-                                 FontWeight="Bold"/>
-                        </TextBlock>
-                    </Border>
+                    <Button Grid.Column="0" 
+            Command="{Binding ConfirmDetectionCommand}"
+            Margin="0,0,3,0"
+            Padding="8,10"
+            Background="#E8F5E9"
+            BorderBrush="#4CAF50"
+            BorderThickness="2"
+            ToolTip="Confirm this detection is correct">
+                        <StackPanel>
+                            <TextBlock Text="✓ Confirm" 
+                      FontWeight="Bold" 
+                      Foreground="#4CAF50"
+                      HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-                    <Border Grid.Column="1" 
-                            Background="#FFEBEE" 
-                            Padding="8,5" 
-                            CornerRadius="3"
-                            Margin="3,0,0,0">
-                        <TextBlock TextAlignment="Center" FontSize="11">
-                            <Run Text="✗ " Foreground="#F44336" FontWeight="Bold"/>
-                            <Run Text="{Binding RejectedCount, Mode=OneWay}" 
-                                 FontWeight="Bold"/>
-                        </TextBlock>
-                    </Border>
+                    <Button Grid.Column="1" 
+            Command="{Binding RejectDetectionCommand}"
+            Margin="3,0,0,0"
+            Padding="8,10"
+            Background="#FFEBEE"
+            BorderBrush="#F44336"
+            BorderThickness="2"
+            ToolTip="Reject this detection as incorrect">
+                        <StackPanel>
+                            <TextBlock Text="✗ Reject" 
+                      FontWeight="Bold" 
+                      Foreground="#F44336"
+                      HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
 
-                <Border Grid.Column="0" 
-                        Background="#FFF3E0" 
-                        Padding="8,5" 
-                        CornerRadius="3"
-                        Margin="0,0,0,8">
-                    <TextBlock TextAlignment="Center" FontSize="11">
-                        <Run Text="➕ " Foreground="#FF9800" FontWeight="Bold"/>
-                        <Run Text="Corrections: "/>
-                        <Run Text="{Binding CorrectionCount, Mode=OneWay}" 
-                             FontWeight="Bold"/>
-                    </TextBlock>
-                </Border>
-
-                <!-- Correction Mode Button -->
-                <Button Content="➕ Add Missed Object" 
-                        Command="{Binding EnableCorrectionModeCommand}"
-                        ToolTip="Draw polygon around object the system missed&#x0a;Or Ctrl+Click on image"
-                        Background="#FFF3E0"
-                        BorderBrush="#FFB74D">
+                <!-- Add Correction Button -->
+                <Button Command="{Binding EnableCorrectionModeCommand}"
+        Padding="8,10"
+        Margin="0,0,0,8"
+        Background="#FFF3E0"
+        BorderBrush="#FFB74D"
+        BorderThickness="2"
+        ToolTip="Draw polygon around object the system missed">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="➕ " 
+                  FontWeight="Bold" 
+                  Foreground="#FF9800"
+                  FontSize="14"
+                  VerticalAlignment="Center"/>
+                        <TextBlock Text="Add Missed Object" 
+                  FontWeight="Bold" 
+                  Foreground="#FF9800"
+                  VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Button>
 
+                <!-- Feedback Stats (Read-only summary) -->
+                <Border Background="#F0F0F0" 
+        Padding="8" 
+        CornerRadius="3"
+        Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="✓" 
+                      Foreground="#4CAF50" 
+                      FontWeight="Bold"
+                      FontSize="14"
+                      HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding ConfirmedCount, Mode=OneWay}" 
+                      FontWeight="Bold"
+                      FontSize="12"
+                      HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="✗" 
+                      Foreground="#F44336" 
+                      FontWeight="Bold"
+                      FontSize="14"
+                      HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding RejectedCount, Mode=OneWay}" 
+                      FontWeight="Bold"
+                      FontSize="12"
+                      HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="➕" 
+                      Foreground="#FF9800" 
+                      FontWeight="Bold"
+                      FontSize="14"
+                      HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding CorrectionCount, Mode=OneWay}" 
+                      FontWeight="Bold"
+                      FontSize="12"
+                      HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
                 <Button Content="📊 View Feedback History" 
-                        Command="{Binding ViewFeedbackHistoryCommand}"/>
+        Command="{Binding ViewFeedbackHistoryCommand}"
+        Margin="0,0,0,5"/>
 
                 <Button Content="💾 Export Feedback Data" 
-                        Command="{Binding ExportFeedbackCommand}"
-                        ToolTip="Save feedback history as JSON"/>
+        Command="{Binding ExportFeedbackCommand}"
+        Margin="0,0,0,5"
+        ToolTip="Save feedback history as JSON"/>
 
                 <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 

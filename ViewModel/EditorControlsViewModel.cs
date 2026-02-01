@@ -28,7 +28,44 @@ namespace MURDOC_2024.ViewModel
         private int _roiCount;
         private bool _isDrawingROI;
 
-        // Commands
+        // Selected Detection Properties
+        private bool _hasSelectedDetection;
+        public bool HasSelectedDetection
+        {
+            get => _hasSelectedDetection;
+            set => SetProperty(ref _hasSelectedDetection, value);
+        }
+
+        private string _selectedDetectionLabel;
+        public string SelectedDetectionLabel
+        {
+            get => _selectedDetectionLabel;
+            set => SetProperty(ref _selectedDetectionLabel, value);
+        }
+
+        private double _selectedDetectionConfidence;
+        public double SelectedDetectionConfidence
+        {
+            get => _selectedDetectionConfidence;
+            set => SetProperty(ref _selectedDetectionConfidence, value);
+        }
+
+        private object _selectedDetection; // Store the actual detection object
+        public object SelectedDetection
+        {
+            get => _selectedDetection;
+            set
+            {
+                if (SetProperty(ref _selectedDetection, value))
+                {
+                    UpdateSelectedDetectionDisplay();
+                }
+            }
+        }
+
+        // Add Commands
+        public ICommand ConfirmDetectionCommand { get; }
+        public ICommand RejectDetectionCommand { get; }
         public ICommand EnableCorrectionModeCommand { get; }
         public ICommand ViewFeedbackHistoryCommand { get; }
         public ICommand ExportFeedbackCommand { get; }
@@ -145,7 +182,9 @@ namespace MURDOC_2024.ViewModel
             _feedbackHistory = new ObservableCollection<DetectionFeedback>();
             SessionStartTime = DateTime.Now;
 
-            // Initialize commands
+            // Initialize feedback commands
+            ConfirmDetectionCommand = new RelayCommand(ConfirmDetection, CanConfirmOrReject);
+            RejectDetectionCommand = new RelayCommand(RejectDetection, CanConfirmOrReject);
             EnableCorrectionModeCommand = new RelayCommand(ToggleCorrectionMode);
             ViewFeedbackHistoryCommand = new RelayCommand(ViewFeedbackHistory);
             ExportFeedbackCommand = new RelayCommand(ExportFeedback, CanExportFeedback);
@@ -250,5 +289,80 @@ namespace MURDOC_2024.ViewModel
         }
 
         #endregion
+
+        private bool CanConfirmOrReject()
+        {
+            return HasSelectedDetection;
+        }
+
+        private void ConfirmDetection()
+        {
+            if (_selectedDetection == null) return;
+
+            // TODO: Create feedback object and add to history
+            var feedback = CreateFeedbackFromSelection(FeedbackType.Confirmation);
+            AddFeedback(feedback);
+
+            // Clear selection
+            ClearSelection();
+        }
+
+        private void RejectDetection()
+        {
+            if (_selectedDetection == null) return;
+
+            // TODO: Create feedback object and add to history
+            var feedback = CreateFeedbackFromSelection(FeedbackType.Rejection);
+            AddFeedback(feedback);
+
+            // Clear selection
+            ClearSelection();
+        }
+
+        private DetectionFeedback CreateFeedbackFromSelection(FeedbackType type)
+        {
+            // This will be implemented based on your detection object structure
+            // For now, a placeholder
+            return new DetectionFeedback
+            {
+                DetectionId = Guid.NewGuid().ToString(),
+                Type = type,
+                Timestamp = DateTime.Now,
+                // Add other properties from SelectedDetection
+            };
+        }
+
+        private void UpdateSelectedDetectionDisplay()
+        {
+            if (_selectedDetection == null)
+            {
+                HasSelectedDetection = false;
+                SelectedDetectionLabel = string.Empty;
+                SelectedDetectionConfidence = 0.0;
+            }
+            else
+            {
+                HasSelectedDetection = true;
+                // TODO: Extract label and confidence from your detection object
+                // This depends on your detection object structure
+                SelectedDetectionLabel = "Detection label"; // Get from _selectedDetection
+                SelectedDetectionConfidence = 0.75; // Get from _selectedDetection
+            }
+
+            // Update command states
+            (ConfirmDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (RejectDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+
+        public void ClearSelection()
+        {
+            SelectedDetection = null;
+        }
+
+        // Public method to be called when user clicks on a detection in the main view
+        public void SelectDetection(object detection)
+        {
+            SelectedDetection = detection;
+        }
     }
 }
