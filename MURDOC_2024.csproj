@@ -94,9 +94,11 @@
     <Compile Include="Controls\PolygonROICanvas.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
     <Compile Include="Model\DetectionFeedback.cs" />
+    <Compile Include="Model\DetectionResut.cs" />
     <Compile Include="Model\PolygonROI.cs" />
     <Compile Include="Services\ImageService.cs" />
     <Compile Include="Services\IPythonService.cs" />
+    <Compile Include="Services\PerformanceMetricsService.cs" />
     <Compile Include="Services\PythonModelService.cs" />
     <Compile Include="UserControls\EditorControlsPane.xaml.cs">
       <DependentUpon>EditorControlsPane.xaml</DependentUpon>

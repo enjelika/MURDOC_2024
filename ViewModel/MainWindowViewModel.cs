@@ -1,7 +1,11 @@
 ﻿using MURDOC_2024.Model;
 using MURDOC_2024.Services;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -19,6 +23,13 @@ namespace MURDOC_2024.ViewModel
         private string _latestAdjustedImagePath;
         private bool _hasAdjustedImage;
         private BitmapImage _adjustedInputImage;
+
+        // Performance metrics
+        private PerformanceMetricsService _metricsService;
+        private Stopwatch _modelExecutionTimer;
+
+        // Detection tracking
+        private List<DetectionResult> _currentDetections;
 
         public string SelectedImagePath
         {
@@ -39,14 +50,12 @@ namespace MURDOC_2024.ViewModel
             {
                 if (SetProperty(ref _isRunningModels, value))
                 {
-                    // Notify the UI that the running state has changed
                     OnPropertyChanged(nameof(IsNotRunningModels));
 
-                    // Force command state updates on UI thread
                     Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         ImageControlVM?.UpdateCommandStates();
-                        MICAControlVM?.UpdateCommandStates();  // ADD THIS
+                        MICAControlVM?.UpdateCommandStates();
                         CommandManager.InvalidateRequerySuggested();
                     });
                 }
@@ -72,6 +81,13 @@ namespace MURDOC_2024.ViewModel
             _python.SetDetectionParameters(1.5, 0.0);
             _imageService = new ImageService();
 
+            // Initialize metrics service
+            _metricsService = new PerformanceMetricsService();
+            _metricsService.StartSession();
+            _modelExecutionTimer = new Stopwatch();
+
+            _currentDetections = new List<DetectionResult>();
+
             // Create child VMs
             InputImageVM = new InputImagePaneViewModel();
             PreviewPaneVM = new PreviewPaneViewModel();
@@ -80,7 +96,7 @@ namespace MURDOC_2024.ViewModel
             ImageControlVM = new ImageControlViewModel(
                 runModelsAction: () => RunModelsCommand(),
                 resetAction: ResetAll,
-                imageSelectedAction: path => OnImageSelected(path),  // CHANGED: Use dedicated method
+                imageSelectedAction: path => OnImageSelected(path),
                 slidersChangedAction: (b, c, s) => AdjustInputImage(b, c, s)
             );
 
@@ -101,22 +117,21 @@ namespace MURDOC_2024.ViewModel
             EditorControlsVM.FeedbackHistoryViewRequested += OnFeedbackHistoryViewRequested;
             EditorControlsVM.FeedbackExportRequested += OnFeedbackExportRequested;
             EditorControlsVM.SessionResetRequested += OnSessionResetRequested;
+            EditorControlsVM.DetectionFeedbackProvided += OnDetectionFeedbackProvided;
         }
 
         #region EditorControls Event Handlers
 
         private void OnCorrectionModeToggled(object sender, EventArgs e)
         {
-            // TODO: Enable/disable correction drawing mode on the main canvas
             bool isActive = EditorControlsVM.IsCorrectionModeActive;
             System.Diagnostics.Debug.WriteLine($"Correction mode: {(isActive ? "ACTIVE" : "INACTIVE")}");
 
-            // You'll wire this up to your polygon drawing canvas later
+            _metricsService.LogInteraction("CorrectionModeToggled", new { Active = isActive });
         }
 
         private void OnFeedbackHistoryViewRequested(object sender, EventArgs e)
         {
-            // TODO: Show feedback history window/dialog
             var feedbackHistory = EditorControlsVM.GetFeedbackHistory();
 
             MessageBox.Show(
@@ -147,7 +162,7 @@ namespace MURDOC_2024.ViewModel
                         feedbackHistory,
                         Newtonsoft.Json.Formatting.Indented);
 
-                    System.IO.File.WriteAllText(dialog.FileName, json);
+                    File.WriteAllText(dialog.FileName, json);
 
                     MessageBox.Show(
                         $"Feedback exported successfully!\n{feedbackHistory.Count} items saved.",
@@ -182,7 +197,9 @@ namespace MURDOC_2024.ViewModel
             if (result == MessageBoxResult.Yes)
             {
                 EditorControlsVM.ClearFeedback();
-                // TODO: Clear ROIs when implemented
+                _currentDetections.Clear();
+
+                _metricsService.LogInteraction("SessionReset", null);
 
                 MessageBox.Show(
                     "Session reset complete.",
@@ -192,7 +209,15 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        private void OnDetectionFeedbackProvided(object sender, DetectionFeedback feedback)
+        {
+            // Log feedback to metrics
+            _metricsService.LogFeedback(feedback.Type.ToString(), feedback.DetectionId);
+        }
+
         #endregion
+
+        #region Detection Handling
 
         public void AddDetectionFeedback(DetectionFeedback feedback)
         {
@@ -200,21 +225,200 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
-        /// Called when an image is selected via the Browse button
+        /// Handle detection clicks from FinalPredictionPane
         /// </summary>
+        public void OnDetectionClicked(DetectionResult detection)
+        {
+            if (detection == null) return;
+
+            // Log the click
+            _metricsService.LogDetectionClick(
+                detection.Id,
+                detection.Label,
+                detection.Confidence);
+
+            // Update editor controls
+            EditorControlsVM.SelectDetection(detection);
+        }
+
+        /// <summary>
+        /// Parse consolidated detections from IAI output
+        /// </summary>
+        private void ParseDetections(string iaiOutput)
+        {
+            _currentDetections.Clear();
+
+            if (string.IsNullOrEmpty(iaiOutput))
+                return;
+
+            try
+            {
+                var lines = iaiOutput.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                bool inConsolidatedSection = false;
+                int detectionIndex = 0;
+
+                foreach (var line in lines)
+                {
+                    // Look for consolidated regions section
+                    if (line.Contains("consolidated region"))
+                    {
+                        inConsolidatedSection = true;
+                        continue;
+                    }
+
+                    // Parse detection lines (format: "1. Object (leg), Confidence: 70.98% (2 parts)")
+                    if (inConsolidatedSection && Regex.IsMatch(line.Trim(), @"^\d+\."))
+                    {
+                        var detection = ParseDetectionLine(line, detectionIndex);
+                        if (detection != null)
+                        {
+                            _currentDetections.Add(detection);
+                            detectionIndex++;
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Parsed {_currentDetections.Count} detections from IAI output");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error parsing detections: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Parse a single detection line
+        /// Format: "1. Object (leg), Confidence: 70.98% (2 parts)"
+        /// </summary>
+        private DetectionResult ParseDetectionLine(string line, int index)
+        {
+            try
+            {
+                // Remove leading number and dot
+                var content = Regex.Replace(line, @"^\d+\.\s*", "").Trim();
+
+                // Split by comma
+                var parts = content.Split(',');
+                if (parts.Length < 2)
+                    return null;
+
+                // Extract label (e.g., "Object (leg)")
+                var label = parts[0].Trim();
+
+                // Extract confidence (e.g., "Confidence: 70.98%")
+                var confidenceMatch = Regex.Match(parts[1], @"([\d.]+)%");
+                if (!confidenceMatch.Success)
+                    return null;
+
+                var confidence = double.Parse(confidenceMatch.Groups[1].Value) / 100.0;
+
+                // Extract part count if present (e.g., "(2 parts)")
+                int partCount = 1;
+                var partCountMatch = Regex.Match(content, @"\((\d+)\s+parts?\)");
+                if (partCountMatch.Success)
+                {
+                    partCount = int.Parse(partCountMatch.Groups[1].Value);
+                }
+
+                // Extract parts breakdown from next line if available
+                // (This would require reading ahead in the parsing logic)
+
+                var detection = new DetectionResult
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Label = label,
+                    Confidence = confidence,
+                    PartCount = partCount,
+                    ImagePath = SelectedImagePath,
+                    // Note: BoundingBox coordinates would need to come from
+                    // a separate JSON file or modified Python output
+                    // For now, we'll work with just the label and confidence
+                };
+
+                return detection;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error parsing detection line '{line}': {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get current detections (for UI binding or other uses)
+        /// </summary>
+        public List<DetectionResult> GetCurrentDetections()
+        {
+            return _currentDetections;
+        }
+
+        #endregion
+
+        #region Metrics Export
+
+        /// <summary>
+        /// Export performance metrics
+        /// </summary>
+        public void ExportPerformanceMetrics()
+        {
+            try
+            {
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "JSON files (*.json)|*.json|CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                    DefaultExt = ".json",
+                    FileName = $"metrics_session_{DateTime.Now:yyyyMMdd_HHmmss}"
+                };
+
+                if (saveDialog.ShowDialog() == true)
+                {
+                    if (saveDialog.FileName.EndsWith(".csv"))
+                    {
+                        _metricsService.ExportCSV(saveDialog.FileName);
+                    }
+                    else
+                    {
+                        _metricsService.ExportMetrics(saveDialog.FileName);
+                    }
+
+                    // Also generate and display report
+                    var report = _metricsService.GenerateReport();
+
+                    MessageBox.Show(
+                        $"Metrics exported successfully!\n\n" +
+                        $"Session Duration: {TimeSpan.FromSeconds(report.SessionDuration):hh\\:mm\\:ss}\n" +
+                        $"Total Tasks: {report.TotalTasks}\n" +
+                        $"Total Interactions: {report.TotalInteractions}\n" +
+                        $"Avg Task Duration: {report.AverageTaskDuration:F2}s\n" +
+                        $"Avg Model Execution: {report.AverageModelExecutionTime:F2}s\n" +
+                        $"Feedback Actions: {report.FeedbackActions}",
+                        "Export Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error exporting metrics:\n{ex.Message}",
+                    "Export Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
         private void OnImageSelected(string path)
         {
             SelectedImagePath = path;
             InputImageVM.LoadImage(path);
-
-            // CRITICAL: Notify MICA Control that an image has been selected
-            // This enables the Run and Reset buttons
             MICAControlVM.OnImageSelected(path);
+
+            // Track task start
+            _metricsService.StartTask(path);
         }
 
-        /// <summary>
-        /// Wrapper method to safely call async RunModels
-        /// </summary>
         private async void RunModelsCommand()
         {
             try
@@ -237,13 +441,8 @@ namespace MURDOC_2024.ViewModel
             System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {context}:");
             System.Diagnostics.Debug.WriteLine($"  IsRunningModels: {IsRunningModels}");
             System.Diagnostics.Debug.WriteLine($"  IsNotRunningModels: {IsNotRunningModels}");
-            System.Diagnostics.Debug.WriteLine($"  Thread: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
-            System.Diagnostics.Debug.WriteLine($"  IsUIThread: {Application.Current.Dispatcher.CheckAccess()}");
         }
 
-        /// <summary>
-        /// Properly async method for running models
-        /// </summary>
         private async Task RunModelsAsync()
         {
             if (IsRunningModels)
@@ -253,16 +452,12 @@ namespace MURDOC_2024.ViewModel
             {
                 LogStateChange("Before setting IsRunningModels = true");
 
-                // Set running state - this will disable buttons in BOTH ViewModels
                 IsRunningModels = true;
-
-                // UPDATE: Explicitly disable buttons in both ViewModels
                 ImageControlVM?.SetButtonStates(true);
                 MICAControlVM?.SetButtonStates(true);
 
                 LogStateChange("After setting IsRunningModels = true");
 
-                // Set wait cursor on UI thread
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     Mouse.OverrideCursor = Cursors.Wait;
@@ -271,13 +466,22 @@ namespace MURDOC_2024.ViewModel
                 string imageToProcess = GetImageToUse();
                 string iaiMessage = null;
 
-                // Run Python model (long-running operation)
+                // Start timing model execution
+                _modelExecutionTimer.Restart();
+
+                // Run Python model
                 iaiMessage = await RunPythonModelAsync(imageToProcess);
+
+                // Stop timing
+                _modelExecutionTimer.Stop();
+                _metricsService.LogModelRun(_modelExecutionTimer.Elapsed.TotalSeconds);
+
+                // Parse detections from output
+                ParseDetections(iaiMessage);
 
                 // Load outputs
                 await Task.Run(() => LoadModelOutputs());
 
-                // Update UI with results
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     IAIOutputVM.IAIOutputMessage = iaiMessage ?? "Model execution completed.";
@@ -299,41 +503,30 @@ namespace MURDOC_2024.ViewModel
             {
                 LogStateChange("Before setting IsRunningModels = false");
 
-                // Restore cursor on UI thread
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     Mouse.OverrideCursor = null;
                 });
 
-                // IMPORTANT: Set IsRunningModels to false OUTSIDE of Dispatcher.Invoke
                 IsRunningModels = false;
-
-                // UPDATE: Explicitly re-enable buttons in both ViewModels
                 ImageControlVM?.SetButtonStates(false);
                 MICAControlVM?.SetButtonStates(false);
 
                 LogStateChange("After setting IsRunningModels = false");
 
-                // Additional safety: Force a final command update after a small delay
                 await Task.Delay(100);
-                LogStateChange("After delay, forcing command update");
 
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     ImageControlVM?.UpdateCommandStates();
-                    MICAControlVM?.UpdateCommandStates();  // ADD THIS
+                    MICAControlVM?.UpdateCommandStates();
                     CommandManager.InvalidateRequerySuggested();
-                    LogStateChange("After forcing command update");
                 });
             }
         }
 
-        /// <summary>
-        /// Simplified wrapper: Directly returns the Task created by the PythonModelService.
-        /// </summary>
         private async Task<string> RunPythonModelAsync(string imagePath)
         {
-            // If you add a dedicated UseMICA toggle later, replace this condition.
             bool useMica = MICAControlVM?.AutoUpdate == true;
 
             return useMica
@@ -358,13 +551,11 @@ namespace MURDOC_2024.ViewModel
             FinalPredictionVM.Clear();
             PreviewPaneVM.ClearPreview();
 
-            // UPDATE: Reset both ViewModels
+            _currentDetections.Clear();
+
             ImageControlVM?.SetButtonStates(false);
-            // Note: MICAControlVM.ResetAll() is called internally via its ExecuteReset
-            // But we should also reset its button states here for consistency
             MICAControlVM?.SetButtonStates(false);
 
-            // Force command updates after reset
             ImageControlVM?.UpdateCommandStates();
             MICAControlVM?.UpdateCommandStates();
             CommandManager.InvalidateRequerySuggested();
@@ -383,13 +574,16 @@ namespace MURDOC_2024.ViewModel
                 if (adjusted == null)
                     return;
 
-                // Save adjusted bitmap to temp file for Python
                 _latestAdjustedImagePath = _imageService.SaveBitmapToTemp(adjusted);
                 _adjustedInputImage = adjusted;
                 _hasAdjustedImage = true;
 
-                // Update UI
                 InputImageVM.InputImage = new BitmapImage(new Uri(_latestAdjustedImagePath));
+
+                // Log parameter changes
+                _metricsService.LogParameterChange("ImageAdjustment",
+                    null,
+                    new { Brightness = brightness, Contrast = contrast, Saturation = saturation });
             }
             catch (Exception ex)
             {
@@ -399,11 +593,9 @@ namespace MURDOC_2024.ViewModel
 
         private string GetImageToUse()
         {
-            // If user adjusted the image, use the latest adjusted temp file
             if (!string.IsNullOrEmpty(_latestAdjustedImagePath) && File.Exists(_latestAdjustedImagePath))
                 return _latestAdjustedImagePath;
 
-            // Otherwise use the original
             return SelectedImagePath;
         }
 
@@ -422,7 +614,6 @@ namespace MURDOC_2024.ViewModel
                 string detectionFolderPath = Path.Combine(exeDir, "detection_results");
                 string predictionFolderPath = Path.Combine(exeDir, "results");
 
-                // Load results on UI thread
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     RankNetVM.LoadResults(offrampsFolderPath, outputsFolderPath);
@@ -456,7 +647,7 @@ namespace MURDOC_2024.ViewModel
 
         public void Dispose()
         {
-            // Safely dispose of the Python service
+            _metricsService?.EndSession();
             (_python as IDisposable)?.Dispose();
             GC.SuppressFinalize(this);
         }

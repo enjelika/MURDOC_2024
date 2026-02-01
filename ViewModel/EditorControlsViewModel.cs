@@ -15,12 +15,6 @@ namespace MURDOC_2024.ViewModel
         private int _correctionCount;
         private bool _isCorrectionModeActive;
 
-        // Display options
-        private bool _showROIs = true;
-        private bool _showConfidence = true;
-        private bool _highlightFeedback = true;
-        private bool _showAttentionMaps = false;
-
         // Session info
         private DateTime _sessionStartTime;
 
@@ -62,6 +56,9 @@ namespace MURDOC_2024.ViewModel
                 }
             }
         }
+
+        // ADD THIS NEW FIELD:
+        private DetectionResult _selectedDetectionResult;
 
         // Add Commands
         public ICommand ConfirmDetectionCommand { get; }
@@ -126,31 +123,6 @@ namespace MURDOC_2024.ViewModel
         {
             get => _isCorrectionModeActive;
             set => SetProperty(ref _isCorrectionModeActive, value);
-        }
-
-        // Display Options
-        public bool ShowROIs
-        {
-            get => _showROIs;
-            set => SetProperty(ref _showROIs, value);
-        }
-
-        public bool ShowConfidence
-        {
-            get => _showConfidence;
-            set => SetProperty(ref _showConfidence, value);
-        }
-
-        public bool HighlightFeedback
-        {
-            get => _highlightFeedback;
-            set => SetProperty(ref _highlightFeedback, value);
-        }
-
-        public bool ShowAttentionMaps
-        {
-            get => _showAttentionMaps;
-            set => SetProperty(ref _showAttentionMaps, value);
         }
 
         // Session Info
@@ -297,44 +269,58 @@ namespace MURDOC_2024.ViewModel
 
         private void ConfirmDetection()
         {
-            if (_selectedDetection == null) return;
+            if (_selectedDetectionResult == null) return;
 
-            // TODO: Create feedback object and add to history
             var feedback = CreateFeedbackFromSelection(FeedbackType.Confirmation);
-            AddFeedback(feedback);
+            if (feedback != null)
+            {
+                AddFeedback(feedback);
+                _selectedDetectionResult.IsConfirmed = true;
 
-            // Clear selection
+                // Raise event for metrics tracking
+                OnDetectionFeedbackProvided(feedback);
+            }
+
             ClearSelection();
         }
 
         private void RejectDetection()
         {
-            if (_selectedDetection == null) return;
+            if (_selectedDetectionResult == null) return;
 
-            // TODO: Create feedback object and add to history
             var feedback = CreateFeedbackFromSelection(FeedbackType.Rejection);
-            AddFeedback(feedback);
+            if (feedback != null)
+            {
+                AddFeedback(feedback);
+                _selectedDetectionResult.IsRejected = true;
 
-            // Clear selection
+                // Raise event for metrics tracking
+                OnDetectionFeedbackProvided(feedback);
+            }
+
             ClearSelection();
+        }
+
+        // Event for metrics tracking
+        public event EventHandler<DetectionFeedback> DetectionFeedbackProvided;
+
+        protected virtual void OnDetectionFeedbackProvided(DetectionFeedback feedback)
+        {
+            DetectionFeedbackProvided?.Invoke(this, feedback);
         }
 
         private DetectionFeedback CreateFeedbackFromSelection(FeedbackType type)
         {
-            // This will be implemented based on your detection object structure
-            // For now, a placeholder
-            return new DetectionFeedback
-            {
-                DetectionId = Guid.NewGuid().ToString(),
-                Type = type,
-                Timestamp = DateTime.Now,
-                // Add other properties from SelectedDetection
-            };
+            if (_selectedDetectionResult == null)
+                return null;
+
+            // Use the ToFeedback method from DetectionResult
+            return _selectedDetectionResult.ToFeedback(type);
         }
 
         private void UpdateSelectedDetectionDisplay()
         {
-            if (_selectedDetection == null)
+            if (_selectedDetection == null || _selectedDetectionResult == null)
             {
                 HasSelectedDetection = false;
                 SelectedDetectionLabel = string.Empty;
@@ -343,10 +329,8 @@ namespace MURDOC_2024.ViewModel
             else
             {
                 HasSelectedDetection = true;
-                // TODO: Extract label and confidence from your detection object
-                // This depends on your detection object structure
-                SelectedDetectionLabel = "Detection label"; // Get from _selectedDetection
-                SelectedDetectionConfidence = 0.75; // Get from _selectedDetection
+                SelectedDetectionLabel = _selectedDetectionResult.Label;
+                SelectedDetectionConfidence = _selectedDetectionResult.Confidence;
             }
 
             // Update command states
@@ -360,8 +344,9 @@ namespace MURDOC_2024.ViewModel
         }
 
         // Public method to be called when user clicks on a detection in the main view
-        public void SelectDetection(object detection)
+        public void SelectDetection(DetectionResult detection)
         {
+            _selectedDetectionResult = detection;
             SelectedDetection = detection;
         }
     }

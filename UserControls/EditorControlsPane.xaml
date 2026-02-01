@@ -92,23 +92,23 @@
                 <Label Content="Detection Feedback" FontWeight="Bold" FontSize="13"/>
 
                 <TextBlock Text="Select a detection to provide feedback"
-           FontSize="12"
-           Foreground="#666666"
-           TextWrapping="Wrap"
-           Margin="0,0,0,8"/>
+                    FontSize="12"
+                    Foreground="#666666"
+                    TextWrapping="Wrap"
+                    Margin="0,0,0,8"/>
 
                 <!-- Current Selection Display -->
                 <Border Background="#E3F2FD" 
-        Padding="8,5" 
-        CornerRadius="3"
-        Margin="0,0,0,8"
-        Visibility="{Binding HasSelectedDetection, Converter={StaticResource BoolToVisConverter}}">
+                    Padding="8,5" 
+                    CornerRadius="3"
+                    Margin="0,0,0,8"
+                    Visibility="{Binding HasSelectedDetection, Converter={StaticResource BoolToVisConverter}}">
                     <TextBlock FontSize="11" TextWrapping="Wrap">
-        <Run Text="Selected: " FontWeight="Bold"/>
-        <Run Text="{Binding SelectedDetectionLabel, Mode=OneWay}"/>
-        <LineBreak/>
-        <Run Text="Confidence: " FontWeight="Bold"/>
-        <Run Text="{Binding SelectedDetectionConfidence, StringFormat='{}{0:P2}', Mode=OneWay}"/>
+                        <Run Text="Selected: " FontWeight="Bold"/>
+                        <Run Text="{Binding SelectedDetectionLabel, Mode=OneWay}"/>
+                        <LineBreak/>
+                        <Run Text="Confidence: " FontWeight="Bold"/>
+                        <Run Text="{Binding SelectedDetectionConfidence, StringFormat='{}{0:P2}', Mode=OneWay}"/>
                     </TextBlock>
                 </Border>
 
@@ -120,13 +120,13 @@
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0" 
-            Command="{Binding ConfirmDetectionCommand}"
-            Margin="0,0,3,0"
-            Padding="8,10"
-            Background="#E8F5E9"
-            BorderBrush="#4CAF50"
-            BorderThickness="2"
-            ToolTip="Confirm this detection is correct">
+                        Command="{Binding ConfirmDetectionCommand}"
+                        Margin="0,0,3,0"
+                        Padding="8,10"
+                        Background="#E8F5E9"
+                        BorderBrush="#4CAF50"
+                        BorderThickness="2"
+                        ToolTip="Confirm this detection is correct">
                         <StackPanel>
                             <TextBlock Text="✓ Confirm" 
                       FontWeight="Bold" 
@@ -136,13 +136,13 @@
                     </Button>
 
                     <Button Grid.Column="1" 
-            Command="{Binding RejectDetectionCommand}"
-            Margin="3,0,0,0"
-            Padding="8,10"
-            Background="#FFEBEE"
-            BorderBrush="#F44336"
-            BorderThickness="2"
-            ToolTip="Reject this detection as incorrect">
+                        Command="{Binding RejectDetectionCommand}"
+                        Margin="3,0,0,0"
+                        Padding="8,10"
+                        Background="#FFEBEE"
+                        BorderBrush="#F44336"
+                        BorderThickness="2"
+                        ToolTip="Reject this detection as incorrect">
                         <StackPanel>
                             <TextBlock Text="✗ Reject" 
                       FontWeight="Bold" 
@@ -154,12 +154,12 @@
 
                 <!-- Add Correction Button -->
                 <Button Command="{Binding EnableCorrectionModeCommand}"
-        Padding="8,10"
-        Margin="0,0,0,8"
-        Background="#FFF3E0"
-        BorderBrush="#FFB74D"
-        BorderThickness="2"
-        ToolTip="Draw polygon around object the system missed">
+                    Padding="8,10"
+                    Margin="0,0,0,8"
+                    Background="#FFF3E0"
+                    BorderBrush="#FFB74D"
+                    BorderThickness="2"
+                    ToolTip="Draw polygon around object the system missed">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <TextBlock Text="➕ " 
                   FontWeight="Bold" 
@@ -175,9 +175,9 @@
 
                 <!-- Feedback Stats (Read-only summary) -->
                 <Border Background="#F0F0F0" 
-        Padding="8" 
-        CornerRadius="3"
-        Margin="0,0,0,8">
+                    Padding="8" 
+                    CornerRadius="3"
+                    Margin="0,0,0,8">       
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -224,36 +224,34 @@
                 </Border>
 
                 <Button Content="📊 View Feedback History" 
-        Command="{Binding ViewFeedbackHistoryCommand}"
-        Margin="0,0,0,5"/>
+                    Command="{Binding ViewFeedbackHistoryCommand}"
+                    Margin="0,0,0,5"/>
 
                 <Button Content="💾 Export Feedback Data" 
-        Command="{Binding ExportFeedbackCommand}"
-        Margin="0,0,0,5"
-        ToolTip="Save feedback history as JSON"/>
+                    Command="{Binding ExportFeedbackCommand}"
+                    Margin="0,0,0,5"
+                    ToolTip="Save feedback history as JSON"/>
 
                 <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 
-                <!-- Display Options Section -->
-                <Label Content="Display Options" FontWeight="Bold" FontSize="13"/>
+                <!-- Add this in EditorControlsPane before Detection Feedback section -->
+                <Label Content="Current Detections" FontWeight="Bold" FontSize="13"/>
 
-                <CheckBox Content="Show ROI Overlays" 
-                          IsChecked="{Binding ShowROIs}"
-                          Margin="0,0,0,5"/>
+                <ListBox ItemsSource="{Binding CurrentDetections}"
+                     SelectedItem="{Binding SelectedDetection}"
+                     Height="100"
+                     Margin="0,0,0,10">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Label}" FontWeight="Bold" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding Confidence, StringFormat='({0:P0})'}" Foreground="#666"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
 
-                <CheckBox Content="Show Detection Confidence" 
-                          IsChecked="{Binding ShowConfidence}"
-                          Margin="0,0,0,5"/>
-
-                <CheckBox Content="Highlight Feedback Status" 
-                          IsChecked="{Binding HighlightFeedback}"
-                          Margin="0,0,0,5"/>
-
-                <CheckBox Content="Show Attention Maps" 
-                          IsChecked="{Binding ShowAttentionMaps}"
-                          Margin="0,0,0,10"/>
-
-                <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
+                <Separator Margin="0,10,0,10" Background="#E0E0E0"/> 
 
                 <!-- Session Info -->
                 <Label Content="Session Information" FontWeight="Bold" FontSize="13"/>
