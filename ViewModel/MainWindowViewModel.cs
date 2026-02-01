@@ -244,12 +244,14 @@ namespace MURDOC_2024.ViewModel
             _latestAdjustedImagePath = null;
 
             InputImageVM.InputImage = null;
-            PreviewPaneVM.PreviewImage = null;
             IAIOutputVM.IAIOutputMessage = string.Empty;
+            ImageControlVM.ExecuteResetCommand();
+            ImageControlVM.SelectedImagePath = string.Empty;
 
             RankNetVM.Clear();
             EfficientDetVM.Clear();
             FinalPredictionVM.Clear();
+            PreviewPaneVM.ClearPreview();
 
             // UPDATE: Reset both ViewModels
             ImageControlVM?.SetButtonStates(false);

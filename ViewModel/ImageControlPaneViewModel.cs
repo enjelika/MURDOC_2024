@@ -181,14 +181,12 @@ namespace MURDOC_2024.ViewModel
             _runModelsAction?.Invoke();
         }
 
-        private void ExecuteResetCommand()
+        public void ExecuteResetCommand()
         {
-            _resetAction?.Invoke();
             _sliderBrightness = 0;
             _sliderContrast = 0;
             _sliderSaturation = 0;
-            IsRunButtonEnabled = false;
-            IsResetEnabled = false;
+
             IsBrowseEnabled = true;
             SelectedImagePath = string.Empty;
         }
