@@ -75,73 +75,49 @@
                 </Expander>
             </Grid>
 
-            <!-- Right Controls: Editor Controls with Overlay IAI and Preview -->
-            <Grid Grid.Column="2" Margin="5" Width="325">
-                <!-- Base layer: Editor Controls (never moves) -->
+            <!-- Right Controls: Preview, Editor Controls, and Overlay IAI Output -->
+            <Grid Grid.Column="2" Margin="5" Width="320">
+                <!-- Base layer: Preview + Editor Controls (never move) -->
                 <StackPanel Orientation="Vertical" 
-               HorizontalAlignment="Stretch"
-               Panel.ZIndex="0">
+                   HorizontalAlignment="Stretch"
+                   Panel.ZIndex="0">
 
-                    <!-- Editor Controls - gets full height -->
-                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}" Margin="5,100,5,0"/>
+                    <!-- Preview Pane - BACK ON TOP -->
+                    <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}" Margin="0,30,0,5"/>
+
+                    <!-- Editor Controls -->
+                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}" Margin="0,5"/>
+
                 </StackPanel>
 
-                <!-- Overlay layer: IAI Output Expander at TOP -->
+                <!-- Overlay layer: IAI Output Expander sits ON TOP -->
                 <Expander Header="Informative AI Output"
-                  IsExpanded="False"
-                  Margin="5"
-                  HorizontalAlignment="Stretch"
-                  VerticalAlignment="Top"
-                  Panel.ZIndex="10"
-                  Opacity="0.95"
-                  Background="#CCFFFFFF">
+                    IsExpanded="False"
+                    Margin="5"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Top"
+                    Panel.ZIndex="10"
+                    Opacity="0.95"
+                    Background="#CCFFFFFF">
 
                     <Expander.HeaderTemplate>
                         <DataTemplate>
-                            <TextBlock Text="Informative AI Pane" 
-                              FontWeight="Bold" 
-                              FontSize="14"/>
+                            <TextBlock Text="Informative AI Output" 
+                          FontWeight="Bold" 
+                          FontSize="14"/>
                         </DataTemplate>
                     </Expander.HeaderTemplate>
 
                     <Border BorderBrush="#CCCCCC" 
-                    BorderThickness="1" 
-                    Background="White"
-                    CornerRadius="4"
-                    Margin="5"
-                    MaxHeight="400">
+                        BorderThickness="1" 
+                        Background="White"
+                        CornerRadius="4"
+                        Margin="5"
+                        MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <controls:IAIOutputPane DataContext="{Binding IAIOutputVM}" 
-                                           Margin="10"/>
+                                       Margin="10"/>
                         </ScrollViewer>
-                    </Border>
-                </Expander>
-
-                <!-- Overlay layer: Preview Expander BELOW IAI -->
-                <Expander Header="Preview"
-                  IsExpanded="False"
-                  Margin="5,40,5,5"
-                  HorizontalAlignment="Stretch"
-                  VerticalAlignment="Top"
-                  Panel.ZIndex="5"
-                  Opacity="0.95"
-                  Background="#CCFFFFFF">
-
-                    <Expander.HeaderTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="Mouse Over Preview" 
-                              FontWeight="Bold" 
-                              FontSize="14"/>
-                        </DataTemplate>
-                    </Expander.HeaderTemplate>
-
-                    <Border BorderBrush="#CCCCCC" 
-                    BorderThickness="1" 
-                    Background="White"
-                    CornerRadius="4"
-                    Margin="5">
-                        <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}"
-                                          Margin="10"/>
                     </Border>
                 </Expander>
             </Grid>

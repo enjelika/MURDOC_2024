@@ -56,6 +56,7 @@ namespace MURDOC_2024.ViewModel
                     {
                         ImageControlVM?.UpdateCommandStates();
                         MICAControlVM?.UpdateCommandStates();
+                        EditorControlsVM?.UpdateCommandStates();
                         CommandManager.InvalidateRequerySuggested();
                     });
                 }
@@ -212,7 +213,7 @@ namespace MURDOC_2024.ViewModel
         private void OnDetectionFeedbackProvided(object sender, DetectionFeedback feedback)
         {
             // Log feedback to metrics
-            _metricsService.LogFeedback(feedback.Type.ToString(), feedback.DetectionId);
+            _metricsService.LogFeedback(feedback.FeedbackType.ToString(), feedback.DetectionId);
         }
 
         #endregion
@@ -242,7 +243,7 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
-        /// Parse consolidated detections from IAI output
+        /// Parse consolidated detections from IAI output and auto-select the first one
         /// </summary>
         private void ParseDetections(string iaiOutput)
         {
@@ -279,11 +280,66 @@ namespace MURDOC_2024.ViewModel
                 }
 
                 System.Diagnostics.Debug.WriteLine($"Parsed {_currentDetections.Count} detections from IAI output");
+
+                // AUTO-SELECT: If we have any detections, auto-select the first one (highest confidence)
+                if (_currentDetections.Count > 0)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        EditorControlsVM.SelectDetection(_currentDetections[0]);
+                        System.Diagnostics.Debug.WriteLine($"Auto-selected detection: {_currentDetections[0].Label}");
+                    });
+                }
+                else
+                {
+                    // No detections parsed - create a generic one from "Object present" message
+                    if (iaiOutput.Contains("Object present"))
+                    {
+                        var genericDetection = new DetectionResult
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            Label = "Camouflaged Object",
+                            Confidence = ExtractFirstConfidenceFromOutput(iaiOutput),
+                            ImagePath = SelectedImagePath,
+                            PartCount = 1
+                        };
+
+                        _currentDetections.Add(genericDetection);
+
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            EditorControlsVM.SelectDetection(genericDetection);
+                            System.Diagnostics.Debug.WriteLine($"Created and selected generic detection");
+                        });
+                    }
+                }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error parsing detections: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Extract first confidence value from output (fallback method)
+        /// </summary>
+        private double ExtractFirstConfidenceFromOutput(string output)
+        {
+            if (string.IsNullOrEmpty(output))
+                return 0.5;
+
+            try
+            {
+                // Look for patterns like "Confidence: 70.98%"
+                var match = Regex.Match(output, @"Confidence:\s*([\d.]+)%");
+                if (match.Success)
+                {
+                    return double.Parse(match.Groups[1].Value) / 100.0;
+                }
+            }
+            catch { }
+
+            return 0.5; // Default fallback
         }
 
         /// <summary>
@@ -553,11 +609,16 @@ namespace MURDOC_2024.ViewModel
 
             _currentDetections.Clear();
 
+            // Clear the editor state
+            EditorControlsVM.ClearSelection();
+            EditorControlsVM.CurrentDetections?.Clear();
+
             ImageControlVM?.SetButtonStates(false);
             MICAControlVM?.SetButtonStates(false);
 
             ImageControlVM?.UpdateCommandStates();
             MICAControlVM?.UpdateCommandStates();
+            EditorControlsVM?.UpdateCommandStates();
             CommandManager.InvalidateRequerySuggested();
         }
 

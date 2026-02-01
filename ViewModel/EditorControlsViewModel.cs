@@ -10,57 +10,25 @@ namespace MURDOC_2024.ViewModel
     {
         // Feedback tracking
         private ObservableCollection<DetectionFeedback> _feedbackHistory;
+        private ObservableCollection<DetectionResult> _currentDetections;
         private int _confirmedCount;
         private int _rejectedCount;
         private int _correctionCount;
         private bool _isCorrectionModeActive;
-
-        // Session info
         private DateTime _sessionStartTime;
 
-        // ROI (placeholders for now)
+        // ROI tracking
         private int _roiCount;
         private bool _isDrawingROI;
 
-        // Selected Detection Properties
+        // Selection state
         private bool _hasSelectedDetection;
-        public bool HasSelectedDetection
-        {
-            get => _hasSelectedDetection;
-            set => SetProperty(ref _hasSelectedDetection, value);
-        }
-
         private string _selectedDetectionLabel;
-        public string SelectedDetectionLabel
-        {
-            get => _selectedDetectionLabel;
-            set => SetProperty(ref _selectedDetectionLabel, value);
-        }
-
         private double _selectedDetectionConfidence;
-        public double SelectedDetectionConfidence
-        {
-            get => _selectedDetectionConfidence;
-            set => SetProperty(ref _selectedDetectionConfidence, value);
-        }
-
-        private object _selectedDetection; // Store the actual detection object
-        public object SelectedDetection
-        {
-            get => _selectedDetection;
-            set
-            {
-                if (SetProperty(ref _selectedDetection, value))
-                {
-                    UpdateSelectedDetectionDisplay();
-                }
-            }
-        }
-
-        // ADD THIS NEW FIELD:
+        private object _selectedDetection;
         private DetectionResult _selectedDetectionResult;
 
-        // Add Commands
+        // Commands
         public ICommand ConfirmDetectionCommand { get; }
         public ICommand RejectDetectionCommand { get; }
         public ICommand EnableCorrectionModeCommand { get; }
@@ -68,56 +36,105 @@ namespace MURDOC_2024.ViewModel
         public ICommand ExportFeedbackCommand { get; }
         public ICommand ResetSessionCommand { get; }
 
-        // ROI Commands (placeholders)
+        // ROI Commands (Placeholders)
         public ICommand SetPolygonModeCommand { get; }
         public ICommand SetFreehandModeCommand { get; }
         public ICommand ClearROIsCommand { get; }
         public ICommand ExportROIMasksCommand { get; }
 
-        // Events for communication with parent
+        // Events for MainWindowViewModel communication
         public event EventHandler CorrectionModeToggled;
         public event EventHandler FeedbackHistoryViewRequested;
         public event EventHandler FeedbackExportRequested;
         public event EventHandler SessionResetRequested;
+        public event EventHandler<DetectionFeedback> DetectionFeedbackProvided;
+
+        public EditorControlsPaneViewModel()
+        {
+            FeedbackHistory = new ObservableCollection<DetectionFeedback>();
+            CurrentDetections = new ObservableCollection<DetectionResult>();
+            _sessionStartTime = DateTime.Now;
+
+            // Initialize commands
+            ConfirmDetectionCommand = new RelayCommand(ExecuteConfirm, () => HasSelectedDetection);
+            RejectDetectionCommand = new RelayCommand(ExecuteReject, () => HasSelectedDetection);
+
+            EnableCorrectionModeCommand = new RelayCommand(ToggleCorrectionMode);
+            ViewFeedbackHistoryCommand = new RelayCommand(ViewFeedbackHistory);
+            ExportFeedbackCommand = new RelayCommand(ExportFeedback, () => FeedbackHistory.Count > 0);
+            ResetSessionCommand = new RelayCommand(ResetSession);
+
+            // Initialize ROI command placeholders
+            SetPolygonModeCommand = new RelayCommand(() => { });
+            SetFreehandModeCommand = new RelayCommand(() => { });
+            ClearROIsCommand = new RelayCommand(() => { });
+            ExportROIMasksCommand = new RelayCommand(() => { });
+        }
 
         #region Properties
 
-        // Feedback Properties
+        public ObservableCollection<DetectionFeedback> FeedbackHistory
+        {
+            get => _feedbackHistory;
+            set => SetProperty(ref _feedbackHistory, value);
+        }
+
+        public ObservableCollection<DetectionResult> CurrentDetections
+        {
+            get => _currentDetections;
+            set => SetProperty(ref _currentDetections, value);
+        }
+
+        public object SelectedDetection
+        {
+            get => _selectedDetection;
+            set
+            {
+                if (SetProperty(ref _selectedDetection, value))
+                {
+                    _selectedDetectionResult = value as DetectionResult;
+                    UpdateSelectedDetectionDisplay();
+                }
+            }
+        }
+
+        public bool HasSelectedDetection
+        {
+            get => _hasSelectedDetection;
+            set => SetProperty(ref _hasSelectedDetection, value);
+        }
+
+        public string SelectedDetectionLabel
+        {
+            get => _selectedDetectionLabel;
+            set => SetProperty(ref _selectedDetectionLabel, value);
+        }
+
+        public double SelectedDetectionConfidence
+        {
+            get => _selectedDetectionConfidence;
+            set => SetProperty(ref _selectedDetectionConfidence, value);
+        }
+
         public int ConfirmedCount
         {
             get => _confirmedCount;
-            set
-            {
-                if (SetProperty(ref _confirmedCount, value))
-                {
-                    OnPropertyChanged(nameof(TotalInteractions));
-                }
-            }
+            set { if (SetProperty(ref _confirmedCount, value)) OnPropertyChanged(nameof(TotalInteractions)); }
         }
 
         public int RejectedCount
         {
             get => _rejectedCount;
-            set
-            {
-                if (SetProperty(ref _rejectedCount, value))
-                {
-                    OnPropertyChanged(nameof(TotalInteractions));
-                }
-            }
+            set { if (SetProperty(ref _rejectedCount, value)) OnPropertyChanged(nameof(TotalInteractions)); }
         }
 
         public int CorrectionCount
         {
             get => _correctionCount;
-            set
-            {
-                if (SetProperty(ref _correctionCount, value))
-                {
-                    OnPropertyChanged(nameof(TotalInteractions));
-                }
-            }
+            set { if (SetProperty(ref _correctionCount, value)) OnPropertyChanged(nameof(TotalInteractions)); }
         }
+
+        public int TotalInteractions => ConfirmedCount + RejectedCount + CorrectionCount;
 
         public bool IsCorrectionModeActive
         {
@@ -125,77 +142,10 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _isCorrectionModeActive, value);
         }
 
-        // Session Info
         public DateTime SessionStartTime
         {
             get => _sessionStartTime;
             set => SetProperty(ref _sessionStartTime, value);
-        }
-
-        public int TotalInteractions => ConfirmedCount + RejectedCount + CorrectionCount;
-
-        // ROI Properties (placeholders)
-        public int ROICount
-        {
-            get => _roiCount;
-            set => SetProperty(ref _roiCount, value);
-        }
-
-        public bool IsDrawingROI
-        {
-            get => _isDrawingROI;
-            set => SetProperty(ref _isDrawingROI, value);
-        }
-
-        #endregion
-
-        public EditorControlsPaneViewModel()
-        {
-            _feedbackHistory = new ObservableCollection<DetectionFeedback>();
-            SessionStartTime = DateTime.Now;
-
-            // Initialize feedback commands
-            ConfirmDetectionCommand = new RelayCommand(ConfirmDetection, CanConfirmOrReject);
-            RejectDetectionCommand = new RelayCommand(RejectDetection, CanConfirmOrReject);
-            EnableCorrectionModeCommand = new RelayCommand(ToggleCorrectionMode);
-            ViewFeedbackHistoryCommand = new RelayCommand(ViewFeedbackHistory);
-            ExportFeedbackCommand = new RelayCommand(ExportFeedback, CanExportFeedback);
-            ResetSessionCommand = new RelayCommand(ResetSession);
-
-            // ROI Commands (placeholders - will implement later)
-            SetPolygonModeCommand = new RelayCommand(() => { /* TODO */ });
-            SetFreehandModeCommand = new RelayCommand(() => { /* TODO */ });
-            ClearROIsCommand = new RelayCommand(() => { /* TODO */ });
-            ExportROIMasksCommand = new RelayCommand(() => { /* TODO */ });
-        }
-
-        #region Command Methods
-
-        private void ToggleCorrectionMode()
-        {
-            IsCorrectionModeActive = !IsCorrectionModeActive;
-            CorrectionModeToggled?.Invoke(this, EventArgs.Empty);
-        }
-
-        private void ViewFeedbackHistory()
-        {
-            FeedbackHistoryViewRequested?.Invoke(this, EventArgs.Empty);
-        }
-
-        private void ExportFeedback()
-        {
-            FeedbackExportRequested?.Invoke(this, EventArgs.Empty);
-        }
-
-        private bool CanExportFeedback()
-        {
-            return _feedbackHistory != null && _feedbackHistory.Count > 0;
-        }
-
-        private void ResetSession()
-        {
-            SessionResetRequested?.Invoke(this, EventArgs.Empty);
-            ResetCounts();
         }
 
         #endregion
@@ -203,124 +153,64 @@ namespace MURDOC_2024.ViewModel
         #region Public Methods
 
         /// <summary>
-        /// Add feedback and update counts
+        /// Called by MainWindowViewModel to add feedback from external sources
+        /// Fixes CS1061 error
         /// </summary>
         public void AddFeedback(DetectionFeedback feedback)
         {
-            if (feedback == null)
-                return;
+            if (feedback == null) return;
 
-            _feedbackHistory.Add(feedback);
+            FeedbackHistory.Add(feedback);
             UpdateFeedbackCounts();
 
-            // Raise CanExecute for export command
-            (ExportFeedbackCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            // Notify MainWindowViewModel to log to metrics
+            DetectionFeedbackProvided?.Invoke(this, feedback);
+
+            UpdateCommandStates();
         }
 
         /// <summary>
-        /// Update feedback counts from current history
-        /// </summary>
-        public void UpdateFeedbackCounts()
-        {
-            if (_feedbackHistory == null)
-                return;
-
-            ConfirmedCount = _feedbackHistory.Count(f => f.Type == FeedbackType.Confirmation);
-            RejectedCount = _feedbackHistory.Count(f => f.Type == FeedbackType.Rejection);
-            CorrectionCount = _feedbackHistory.Count(f => f.Type == FeedbackType.Correction);
-        }
-
-        /// <summary>
-        /// Get all feedback history
+        /// Returns the history collection for export or display
+        /// Fixes CS1061 error
         /// </summary>
         public ObservableCollection<DetectionFeedback> GetFeedbackHistory()
         {
-            return _feedbackHistory;
+            return FeedbackHistory;
         }
 
         /// <summary>
-        /// Clear all feedback
+        /// External trigger to force button state re-evaluation
         /// </summary>
+        public void UpdateCommandStates()
+        {
+            (ConfirmDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (RejectDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (ExportFeedbackCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+
+        public void SelectDetection(DetectionResult detection)
+        {
+            SelectedDetection = detection;
+        }
+
+        public void ClearSelection()
+        {
+            SelectedDetection = null;
+        }
+
         public void ClearFeedback()
         {
-            _feedbackHistory?.Clear();
+            FeedbackHistory.Clear();
             ResetCounts();
-        }
-
-        /// <summary>
-        /// Reset all counts to zero
-        /// </summary>
-        private void ResetCounts()
-        {
-            ConfirmedCount = 0;
-            RejectedCount = 0;
-            CorrectionCount = 0;
-            SessionStartTime = DateTime.Now;
-
-            (ExportFeedbackCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
 
         #endregion
 
-        private bool CanConfirmOrReject()
-        {
-            return HasSelectedDetection;
-        }
-
-        private void ConfirmDetection()
-        {
-            if (_selectedDetectionResult == null) return;
-
-            var feedback = CreateFeedbackFromSelection(FeedbackType.Confirmation);
-            if (feedback != null)
-            {
-                AddFeedback(feedback);
-                _selectedDetectionResult.IsConfirmed = true;
-
-                // Raise event for metrics tracking
-                OnDetectionFeedbackProvided(feedback);
-            }
-
-            ClearSelection();
-        }
-
-        private void RejectDetection()
-        {
-            if (_selectedDetectionResult == null) return;
-
-            var feedback = CreateFeedbackFromSelection(FeedbackType.Rejection);
-            if (feedback != null)
-            {
-                AddFeedback(feedback);
-                _selectedDetectionResult.IsRejected = true;
-
-                // Raise event for metrics tracking
-                OnDetectionFeedbackProvided(feedback);
-            }
-
-            ClearSelection();
-        }
-
-        // Event for metrics tracking
-        public event EventHandler<DetectionFeedback> DetectionFeedbackProvided;
-
-        protected virtual void OnDetectionFeedbackProvided(DetectionFeedback feedback)
-        {
-            DetectionFeedbackProvided?.Invoke(this, feedback);
-        }
-
-        private DetectionFeedback CreateFeedbackFromSelection(FeedbackType type)
-        {
-            if (_selectedDetectionResult == null)
-                return null;
-
-            // Use the ToFeedback method from DetectionResult
-            return _selectedDetectionResult.ToFeedback(type);
-        }
+        #region Private Helpers
 
         private void UpdateSelectedDetectionDisplay()
         {
-            if (_selectedDetection == null || _selectedDetectionResult == null)
+            if (_selectedDetectionResult == null)
             {
                 HasSelectedDetection = false;
                 SelectedDetectionLabel = string.Empty;
@@ -333,21 +223,55 @@ namespace MURDOC_2024.ViewModel
                 SelectedDetectionConfidence = _selectedDetectionResult.Confidence;
             }
 
-            // Update command states
-            (ConfirmDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            (RejectDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            UpdateCommandStates();
         }
 
-        public void ClearSelection()
+        private void ExecuteConfirm()
         {
-            SelectedDetection = null;
+            var feedback = _selectedDetectionResult?.ToFeedback(FeedbackType.Confirmation);
+            if (feedback != null)
+            {
+                AddFeedback(feedback);
+                ClearSelection();
+            }
         }
 
-        // Public method to be called when user clicks on a detection in the main view
-        public void SelectDetection(DetectionResult detection)
+        private void ExecuteReject()
         {
-            _selectedDetectionResult = detection;
-            SelectedDetection = detection;
+            var feedback = _selectedDetectionResult?.ToFeedback(FeedbackType.Rejection);
+            if (feedback != null)
+            {
+                AddFeedback(feedback);
+                ClearSelection();
+            }
         }
+
+        private void UpdateFeedbackCounts()
+        {
+            ConfirmedCount = FeedbackHistory.Count(f => f.FeedbackType == FeedbackType.Confirmation);
+            RejectedCount = FeedbackHistory.Count(f => f.FeedbackType == FeedbackType.Rejection);
+            CorrectionCount = FeedbackHistory.Count(f => f.FeedbackType == FeedbackType.Correction);
+        }
+
+        private void ResetCounts()
+        {
+            ConfirmedCount = 0;
+            RejectedCount = 0;
+            CorrectionCount = 0;
+            _sessionStartTime = DateTime.Now;
+            UpdateCommandStates();
+        }
+
+        private void ToggleCorrectionMode()
+        {
+            IsCorrectionModeActive = !IsCorrectionModeActive;
+            CorrectionModeToggled?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void ViewFeedbackHistory() => FeedbackHistoryViewRequested?.Invoke(this, EventArgs.Empty);
+        private void ExportFeedback() => FeedbackExportRequested?.Invoke(this, EventArgs.Empty);
+        private void ResetSession() => SessionResetRequested?.Invoke(this, EventArgs.Empty);
+
+        #endregion
     }
 }

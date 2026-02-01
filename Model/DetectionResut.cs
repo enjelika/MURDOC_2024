@@ -53,47 +53,37 @@ namespace MURDOC_2024.Model
         /// </summary>
         public DetectionFeedback ToFeedback(FeedbackType type)
         {
-            // Use polygon if available
+            // 1. Use polygon if available
             if (PolygonPoints != null && PolygonPoints.Count > 0)
             {
                 return DetectionFeedback.FromPolygon(
-                    Id,
-                    type,
-                    PolygonPoints,
-                    Confidence,
-                    ImagePath,
-                    ImageWidth,
-                    ImageHeight
-                );
+                    Id, type, PolygonPoints, Confidence, ImagePath, ImageWidth, ImageHeight);
             }
 
-            // Use mask if available
+            // 2. Use mask if available
             if (SegmentationMask != null)
             {
                 return DetectionFeedback.FromMask(
-                    Id,
-                    type,
-                    SegmentationMask,
-                    Confidence,
-                    ImagePath,
-                    ImageWidth,
-                    ImageHeight
-                );
+                    Id, type, SegmentationMask, Confidence, ImagePath, ImageWidth, ImageHeight);
             }
 
-            // Fallback to bounding box
+            // 3. Use bounding box if available
             if (BoundingBox != null)
             {
                 return DetectionFeedback.FromBoundingBox(
-                    Id,
-                    type,
-                    BoundingBox,
-                    Confidence,
-                    ImagePath
-                );
+                    Id, type, BoundingBox, Confidence, ImagePath);
             }
 
-            return null;
+            // 4. FALLBACK: Create basic feedback without geometry
+            return new DetectionFeedback
+            {
+                DetectionId = Id,
+                FeedbackType = type,
+                OriginalConfidence = Confidence,
+                ImagePath = ImagePath,
+                Timestamp = DateTime.Now,
+                GeometryType = GeometryType.BoundingBox
+            };
         }
     }
 }

@@ -9,18 +9,16 @@ namespace MURDOC_2024.Model
     public class DetectionFeedback
     {
         public string DetectionId { get; set; }
-        public FeedbackType Type { get; set; }
 
-        // Support both bounding box and polygon feedback
+        // Rename this to FeedbackType to avoid keyword conflicts
+        public FeedbackType FeedbackType { get; set; }
+
         public BoundingBox BoundingBox { get; set; }
         public List<Point> PolygonPoints { get; set; }
-        public byte[] MaskData { get; set; }  // Binary mask if available
-
+        public byte[] MaskData { get; set; }
         public double OriginalConfidence { get; set; }
         public DateTime Timestamp { get; set; }
         public string ImagePath { get; set; }
-
-        // Metadata
         public int ImageWidth { get; set; }
         public int ImageHeight { get; set; }
         public GeometryType GeometryType { get; set; }
@@ -38,67 +36,57 @@ namespace MURDOC_2024.Model
             return new DetectionFeedback
             {
                 DetectionId = detectionId,
-                Type = type,
+                FeedbackType = type, // This assigns to your public property
                 BoundingBox = bbox,
-                GeometryType = GeometryType.BoundingBox,
                 OriginalConfidence = confidence,
-                Timestamp = DateTime.Now,
-                ImagePath = imagePath
+                ImagePath = imagePath,
+                GeometryType = GeometryType.BoundingBox,
+                Timestamp = DateTime.Now
             };
         }
 
         /// <summary>
         /// Create feedback from polygon points
         /// </summary>
-        public static DetectionFeedback FromPolygon(
-            string detectionId,
-            FeedbackType type,
-            List<Point> points,
-            double confidence,
-            string imagePath,
-            int imageWidth,
-            int imageHeight)
+        public static DetectionFeedback FromPolygon(string detectionId, FeedbackType type, List<Point> points, double confidence, string imagePath, int width, int height)
         {
             return new DetectionFeedback
             {
                 DetectionId = detectionId,
-                Type = type,
-                PolygonPoints = new List<Point>(points),
-                GeometryType = GeometryType.Polygon,
+                FeedbackType = type, // Must match the property name above
+                PolygonPoints = points,
                 OriginalConfidence = confidence,
-                Timestamp = DateTime.Now,
                 ImagePath = imagePath,
-                ImageWidth = imageWidth,
-                ImageHeight = imageHeight
+                ImageWidth = width,
+                ImageHeight = height,
+                GeometryType = GeometryType.Polygon,
+                Timestamp = DateTime.Now
             };
         }
 
-        /// <summary>
-        /// Create feedback with binary mask
-        /// </summary>
         public static DetectionFeedback FromMask(
             string detectionId,
             FeedbackType type,
-            byte[] maskData,
+            byte[] mask,
             double confidence,
             string imagePath,
-            int imageWidth,
-            int imageHeight)
+            int width,
+            int height)
         {
             return new DetectionFeedback
             {
                 DetectionId = detectionId,
-                Type = type,
-                MaskData = maskData,
-                GeometryType = GeometryType.Mask,
+                FeedbackType = type, // This assigns to your public property
+                MaskData = mask,
                 OriginalConfidence = confidence,
-                Timestamp = DateTime.Now,
                 ImagePath = imagePath,
-                ImageWidth = imageWidth,
-                ImageHeight = imageHeight
+                ImageWidth = width,
+                ImageHeight = height,
+                GeometryType = GeometryType.Mask,
+                Timestamp = DateTime.Now
             };
         }
-
+                
         /// <summary>
         /// Get feedback geometry as normalized coordinates for Python
         /// </summary>
