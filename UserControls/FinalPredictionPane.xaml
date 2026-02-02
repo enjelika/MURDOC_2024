@@ -70,8 +70,11 @@
                     <!-- Future: Canvas for editing -->
                     <Canvas x:Name="EditingCanvas"
                             Background="Transparent"
-                            Visibility="Collapsed">
-                        <!-- Polygon/freehand drawing will be added later -->
+                            MouseLeftButtonDown="EditingCanvas_MouseLeftButtonDown"
+                            MouseMove="EditingCanvas_MouseMove"
+                            MouseRightButtonDown="EditingCanvas_MouseRightButtonDown"
+                            Visibility="{Binding IsDrawingMode, Converter={StaticResource BoolToVisConverter}}">
+                        <!-- Polygon points will be added here dynamically -->
                     </Canvas>
                 </Grid>
             </Grid>

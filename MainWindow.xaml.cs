@@ -31,13 +31,14 @@ namespace MURDOC_2024
                     ViewModel.FreehandModeRequested += OnFreehandModeRequested;
                     ViewModel.ClearROIsRequested += OnClearROIsRequested;
                     ViewModel.ROIMaskExportRequested += OnROIMaskExportRequested;
+                    ViewModel.ResetDrawingRequested += OnResetDrawingRequested; // ADD THIS LINE
                     Console.WriteLine("Subscribed to ViewModel drawing events");
                 }
                 catch (Exception viewModelEx)
                 {
                     Console.WriteLine($"Error creating MainWindowViewModel: {viewModelEx.Message}");
                     Console.WriteLine($"StackTrace: {viewModelEx.StackTrace}");
-                    throw; // Re-throw to be caught by the outer try-catch
+                    throw;
                 }
 
                 this.Loaded += MainWindow_Loaded;
@@ -51,6 +52,20 @@ namespace MURDOC_2024
                 MessageBox.Show($"An error occurred during window initialization: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
                     "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Application.Current.Shutdown();
+            }
+        }
+
+        // Add this handler method
+        private void OnResetDrawingRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                FinalPredictionPaneControl.ResetDrawing();
+                System.Diagnostics.Debug.WriteLine("MainWindow: Reset drawing on FinalPredictionPane");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error resetting drawing: {ex.Message}");
             }
         }
 

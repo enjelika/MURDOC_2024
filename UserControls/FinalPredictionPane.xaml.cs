@@ -2,6 +2,7 @@
 using MURDOC_2024.ViewModel;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -19,6 +20,7 @@ namespace MURDOC_2024.UserControls
         private PolygonDrawingService _drawingService;
         private List<Ellipse> _polygonPointMarkers;
         private Polyline _currentPolyline;
+        private Polygon _originalMaskPolygon;
 
         public FinalPredictionPane()
         {
@@ -34,12 +36,15 @@ namespace MURDOC_2024.UserControls
 
             if (ViewModel.CurrentDrawingMode == DrawingMode.Polygon)
             {
-                Point clickPoint = e.GetPosition(EditingCanvas);
+                Point canvasPoint = e.GetPosition(EditingCanvas);
 
-                // Add point to polygon
-                _drawingService.AddPoint(clickPoint);
+                // Convert to image coordinates
+                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
 
-                // Add visual marker
+                // Add point to polygon (in IMAGE coordinates)
+                _drawingService.AddPoint(imagePoint);
+
+                // Add visual marker (in CANVAS coordinates)
                 var marker = new Ellipse
                 {
                     Width = 8,
@@ -49,15 +54,15 @@ namespace MURDOC_2024.UserControls
                     StrokeThickness = 1
                 };
 
-                Canvas.SetLeft(marker, clickPoint.X - 4);
-                Canvas.SetTop(marker, clickPoint.Y - 4);
+                Canvas.SetLeft(marker, canvasPoint.X - 4);
+                Canvas.SetTop(marker, canvasPoint.Y - 4);
                 EditingCanvas.Children.Add(marker);
                 _polygonPointMarkers.Add(marker);
 
-                // Update polyline
+                // Update polyline (convert to canvas coordinates for display)
                 UpdatePolyline();
 
-                System.Diagnostics.Debug.WriteLine($"Added polygon point: {clickPoint}");
+                System.Diagnostics.Debug.WriteLine($"Added point - Canvas: {canvasPoint}, Image: {imagePoint}");
             }
         }
 
@@ -92,11 +97,17 @@ namespace MURDOC_2024.UserControls
 
             if (_drawingService.CurrentPolygon.Count > 1)
             {
-                _currentPolyline = _drawingService.CreateVisualPolyline(
-                    _drawingService.CurrentPolygon,
-                    Brushes.Yellow,
-                    2
-                );
+                // Convert image coordinates to canvas coordinates for display
+                var canvasPoints = _drawingService.CurrentPolygon
+                    .Select(p => ImageToCanvasCoordinates(p))
+                    .ToList();
+
+                _currentPolyline = new Polyline
+                {
+                    Stroke = Brushes.Yellow,
+                    StrokeThickness = 2,
+                    Points = new PointCollection(canvasPoints)
+                };
 
                 EditingCanvas.Children.Add(_currentPolyline);
             }
@@ -129,7 +140,11 @@ namespace MURDOC_2024.UserControls
         {
             _drawingService.StartDrawing(DrawingMode.Polygon);
             ViewModel?.EnableDrawingMode(DrawingMode.Polygon);
-            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Polygon drawing enabled");
+
+            // Show the original mask outline for editing
+            ShowOriginalMaskOutline();
+
+            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Polygon drawing enabled with mask outline");
         }
 
         public void EnableFreehandDrawing()
@@ -144,6 +159,24 @@ namespace MURDOC_2024.UserControls
             ClearDrawing();
             ViewModel?.DisableDrawingMode();
             System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Drawing cancelled");
+        }
+
+        /// <summary>
+        /// Reset all drawing state and clear canvas
+        /// </summary>
+        public void ResetDrawing()
+        {
+            ClearDrawing();
+
+            if (_originalMaskPolygon != null)
+            {
+                EditingCanvas.Children.Remove(_originalMaskPolygon);
+                _originalMaskPolygon = null;
+            }
+
+            ViewModel?.DisableDrawingMode();
+
+            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Drawing state reset");
         }
 
         public void ExportCurrentMask(string filename)
@@ -171,6 +204,118 @@ namespace MURDOC_2024.UserControls
                 System.Diagnostics.Debug.WriteLine($"Error exporting mask: {ex.Message}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Convert canvas coordinates to image pixel coordinates
+        /// </summary>
+        private Point CanvasToImageCoordinates(Point canvasPoint)
+        {
+            if (ViewModel?.OriginalImage == null)
+                return canvasPoint;
+
+            // Get the actual rendered size and position of the image
+            double canvasWidth = EditingCanvas.ActualWidth;
+            double canvasHeight = EditingCanvas.ActualHeight;
+
+            int imageWidth = ViewModel.OriginalImage.PixelWidth;
+            int imageHeight = ViewModel.OriginalImage.PixelHeight;
+
+            // Calculate the scale factor (Stretch="Uniform" maintains aspect ratio)
+            double scaleX = canvasWidth / imageWidth;
+            double scaleY = canvasHeight / imageHeight;
+            double scale = Math.Min(scaleX, scaleY);
+
+            // Calculate the actual rendered image size
+            double renderedWidth = imageWidth * scale;
+            double renderedHeight = imageHeight * scale;
+
+            // Calculate offset (image is centered)
+            double offsetX = (canvasWidth - renderedWidth) / 2;
+            double offsetY = (canvasHeight - renderedHeight) / 2;
+
+            // Transform canvas point to image coordinates
+            double imageX = (canvasPoint.X - offsetX) / scale;
+            double imageY = (canvasPoint.Y - offsetY) / scale;
+
+            return new Point(imageX, imageY);
+        }
+
+        /// <summary>
+        /// Convert image pixel coordinates to canvas coordinates
+        /// </summary>
+        private Point ImageToCanvasCoordinates(Point imagePoint)
+        {
+            if (ViewModel?.OriginalImage == null)
+                return imagePoint;
+
+            double canvasWidth = EditingCanvas.ActualWidth;
+            double canvasHeight = EditingCanvas.ActualHeight;
+
+            int imageWidth = ViewModel.OriginalImage.PixelWidth;
+            int imageHeight = ViewModel.OriginalImage.PixelHeight;
+
+            // Calculate scale
+            double scaleX = canvasWidth / imageWidth;
+            double scaleY = canvasHeight / imageHeight;
+            double scale = Math.Min(scaleX, scaleY);
+
+            // Calculate rendered size
+            double renderedWidth = imageWidth * scale;
+            double renderedHeight = imageHeight * scale;
+
+            // Calculate offset
+            double offsetX = (canvasWidth - renderedWidth) / 2;
+            double offsetY = (canvasHeight - renderedHeight) / 2;
+
+            // Transform image point to canvas coordinates
+            double canvasX = imagePoint.X * scale + offsetX;
+            double canvasY = imagePoint.Y * scale + offsetY;
+
+            return new Point(canvasX, canvasY);
+        }
+
+        /// <summary>
+        /// Show the original mask outline as editable polygon
+        /// </summary>
+        public void ShowOriginalMaskOutline()
+        {
+            if (ViewModel == null)
+                return;
+
+            // Get contour from mask
+            var imageContourPoints = ViewModel.GetMaskContourPoints();
+
+            if (imageContourPoints.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("No contour points found");
+                return;
+            }
+
+            // Convert to canvas coordinates
+            var canvasPoints = imageContourPoints.Select(p => ImageToCanvasCoordinates(p)).ToList();
+
+            // Create visual polygon
+            if (_originalMaskPolygon != null)
+            {
+                EditingCanvas.Children.Remove(_originalMaskPolygon);
+            }
+
+            _originalMaskPolygon = new Polygon
+            {
+                Stroke = Brushes.Yellow,
+                StrokeThickness = 2,
+                Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 0)), // Semi-transparent
+                Points = new PointCollection(canvasPoints)
+            };
+
+            EditingCanvas.Children.Add(_originalMaskPolygon);
+
+            // Load these points into the drawing service for editing
+            _drawingService.CurrentPolygon.Clear();
+            _drawingService.CurrentPolygon.AddRange(imageContourPoints); // Store in IMAGE coordinates
+
+            System.Diagnostics.Debug.WriteLine($"Displayed mask outline with {canvasPoints.Count} points");
         }
     }
 }

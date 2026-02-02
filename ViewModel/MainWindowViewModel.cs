@@ -80,6 +80,7 @@ namespace MURDOC_2024.ViewModel
         public event EventHandler FreehandModeRequested;
         public event EventHandler ClearROIsRequested;
         public event EventHandler<string> ROIMaskExportRequested;
+        public event EventHandler ResetDrawingRequested;
 
         public MainWindowViewModel()
         {
@@ -678,6 +679,9 @@ namespace MURDOC_2024.ViewModel
             // Clear the editor state
             EditorControlsVM.ClearSelection();
             EditorControlsVM.CurrentDetections?.Clear();
+
+            // Clear drawing state on FinalPredictionPane
+            ResetDrawingRequested?.Invoke(this, EventArgs.Empty);
 
             ImageControlVM?.SetButtonStates(false);
             MICAControlVM?.SetButtonStates(false);

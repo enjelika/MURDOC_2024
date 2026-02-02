@@ -327,6 +327,74 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
+        /// Extract polygon points from binary mask contour
+        /// </summary>
+        public List<Point> GetMaskContourPoints()
+        {
+            if (BinaryMask == null)
+                return new List<Point>();
+
+            try
+            {
+                int width = BinaryMask.PixelWidth;
+                int height = BinaryMask.PixelHeight;
+
+                // Convert to grayscale byte array
+                var grayBitmap = new FormatConvertedBitmap(BinaryMask, PixelFormats.Gray8, null, 0);
+                byte[] pixels = new byte[width * height];
+                grayBitmap.CopyPixels(pixels, width, 0);
+
+                // Find contour using simple edge detection
+                List<Point> contourPoints = new List<Point>();
+
+                // Sample points along the boundary (every 5 pixels for performance)
+                for (int y = 0; y < height; y += 5)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        int idx = y * width + x;
+                        if (pixels[idx] > 128) // White pixel (object)
+                        {
+                            // Check if it's on the edge
+                            bool isEdge = false;
+
+                            // Check neighbors
+                            if (x == 0 || x == width - 1 || y == 0 || y == height - 1)
+                            {
+                                isEdge = true;
+                            }
+                            else
+                            {
+                                // Check 4-connected neighbors
+                                if (pixels[idx - 1] < 128 ||      // left
+                                    pixels[idx + 1] < 128 ||      // right
+                                    pixels[idx - width] < 128 ||  // top
+                                    pixels[idx + width] < 128)    // bottom
+                                {
+                                    isEdge = true;
+                                }
+                            }
+
+                            if (isEdge)
+                            {
+                                contourPoints.Add(new Point(x, y));
+                            }
+                            break; // Move to next row after finding first edge
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Extracted {contourPoints.Count} contour points from mask");
+                return contourPoints;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error extracting contour: {ex.Message}");
+                return new List<Point>();
+            }
+        }
+
+        /// <summary>
         /// Update binary mask with new polygon
         /// </summary>
         public void UpdateMaskFromPolygon(List<Point> polygonPoints)
