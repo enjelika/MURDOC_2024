@@ -4,8 +4,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
+             xmlns:converters="clr-namespace:MURDOC_2024.Converters"
              mc:Ignorable="d" 
              d:DesignHeight="920" d:DesignWidth="1000">
+
+    <UserControl.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisConverter"/>
+    </UserControl.Resources>
+
     <Grid Margin="5">
         <Grid.RowDefinitions>
             <!-- Title -->
@@ -24,14 +31,50 @@
                    HorizontalAlignment="Center"
                    Margin="0,30,0,5"/>
 
-        <!-- ==================== MAIN PREDICTION IMAGE ==================== -->
+        <!-- ==================== MAIN PREDICTION IMAGE (LAYERED) ==================== -->
         <Border Grid.Row="1" 
                 BorderBrush="#CCCCCC" 
                 BorderThickness="1">
-            <Image x:Name="FinalPredictionImage"
-                   Source="{Binding FinalImagePrediction}"
-                   Stretch="Uniform"
-                   RenderOptions.BitmapScalingMode="HighQuality"/>
+
+            <Grid>
+                <!-- Placeholder when no result -->
+                <TextBlock Text="Final prediction will appear here after running models"
+                           FontSize="14"
+                           Foreground="#999999"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           Margin="20"
+                           Visibility="{Binding HasResult, Converter={StaticResource InverseBoolToVisConverter}}"/>
+
+                <!-- Layered prediction display -->
+                <Grid Visibility="{Binding HasResult, Converter={StaticResource BoolToVisConverter}}">
+                    <!-- Base layer: Original image -->
+                    <Image x:Name="BaseImageLayer"
+                           Source="{Binding OriginalImage}"
+                           Stretch="Uniform"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                    <!-- Overlay layer: Colored rank map with transparency -->
+                    <Image x:Name="OverlayLayer"
+                           Source="{Binding OverlayImage}"
+                           Stretch="Uniform"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Opacity="{Binding OverlayOpacity}"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                    <!-- Future: Canvas for editing -->
+                    <Canvas x:Name="EditingCanvas"
+                            Background="Transparent"
+                            Visibility="Collapsed">
+                        <!-- Polygon/freehand drawing will be added later -->
+                    </Canvas>
+                </Grid>
+            </Grid>
         </Border>
 
         <!-- ==================== HORIZONTAL COLORBAR LEGEND ==================== -->
@@ -117,4 +160,3 @@
         </Grid>
     </Grid>
 </UserControl>
-

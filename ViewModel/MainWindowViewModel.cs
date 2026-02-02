@@ -679,7 +679,9 @@ namespace MURDOC_2024.ViewModel
                 {
                     RankNetVM.LoadResults(offrampsFolderPath, outputsFolderPath);
                     EfficientDetVM.LoadResults(detectionFolderPath, outputsFolderPath, selectedName);
-                    FinalPredictionVM.LoadResult(predictionFolderPath, "segmented_" + selectedName);
+
+                    // Pass the original image path so it can be found
+                    FinalPredictionVM.LoadResult(predictionFolderPath, selectedName, SelectedImagePath);
                 });
             }
             catch (Exception ex)
