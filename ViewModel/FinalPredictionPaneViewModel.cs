@@ -1,5 +1,8 @@
-﻿using System;
+﻿using MURDOC_2024.Services;
+using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -10,9 +13,41 @@ namespace MURDOC_2024.ViewModel
         private BitmapImage _originalImage;      // Base layer: original input
         private BitmapImage _binaryMask;         // Binary detection mask
         private BitmapImage _rankMap;            // Confidence/fixation heatmap
+        
         private ImageSource _overlayImage;       // Colored rank map with transparency
+        
         private bool _hasResult;
         private double _overlayOpacity = 0.7;
+
+        private bool _isDrawingMode;
+        private DrawingMode _currentDrawingMode;
+
+        public bool IsDrawingMode
+        {
+            get => _isDrawingMode;
+            set => SetProperty(ref _isDrawingMode, value);
+        }
+
+        public DrawingMode CurrentDrawingMode
+        {
+            get => _currentDrawingMode;
+            set => SetProperty(ref _currentDrawingMode, value);
+        }
+
+        // Add these methods
+        public void EnableDrawingMode(DrawingMode mode)
+        {
+            IsDrawingMode = true;
+            CurrentDrawingMode = mode;
+            System.Diagnostics.Debug.WriteLine($"Drawing mode enabled: {mode}");
+        }
+
+        public void DisableDrawingMode()
+        {
+            IsDrawingMode = false;
+            CurrentDrawingMode = DrawingMode.None;
+            System.Diagnostics.Debug.WriteLine("Drawing mode disabled");
+        }
 
         public BitmapImage OriginalImage
         {
@@ -289,6 +324,68 @@ namespace MURDOC_2024.ViewModel
             }
 
             return (r, g, b);
+        }
+
+        /// <summary>
+        /// Update binary mask with new polygon
+        /// </summary>
+        public void UpdateMaskFromPolygon(List<Point> polygonPoints)
+        {
+            if (polygonPoints == null || polygonPoints.Count < 3 || OriginalImage == null)
+                return;
+
+            try
+            {
+                int width = OriginalImage.PixelWidth;
+                int height = OriginalImage.PixelHeight;
+
+                // Convert polygon to mask
+                var polygonService = new PolygonDrawingService();
+                byte[] newMaskData = polygonService.ConvertPolygonToMask(polygonPoints, width, height);
+
+                if (newMaskData == null)
+                    return;
+
+                // Convert to BitmapImage
+                var newMask = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
+                newMask.WritePixels(new Int32Rect(0, 0, width, height), newMaskData, width, 0);
+                newMask.Freeze();
+
+                // Convert to BitmapImage for consistency
+                BinaryMask = ConvertWriteableToBitmapImage(newMask);
+
+                // Recreate overlay with new mask
+                if (RankMap != null)
+                {
+                    OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
+                    System.Diagnostics.Debug.WriteLine("Updated overlay with new polygon mask");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating mask from polygon: {ex.Message}");
+            }
+        }
+
+        private BitmapImage ConvertWriteableToBitmapImage(WriteableBitmap writeable)
+        {
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(writeable));
+
+            using (var stream = new System.IO.MemoryStream())
+            {
+                encoder.Save(stream);
+                stream.Position = 0;
+
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.StreamSource = stream;
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                return bitmap;
+            }
         }
 
         private BitmapImage LoadImage(string path)

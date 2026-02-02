@@ -100,6 +100,7 @@
     <Compile Include="Services\ImageService.cs" />
     <Compile Include="Services\IPythonService.cs" />
     <Compile Include="Services\PerformanceMetricsService.cs" />
+    <Compile Include="Services\PolygonDrawingService.cs" />
     <Compile Include="Services\PythonModelService.cs" />
     <Compile Include="UserControls\EditorControlsPane.xaml.cs">
       <DependentUpon>EditorControlsPane.xaml</DependentUpon>

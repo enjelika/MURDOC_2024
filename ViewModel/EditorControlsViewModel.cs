@@ -48,6 +48,10 @@ namespace MURDOC_2024.ViewModel
         public event EventHandler FeedbackExportRequested;
         public event EventHandler SessionResetRequested;
         public event EventHandler<DetectionFeedback> DetectionFeedbackProvided;
+        public event EventHandler PolygonModeRequested;
+        public event EventHandler FreehandModeRequested;
+        public event EventHandler ClearROIsRequested;
+        public event EventHandler ExportROIMasksRequested;
 
         public EditorControlsPaneViewModel()
         {
@@ -65,13 +69,25 @@ namespace MURDOC_2024.ViewModel
             ResetSessionCommand = new RelayCommand(ResetSession);
 
             // Initialize ROI command placeholders
-            SetPolygonModeCommand = new RelayCommand(() => { });
-            SetFreehandModeCommand = new RelayCommand(() => { });
-            ClearROIsCommand = new RelayCommand(() => { });
-            ExportROIMasksCommand = new RelayCommand(() => { });
+            SetPolygonModeCommand = new RelayCommand(EnablePolygonMode);
+            SetFreehandModeCommand = new RelayCommand(EnableFreehandMode);
+            ClearROIsCommand = new RelayCommand(ClearROIs);
+            ExportROIMasksCommand = new RelayCommand(ExportROIMasks, () => ROICount > 0);
         }
 
         #region Properties
+
+        public int ROICount
+        {
+            get => _roiCount;
+            set => SetProperty(ref _roiCount, value);
+        }
+
+        public bool IsDrawingROI
+        {
+            get => _isDrawingROI;
+            set => SetProperty(ref _isDrawingROI, value);
+        }
 
         public ObservableCollection<DetectionFeedback> FeedbackHistory
         {
@@ -151,6 +167,45 @@ namespace MURDOC_2024.ViewModel
         #endregion
 
         #region Public Methods
+
+        private void EnablePolygonMode()
+        {
+            IsDrawingROI = true;
+            PolygonModeRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine("Polygon mode requested");
+        }
+
+        private void EnableFreehandMode()
+        {
+            IsDrawingROI = true;
+            FreehandModeRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine("Freehand mode requested");
+        }
+
+        private void ClearROIs()
+        {
+            ROICount = 0;
+            IsDrawingROI = false;
+            ClearROIsRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void ExportROIMasks()
+        {
+            ExportROIMasksRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        public void OnROICompleted()
+        {
+            IsDrawingROI = false;
+            ROICount++;
+            UpdateCommandStates();
+        }
+
+        public void OnROICancelled()
+        {
+            IsDrawingROI = false;
+            UpdateCommandStates();
+        }
 
         /// <summary>
         /// Called by MainWindowViewModel to add feedback from external sources

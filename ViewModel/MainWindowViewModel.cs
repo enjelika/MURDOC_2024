@@ -76,6 +76,11 @@ namespace MURDOC_2024.ViewModel
         public MICAControlViewModel MICAControlVM { get; }
         public EditorControlsPaneViewModel EditorControlsVM { get; }
 
+        public event EventHandler PolygonModeRequested;
+        public event EventHandler FreehandModeRequested;
+        public event EventHandler ClearROIsRequested;
+        public event EventHandler<string> ROIMaskExportRequested;
+
         public MainWindowViewModel()
         {
             _python = new PythonModelService();
@@ -119,6 +124,10 @@ namespace MURDOC_2024.ViewModel
             EditorControlsVM.FeedbackExportRequested += OnFeedbackExportRequested;
             EditorControlsVM.SessionResetRequested += OnSessionResetRequested;
             EditorControlsVM.DetectionFeedbackProvided += OnDetectionFeedbackProvided;
+            EditorControlsVM.PolygonModeRequested += OnPolygonModeRequested;
+            EditorControlsVM.FreehandModeRequested += OnFreehandModeRequested;
+            EditorControlsVM.ClearROIsRequested += OnClearROIsRequested;
+            EditorControlsVM.ExportROIMasksRequested += OnExportROIMasksRequested;
         }
 
         #region EditorControls Event Handlers
@@ -214,6 +223,63 @@ namespace MURDOC_2024.ViewModel
         {
             // Log feedback to metrics
             _metricsService.LogFeedback(feedback.FeedbackType.ToString(), feedback.DetectionId);
+        }
+
+        private void OnPolygonModeRequested(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("MainWindow: Polygon mode requested");
+
+            // Notify the view to enable polygon drawing on FinalPredictionPane
+            PolygonModeRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void OnFreehandModeRequested(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("MainWindow: Freehand mode requested");
+
+            // Notify the view to enable freehand drawing on FinalPredictionPane
+            FreehandModeRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void OnClearROIsRequested(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("MainWindow: Clear ROIs requested");
+
+            // Notify the view to clear all drawing
+            ClearROIsRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void OnExportROIMasksRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                var dialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "PNG files (*.png)|*.png|All files (*.*)|*.*",
+                    DefaultExt = ".png",
+                    FileName = $"roi_mask_{DateTime.Now:yyyyMMdd_HHmmss}.png"
+                };
+
+                if (dialog.ShowDialog() == true)
+                {
+                    // Export current mask from FinalPredictionPane
+                    ROIMaskExportRequested?.Invoke(this, dialog.FileName);
+
+                    MessageBox.Show(
+                        "ROI mask exported successfully!",
+                        "Export Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error exporting ROI mask:\n{ex.Message}",
+                    "Export Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         #endregion

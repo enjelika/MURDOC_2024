@@ -10,18 +10,28 @@ namespace MURDOC_2024
     /// </summary>
     public partial class MainWindow : Window
     {
+        private MainWindowViewModel ViewModel { get; set; }
+
         public MainWindow()
         {
             try
             {
                 Console.WriteLine("MainWindow constructor started");
                 InitializeComponent();
-                Console.WriteLine("InitializeComponent completed");            
+                Console.WriteLine("InitializeComponent completed");
 
                 try
                 {
-                    DataContext = new MainWindowViewModel();
+                    ViewModel = new MainWindowViewModel();
+                    DataContext = ViewModel;
                     Console.WriteLine("MainWindowViewModel set as DataContext");
+
+                    // Subscribe to ViewModel events for drawing mode
+                    ViewModel.PolygonModeRequested += OnPolygonModeRequested;
+                    ViewModel.FreehandModeRequested += OnFreehandModeRequested;
+                    ViewModel.ClearROIsRequested += OnClearROIsRequested;
+                    ViewModel.ROIMaskExportRequested += OnROIMaskExportRequested;
+                    Console.WriteLine("Subscribed to ViewModel drawing events");
                 }
                 catch (Exception viewModelEx)
                 {
@@ -32,14 +42,14 @@ namespace MURDOC_2024
 
                 this.Loaded += MainWindow_Loaded;
                 this.Closed += MainWindow_Closed;
-
                 Console.WriteLine("MainWindow constructor completed");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Exception in MainWindow constructor: {ex.Message}");
                 Console.WriteLine($"StackTrace: {ex.StackTrace}");
-                MessageBox.Show($"An error occurred during window initialization: {ex.Message}\n\nStackTrace: {ex.StackTrace}", "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"An error occurred during window initialization: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
+                    "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Application.Current.Shutdown();
             }
         }
@@ -53,7 +63,6 @@ namespace MURDOC_2024
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             Console.WriteLine("MainWindow Closed event fired");
-
             // ------------------------------------------------------------------
             // **CRITICAL CLEANUP FIX**
             // ------------------------------------------------------------------
@@ -64,5 +73,70 @@ namespace MURDOC_2024
             }
             // ------------------------------------------------------------------
         }
+
+        #region Drawing Mode Event Handlers
+
+        private void OnPolygonModeRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                // Enable polygon drawing on FinalPredictionPane
+                FinalPredictionPaneControl.EnablePolygonDrawing();
+                System.Diagnostics.Debug.WriteLine("MainWindow: Enabled polygon drawing on FinalPredictionPane");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error enabling polygon mode: {ex.Message}");
+                MessageBox.Show($"Could not enable polygon drawing: {ex.Message}",
+                    "Drawing Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OnFreehandModeRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                // Enable freehand drawing on FinalPredictionPane
+                FinalPredictionPaneControl.EnableFreehandDrawing();
+                System.Diagnostics.Debug.WriteLine("MainWindow: Enabled freehand drawing on FinalPredictionPane");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error enabling freehand mode: {ex.Message}");
+                MessageBox.Show($"Could not enable freehand drawing: {ex.Message}",
+                    "Drawing Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OnClearROIsRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                // Clear all drawings on FinalPredictionPane
+                FinalPredictionPaneControl.CancelDrawing();
+                System.Diagnostics.Debug.WriteLine("MainWindow: Cleared ROIs on FinalPredictionPane");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error clearing ROIs: {ex.Message}");
+            }
+        }
+
+        private void OnROIMaskExportRequested(object sender, string filename)
+        {
+            try
+            {
+                // Export the current mask from FinalPredictionPane
+                FinalPredictionPaneControl.ExportCurrentMask(filename);
+                System.Diagnostics.Debug.WriteLine($"MainWindow: Exported mask to {filename}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error exporting mask: {ex.Message}");
+                throw; // Let MainWindowViewModel handle the error display
+            }
+        }
+
+        #endregion
     }
 }
