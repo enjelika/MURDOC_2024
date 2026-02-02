@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Linq;
 
 namespace MURDOC_2024.ViewModel
 {
@@ -327,7 +328,7 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
-        /// Extract polygon points from binary mask contour
+        /// Extract polygon points from binary mask contour using contour tracing
         /// </summary>
         public List<Point> GetMaskContourPoints()
         {
@@ -344,54 +345,158 @@ namespace MURDOC_2024.ViewModel
                 byte[] pixels = new byte[width * height];
                 grayBitmap.CopyPixels(pixels, width, 0);
 
-                // Find contour using simple edge detection
-                List<Point> contourPoints = new List<Point>();
+                // Find all boundary pixels
+                List<Point> boundaryPixels = new List<Point>();
 
-                // Sample points along the boundary (every 5 pixels for performance)
-                for (int y = 0; y < height; y += 5)
+                for (int y = 1; y < height - 1; y++)
                 {
-                    for (int x = 0; x < width; x++)
+                    for (int x = 1; x < width - 1; x++)
                     {
                         int idx = y * width + x;
+
                         if (pixels[idx] > 128) // White pixel (object)
                         {
-                            // Check if it's on the edge
-                            bool isEdge = false;
+                            // Check if any 8-connected neighbor is background
+                            bool isBoundary =
+                                pixels[idx - 1] < 128 ||           // left
+                                pixels[idx + 1] < 128 ||           // right
+                                pixels[idx - width] < 128 ||       // top
+                                pixels[idx + width] < 128 ||       // bottom
+                                pixels[idx - width - 1] < 128 ||   // top-left
+                                pixels[idx - width + 1] < 128 ||   // top-right
+                                pixels[idx + width - 1] < 128 ||   // bottom-left
+                                pixels[idx + width + 1] < 128;     // bottom-right
 
-                            // Check neighbors
-                            if (x == 0 || x == width - 1 || y == 0 || y == height - 1)
+                            if (isBoundary)
                             {
-                                isEdge = true;
+                                boundaryPixels.Add(new Point(x, y));
                             }
-                            else
-                            {
-                                // Check 4-connected neighbors
-                                if (pixels[idx - 1] < 128 ||      // left
-                                    pixels[idx + 1] < 128 ||      // right
-                                    pixels[idx - width] < 128 ||  // top
-                                    pixels[idx + width] < 128)    // bottom
-                                {
-                                    isEdge = true;
-                                }
-                            }
-
-                            if (isEdge)
-                            {
-                                contourPoints.Add(new Point(x, y));
-                            }
-                            break; // Move to next row after finding first edge
                         }
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Extracted {contourPoints.Count} contour points from mask");
-                return contourPoints;
+                if (boundaryPixels.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("No boundary pixels found");
+                    return new List<Point>();
+                }
+
+                // Order points by tracing the contour
+                List<Point> orderedContour = TraceContour(boundaryPixels, width, height);
+
+                // Simplify contour (reduce points while maintaining shape)
+                List<Point> simplifiedContour = SimplifyContour(orderedContour, tolerance: 2.0);
+
+                System.Diagnostics.Debug.WriteLine($"Extracted {boundaryPixels.Count} boundary pixels, " +
+                    $"ordered to {orderedContour.Count} points, " +
+                    $"simplified to {simplifiedContour.Count} points");
+
+                return simplifiedContour;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error extracting contour: {ex.Message}");
                 return new List<Point>();
             }
+        }
+
+        /// <summary>
+        /// Trace contour by finding nearest neighbors
+        /// </summary>
+        private List<Point> TraceContour(List<Point> boundaryPixels, int width, int height)
+        {
+            if (boundaryPixels.Count == 0)
+                return new List<Point>();
+
+            HashSet<Point> unvisited = new HashSet<Point>(boundaryPixels);
+            List<Point> contour = new List<Point>();
+
+            // Start with leftmost, topmost point
+            Point start = boundaryPixels.OrderBy(p => p.Y).ThenBy(p => p.X).First();
+            Point current = start;
+
+            contour.Add(current);
+            unvisited.Remove(current);
+
+            // Trace contour by finding nearest unvisited neighbor
+            while (unvisited.Count > 0)
+            {
+                Point nearest = FindNearestNeighbor(current, unvisited);
+
+                if (nearest.X == -1) // No more neighbors found
+                    break;
+
+                contour.Add(nearest);
+                unvisited.Remove(nearest);
+                current = nearest;
+            }
+
+            return contour;
+        }
+
+        /// <summary>
+        /// Find nearest unvisited neighbor (within distance 3)
+        /// </summary>
+        private Point FindNearestNeighbor(Point current, HashSet<Point> unvisited)
+        {
+            double minDist = double.MaxValue;
+            Point nearest = new Point(-1, -1);
+
+            // Search in expanding radius (1, 2, 3 pixels)
+            for (int radius = 1; radius <= 3; radius++)
+            {
+                for (int dy = -radius; dy <= radius; dy++)
+                {
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        if (dx == 0 && dy == 0)
+                            continue;
+
+                        Point candidate = new Point(current.X + dx, current.Y + dy);
+
+                        if (unvisited.Contains(candidate))
+                        {
+                            double dist = Math.Sqrt(dx * dx + dy * dy);
+                            if (dist < minDist)
+                            {
+                                minDist = dist;
+                                nearest = candidate;
+                            }
+                        }
+                    }
+                }
+
+                if (nearest.X != -1)
+                    return nearest;
+            }
+
+            return nearest;
+        }
+
+        /// <summary>
+        /// Simplify contour using Ramer-Douglas-Peucker algorithm
+        /// </summary>
+        private List<Point> SimplifyContour(List<Point> points, double tolerance)
+        {
+            if (points.Count < 3)
+                return new List<Point>(points);
+
+            // Keep every Nth point for performance (adjust as needed)
+            int step = Math.Max(1, points.Count / 200); // Target ~200 points
+
+            List<Point> simplified = new List<Point>();
+            for (int i = 0; i < points.Count; i += step)
+            {
+                simplified.Add(points[i]);
+            }
+
+            // Make sure we include the last point to close the loop
+            if (simplified[simplified.Count - 1] != points[points.Count - 1])
+            {
+                simplified.Add(points[points.Count - 1]);
+            }
+
+            return simplified;
         }
 
         /// <summary>
