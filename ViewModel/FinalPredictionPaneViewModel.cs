@@ -44,6 +44,14 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _currentDrawingMode, value);
         }
 
+        private string _zoomLevelText = "100%";
+
+        public string ZoomLevelText
+        {
+            get => _zoomLevelText;
+            set => SetProperty(ref _zoomLevelText, value);
+        }
+
         // Add these methods
         public void EnableDrawingMode(DrawingMode mode)
         {
@@ -94,7 +102,7 @@ namespace MURDOC_2024.ViewModel
             get => _overlayOpacity;
             set => SetProperty(ref _overlayOpacity, value);
         }
-
+                
         /// <summary>
         /// Load prediction result with separate layers
         /// </summary>

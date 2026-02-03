@@ -22,6 +22,20 @@ namespace MURDOC_2024.UserControls
         private Polyline _currentPolyline;
         private Polygon _originalMaskPolygon;
 
+        // Zoom and Pan state
+        private double _zoomLevel = 1.0;
+        private Point _panOffset = new Point(0, 0);
+        private bool _isPanning = false;
+        private Point _lastPanPosition;
+        private const double MIN_ZOOM = 0.5;
+        private const double MAX_ZOOM = 5.0;
+        private const double ZOOM_STEP = 0.1;
+
+        // Add ScaleTransform and TranslateTransform for the canvas
+        private ScaleTransform _scaleTransform;
+        private TranslateTransform _translateTransform;
+        private TransformGroup _transformGroup;
+
         // Dragging state
         private bool _isDraggingPoint;
         private int _draggedPointIndex;
@@ -36,6 +50,264 @@ namespace MURDOC_2024.UserControls
             _polygonPointMarkers = new List<Ellipse>();
             _isDraggingPoint = false;
             _draggedPointIndex = -1;
+
+            // Initialize transforms
+            _scaleTransform = new ScaleTransform(1.0, 1.0);
+            _translateTransform = new TranslateTransform(0, 0);
+            _transformGroup = new TransformGroup();
+            _transformGroup.Children.Add(_scaleTransform);
+            _transformGroup.Children.Add(_translateTransform);
+        }
+
+        /// <summary>
+        /// Set up zoom and pan when entering drawing mode
+        /// </summary>
+        private void InitializeZoomPan()
+        {
+            // Apply transforms to the ENTIRE GRID (not just canvas)
+            LayeredImageGrid.RenderTransform = _transformGroup;
+            LayeredImageGrid.RenderTransformOrigin = new Point(0.5, 0.5);
+
+            // Subscribe to mouse wheel for zoom on the parent grid
+            LayeredImageGrid.MouseWheel += EditingCanvas_MouseWheel;
+
+            // Pan handlers stay on EditingCanvas for better control
+            EditingCanvas.MouseDown += EditingCanvas_MouseDown_Pan;
+            EditingCanvas.MouseUp += EditingCanvas_MouseUp_Pan;
+            EditingCanvas.MouseMove += EditingCanvas_MouseMove_Pan;
+
+            System.Diagnostics.Debug.WriteLine("Zoom/Pan initialized on entire image grid");
+        }
+
+        /// <summary>
+        /// Clean up zoom and pan
+        /// </summary>
+        private void CleanupZoomPan()
+        {
+            LayeredImageGrid.MouseWheel -= EditingCanvas_MouseWheel;
+            EditingCanvas.MouseDown -= EditingCanvas_MouseDown_Pan;
+            EditingCanvas.MouseUp -= EditingCanvas_MouseUp_Pan;
+            EditingCanvas.MouseMove -= EditingCanvas_MouseMove_Pan;
+
+            // Reset transforms
+            _zoomLevel = 1.0;
+            _panOffset = new Point(0, 0);
+            _scaleTransform.ScaleX = 1.0;
+            _scaleTransform.ScaleY = 1.0;
+            _translateTransform.X = 0;
+            _translateTransform.Y = 0;
+
+            LayeredImageGrid.RenderTransform = null;
+
+            System.Diagnostics.Debug.WriteLine("Zoom/Pan cleaned up");
+        }
+
+        /// <summary>
+        /// Handle mouse wheel zoom
+        /// </summary>
+        private void EditingCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!Keyboard.IsKeyDown(Key.LeftCtrl) && !Keyboard.IsKeyDown(Key.RightCtrl))
+                return; // Only zoom with Ctrl held
+
+            double zoomDelta = e.Delta > 0 ? ZOOM_STEP : -ZOOM_STEP;
+            double newZoom = Math.Max(MIN_ZOOM, Math.Min(MAX_ZOOM, _zoomLevel + zoomDelta));
+
+            if (newZoom != _zoomLevel)
+            {
+                // Get mouse position relative to the LayeredImageGrid
+                Point mousePos = e.GetPosition(LayeredImageGrid);
+
+                // Calculate zoom factor
+                double zoomFactor = newZoom / _zoomLevel;
+
+                // Adjust pan to zoom towards mouse position
+                _panOffset.X = mousePos.X - (mousePos.X - _panOffset.X) * zoomFactor;
+                _panOffset.Y = mousePos.Y - (mousePos.Y - _panOffset.Y) * zoomFactor;
+
+                _zoomLevel = newZoom;
+
+                // Apply transforms
+                _scaleTransform.ScaleX = _zoomLevel;
+                _scaleTransform.ScaleY = _zoomLevel;
+                _translateTransform.X = _panOffset.X;
+                _translateTransform.Y = _panOffset.Y;
+
+                // Update zoom display
+                if (ViewModel != null)
+                    ViewModel.ZoomLevelText = $"{(_zoomLevel * 100):F0}%";
+
+                System.Diagnostics.Debug.WriteLine($"Zoom: {_zoomLevel:F2}x");
+            }
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Start panning with middle mouse button
+        /// </summary>
+        private void EditingCanvas_MouseDown_Pan(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Middle ||
+                (e.ChangedButton == MouseButton.Left && Keyboard.IsKeyDown(Key.Space)))
+            {
+                _isPanning = true;
+                _lastPanPosition = e.GetPosition(this);
+                EditingCanvas.CaptureMouse();
+                EditingCanvas.Cursor = Cursors.SizeAll;
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Stop panning
+        /// </summary>
+        private void EditingCanvas_MouseUp_Pan(object sender, MouseButtonEventArgs e)
+        {
+            if (_isPanning && (e.ChangedButton == MouseButton.Middle || e.ChangedButton == MouseButton.Left))
+            {
+                _isPanning = false;
+                EditingCanvas.ReleaseMouseCapture();
+                EditingCanvas.Cursor = Cursors.Arrow;
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Handle panning motion
+        /// </summary>
+        private void EditingCanvas_MouseMove_Pan(object sender, MouseEventArgs e)
+        {
+            if (_isPanning)
+            {
+                Point currentPos = e.GetPosition(this);
+                Vector delta = currentPos - _lastPanPosition;
+
+                _panOffset.X += delta.X;
+                _panOffset.Y += delta.Y;
+
+                _translateTransform.X = _panOffset.X;
+                _translateTransform.Y = _panOffset.Y;
+
+                _lastPanPosition = currentPos;
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// Zoom in programmatically
+        /// </summary>
+        public void ZoomIn()
+        {
+            double newZoom = Math.Min(MAX_ZOOM, _zoomLevel + ZOOM_STEP * 2);
+            SetZoom(newZoom);
+        }
+
+        /// <summary>
+        /// Zoom out programmatically
+        /// </summary>
+        public void ZoomOut()
+        {
+            double newZoom = Math.Max(MIN_ZOOM, _zoomLevel - ZOOM_STEP * 2);
+            SetZoom(newZoom);
+        }
+
+        /// <summary>
+        /// Reset zoom to 100%
+        /// </summary>
+        public void ResetZoom()
+        {
+            SetZoom(1.0);
+            _panOffset = new Point(0, 0);
+            _translateTransform.X = 0;
+            _translateTransform.Y = 0;
+        }
+
+        /// <summary>
+        /// Set specific zoom level
+        /// </summary>
+        private void SetZoom(double zoom)
+        {
+            _zoomLevel = zoom;
+            _scaleTransform.ScaleX = _zoomLevel;
+            _scaleTransform.ScaleY = _zoomLevel;
+            ViewModel.ZoomLevelText = $"{(_zoomLevel * 100):F0}%";
+            System.Diagnostics.Debug.WriteLine($"Zoom set to: {_zoomLevel:F2}x");
+        }
+
+        /// <summary>
+        /// Convert canvas coordinates to image pixel coordinates (accounting for zoom/pan)
+        /// </summary>
+        private Point CanvasToImageCoordinates(Point canvasPoint)
+        {
+            if (ViewModel?.OriginalImage == null)
+                return canvasPoint;
+
+            // First, get the position relative to the LayeredImageGrid
+            // (This accounts for zoom/pan since the grid is transformed)
+
+            double canvasWidth = LayeredImageGrid.ActualWidth;
+            double canvasHeight = LayeredImageGrid.ActualHeight;
+
+            int imageWidth = ViewModel.OriginalImage.PixelWidth;
+            int imageHeight = ViewModel.OriginalImage.PixelHeight;
+
+            // Calculate scale for Stretch="Uniform"
+            double scaleX = canvasWidth / imageWidth;
+            double scaleY = canvasHeight / imageHeight;
+            double scale = Math.Min(scaleX, scaleY);
+
+            double renderedWidth = imageWidth * scale;
+            double renderedHeight = imageHeight * scale;
+
+            double offsetX = (canvasWidth - renderedWidth) / 2;
+            double offsetY = (canvasHeight - renderedHeight) / 2;
+
+            double imageX = (canvasPoint.X - offsetX) / scale;
+            double imageY = (canvasPoint.Y - offsetY) / scale;
+
+            return new Point(imageX, imageY);
+        }
+
+        /// <summary>
+        /// Convert image pixel coordinates to canvas coordinates (accounting for zoom/pan)
+        /// </summary>
+        private Point ImageToCanvasCoordinates(Point imagePoint)
+        {
+            if (ViewModel?.OriginalImage == null)
+                return imagePoint;
+
+            double canvasWidth = LayeredImageGrid.ActualWidth;
+            double canvasHeight = LayeredImageGrid.ActualHeight;
+
+            int imageWidth = ViewModel.OriginalImage.PixelWidth;
+            int imageHeight = ViewModel.OriginalImage.PixelHeight;
+
+            double scaleX = canvasWidth / imageWidth;
+            double scaleY = canvasHeight / imageHeight;
+            double scale = Math.Min(scaleX, scaleY);
+
+            double renderedWidth = imageWidth * scale;
+            double renderedHeight = imageHeight * scale;
+
+            double offsetX = (canvasWidth - renderedWidth) / 2;
+            double offsetY = (canvasHeight - renderedHeight) / 2;
+
+            double canvasX = imagePoint.X * scale + offsetX;
+            double canvasY = imagePoint.Y * scale + offsetY;
+
+            return new Point(canvasX, canvasY);
+        }
+
+        public void EnablePolygonDrawing()
+        {
+            _drawingService.StartDrawing(DrawingMode.Polygon);
+            ViewModel?.EnableDrawingMode(DrawingMode.Polygon);
+
+            InitializeZoomPan(); // INITIALIZE ZOOM/PAN
+            ShowOriginalMaskOutline();
+
+            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Polygon drawing enabled with editable outline and zoom/pan");
         }
 
         private void EditingCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -375,66 +647,6 @@ namespace MURDOC_2024.UserControls
         }
 
         /// <summary>
-        /// Convert canvas coordinates to image pixel coordinates
-        /// </summary>
-        private Point CanvasToImageCoordinates(Point canvasPoint)
-        {
-            if (ViewModel?.OriginalImage == null)
-                return canvasPoint;
-
-            double canvasWidth = EditingCanvas.ActualWidth;
-            double canvasHeight = EditingCanvas.ActualHeight;
-
-            int imageWidth = ViewModel.OriginalImage.PixelWidth;
-            int imageHeight = ViewModel.OriginalImage.PixelHeight;
-
-            double scaleX = canvasWidth / imageWidth;
-            double scaleY = canvasHeight / imageHeight;
-            double scale = Math.Min(scaleX, scaleY);
-
-            double renderedWidth = imageWidth * scale;
-            double renderedHeight = imageHeight * scale;
-
-            double offsetX = (canvasWidth - renderedWidth) / 2;
-            double offsetY = (canvasHeight - renderedHeight) / 2;
-
-            double imageX = (canvasPoint.X - offsetX) / scale;
-            double imageY = (canvasPoint.Y - offsetY) / scale;
-
-            return new Point(imageX, imageY);
-        }
-
-        /// <summary>
-        /// Convert image pixel coordinates to canvas coordinates
-        /// </summary>
-        private Point ImageToCanvasCoordinates(Point imagePoint)
-        {
-            if (ViewModel?.OriginalImage == null)
-                return imagePoint;
-
-            double canvasWidth = EditingCanvas.ActualWidth;
-            double canvasHeight = EditingCanvas.ActualHeight;
-
-            int imageWidth = ViewModel.OriginalImage.PixelWidth;
-            int imageHeight = ViewModel.OriginalImage.PixelHeight;
-
-            double scaleX = canvasWidth / imageWidth;
-            double scaleY = canvasHeight / imageHeight;
-            double scale = Math.Min(scaleX, scaleY);
-
-            double renderedWidth = imageWidth * scale;
-            double renderedHeight = imageHeight * scale;
-
-            double offsetX = (canvasWidth - renderedWidth) / 2;
-            double offsetY = (canvasHeight - renderedHeight) / 2;
-
-            double canvasX = imagePoint.X * scale + offsetX;
-            double canvasY = imagePoint.Y * scale + offsetY;
-
-            return new Point(canvasX, canvasY);
-        }
-
-        /// <summary>
         /// Show the original mask outline as editable polygon
         /// </summary>
         public void ShowOriginalMaskOutline()
@@ -486,16 +698,6 @@ namespace MURDOC_2024.UserControls
             System.Diagnostics.Debug.WriteLine($"Displayed editable mask outline with {imageContourPoints.Count} points");
         }
 
-        public void EnablePolygonDrawing()
-        {
-            _drawingService.StartDrawing(DrawingMode.Polygon);
-            ViewModel?.EnableDrawingMode(DrawingMode.Polygon);
-
-            ShowOriginalMaskOutline();
-
-            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Polygon drawing enabled with editable outline");
-        }
-
         public void EnableFreehandDrawing()
         {
             _drawingService.StartDrawing(DrawingMode.Freehand);
@@ -506,6 +708,7 @@ namespace MURDOC_2024.UserControls
         public void CancelDrawing()
         {
             ClearDrawing();
+            CleanupZoomPan(); // CLEANUP ZOOM/PAN
             ViewModel?.DisableDrawingMode();
             System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Drawing cancelled");
         }
@@ -513,6 +716,7 @@ namespace MURDOC_2024.UserControls
         public void ResetDrawing()
         {
             ClearDrawing();
+            CleanupZoomPan(); // CLEANUP ZOOM/PAN
 
             if (_originalMaskPolygon != null)
             {
@@ -549,6 +753,21 @@ namespace MURDOC_2024.UserControls
                 System.Diagnostics.Debug.WriteLine($"Error exporting mask: {ex.Message}");
                 throw;
             }
+        }
+
+        private void ZoomIn_Click(object sender, RoutedEventArgs e)
+        {
+            ZoomIn();
+        }
+
+        private void ZoomOut_Click(object sender, RoutedEventArgs e)
+        {
+            ZoomOut();
+        }
+
+        private void ResetZoom_Click(object sender, RoutedEventArgs e)
+        {
+            ResetZoom();
         }
     }
 }

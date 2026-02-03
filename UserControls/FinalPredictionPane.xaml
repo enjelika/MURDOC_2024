@@ -29,6 +29,7 @@
                    FontWeight="Bold" 
                    FontSize="14"
                    HorizontalAlignment="Center"
+                   Panel.ZIndex="10"
                    Margin="0,30,0,5"/>
 
         <!-- ==================== MAIN PREDICTION IMAGE (LAYERED) ==================== -->
@@ -48,8 +49,36 @@
                            Margin="20"
                            Visibility="{Binding HasResult, Converter={StaticResource InverseBoolToVisConverter}}"/>
 
+                <StackPanel Orientation="Horizontal"
+                    Panel.ZIndex="10"        
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="10"
+                    Visibility="{Binding IsDrawingMode, Converter={StaticResource BoolToVisConverter}}">
+                                    <Button Content="🔍+" 
+                        Width="30" Height="30"
+                        Click="ZoomIn_Click"
+                        ToolTip="Zoom In (Ctrl+Scroll)"/>
+                                    <Button Content="🔍−" 
+                        Width="30" Height="30"
+                        Margin="5,0,0,0"
+                        Click="ZoomOut_Click"
+                        ToolTip="Zoom Out (Ctrl+Scroll)"/>
+                                    <Button Content="⟲" 
+                        Width="30" Height="30"
+                        Margin="5,0,0,0"
+                        Click="ResetZoom_Click"
+                        ToolTip="Reset Zoom"/>
+                                    <TextBlock Text="{Binding ZoomLevelText}"
+                        VerticalAlignment="Center"
+                        Margin="10,0,0,0"
+                        FontSize="11"
+                        FontWeight="Bold"/>
+                </StackPanel>
+
                 <!-- Layered prediction display -->
-                <Grid Visibility="{Binding HasResult, Converter={StaticResource BoolToVisConverter}}">
+                <Grid x:Name="LayeredImageGrid"
+                    Visibility="{Binding HasResult, Converter={StaticResource BoolToVisConverter}}">
                     <!-- Base layer: Original image -->
                     <Image x:Name="BaseImageLayer"
                            Source="{Binding OriginalImage}"
@@ -76,12 +105,14 @@
                             Visibility="{Binding IsDrawingMode, Converter={StaticResource BoolToVisConverter}}">
                         <!-- Polygon points will be added here dynamically -->
                     </Canvas>
+                    
                 </Grid>
             </Grid>
         </Border>
 
         <!-- ==================== HORIZONTAL COLORBAR LEGEND ==================== -->
-        <Grid Grid.Row="2" Margin="20,0,20,10">
+        <Grid Grid.Row="2" Margin="20,0,20,10"
+              Background="White">
             <Grid.RowDefinitions>
                 <!-- Labels Row -->
                 <RowDefinition Height="Auto"/>
@@ -99,7 +130,7 @@
 
                 <!-- Left Label: Strong Camouflage -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <TextBlock Text="Strong Camouflage" 
+                    <TextBlock Text="  Strong Camouflage" 
                         FontWeight="SemiBold" 
                         FontSize="10"
                         Foreground="#333333"/>
@@ -123,7 +154,7 @@
                         FontWeight="SemiBold" 
                         FontSize="10"
                         Foreground="#333333"/>
-                    <TextBlock Text=" (Detected)" 
+                    <TextBlock Text=" (Detected)  " 
                         FontSize="9"
                         FontStyle="Italic"
                         Foreground="#666666"
