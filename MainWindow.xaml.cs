@@ -144,9 +144,34 @@ namespace MURDOC_2024
         {
             try
             {
-                // Clear all drawings on FinalPredictionPane
-                FinalPredictionPaneControl.CancelDrawing();
-                System.Diagnostics.Debug.WriteLine("MainWindow: Cleared ROIs on FinalPredictionPane");
+                // Check if there are modifications to revert
+                if (ViewModel?.FinalPredictionVM?.HasModifications == true)
+                {
+                    var result = MessageBox.Show(
+                        "Do you want to revert to the original mask?\n\n" +
+                        "This will undo all modifications you've made.",
+                        "Revert Changes",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        FinalPredictionPaneControl.RestoreOriginalMask();
+                        System.Diagnostics.Debug.WriteLine("MainWindow: Restored original mask");
+                    }
+                }
+                else if (ViewModel?.FinalPredictionVM?.IsDrawingMode == true)
+                {
+                    // In drawing mode but no modifications yet - revert to original outline
+                    FinalPredictionPaneControl.RevertToOriginalMask();
+                    System.Diagnostics.Debug.WriteLine("MainWindow: Reverted to original mask outline");
+                }
+                else
+                {
+                    // Not in drawing mode, no modifications - just clear
+                    FinalPredictionPaneControl.CancelDrawing();
+                    System.Diagnostics.Debug.WriteLine("MainWindow: Cleared ROIs");
+                }
             }
             catch (Exception ex)
             {

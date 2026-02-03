@@ -16,7 +16,16 @@ namespace MURDOC_2024.ViewModel
         private BitmapImage _rankMap;            // Confidence/fixation heatmap
         
         private ImageSource _overlayImage;       // Colored rank map with transparency
-        
+
+        private BitmapImage _originalBinaryMask; // Store original before modifications
+        private bool _hasModifications;
+
+        public bool HasModifications
+        {
+            get => _hasModifications;
+            set => SetProperty(ref _hasModifications, value);
+        }
+
         private bool _hasResult;
         private double _overlayOpacity = 0.7;
 
@@ -95,12 +104,10 @@ namespace MURDOC_2024.ViewModel
             {
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
-                // Paths to separate components
                 string outputsDir = Path.Combine(exeDir, "outputs", fileNameWithoutExtension);
                 string binaryMaskPath = Path.Combine(outputsDir, "binary_image.png");
                 string rankMapPath = Path.Combine(outputsDir, "fixation_image.png");
 
-                // STEP 1: Load original image FIRST (we need its dimensions)
                 if (!string.IsNullOrEmpty(originalImagePath) && File.Exists(originalImagePath))
                 {
                     OriginalImage = LoadImage(originalImagePath);
@@ -114,10 +121,11 @@ namespace MURDOC_2024.ViewModel
                     return;
                 }
 
-                // STEP 2: Load binary mask
                 if (File.Exists(binaryMaskPath))
                 {
                     BinaryMask = LoadImage(binaryMaskPath);
+                    _originalBinaryMask = LoadImage(binaryMaskPath); // SAVE ORIGINAL
+                    HasModifications = false; // Reset modification flag
                     System.Diagnostics.Debug.WriteLine($"Loaded binary mask: {binaryMaskPath}");
                     System.Diagnostics.Debug.WriteLine($"  Dimensions: {BinaryMask.PixelWidth}x{BinaryMask.PixelHeight}");
                 }
@@ -126,7 +134,6 @@ namespace MURDOC_2024.ViewModel
                     System.Diagnostics.Debug.WriteLine($"Binary mask not found: {binaryMaskPath}");
                 }
 
-                // STEP 3: Load rank map
                 if (File.Exists(rankMapPath))
                 {
                     RankMap = LoadImage(rankMapPath);
@@ -138,7 +145,6 @@ namespace MURDOC_2024.ViewModel
                     System.Diagnostics.Debug.WriteLine($"Rank map not found: {rankMapPath}");
                 }
 
-                // STEP 4: Create overlay AFTER all images are loaded
                 if (RankMap != null && BinaryMask != null && OriginalImage != null)
                 {
                     OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
@@ -518,7 +524,6 @@ namespace MURDOC_2024.ViewModel
                 System.Diagnostics.Debug.WriteLine($"Creating mask from polygon with {polygonPoints.Count} points");
                 System.Diagnostics.Debug.WriteLine($"Image dimensions: {width}x{height}");
 
-                // Convert polygon to mask using PolygonDrawingService
                 var polygonService = new PolygonDrawingService();
                 polygonService.SetImageDimensions(width, height);
 
@@ -530,24 +535,21 @@ namespace MURDOC_2024.ViewModel
                     return false;
                 }
 
-                // Convert byte array to BitmapImage
                 var newMask = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
                 newMask.WritePixels(new Int32Rect(0, 0, width, height), newMaskData, width, 0);
                 newMask.Freeze();
 
-                // Convert to BitmapImage for consistency
                 BinaryMask = ConvertWriteableToBitmapImage(newMask);
+                HasModifications = true; // MARK AS MODIFIED
 
                 System.Diagnostics.Debug.WriteLine("Updated BinaryMask with new polygon");
 
-                // Recreate overlay with new mask
                 if (RankMap != null)
                 {
                     OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
                     System.Diagnostics.Debug.WriteLine("Recreated overlay with new mask");
                 }
 
-                // Save modified mask to disk
                 SaveModifiedMask(newMaskData, width, height);
 
                 return true;
@@ -556,6 +558,36 @@ namespace MURDOC_2024.ViewModel
             {
                 System.Diagnostics.Debug.WriteLine($"Error updating mask from polygon: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        public bool RestoreOriginalMask()
+        {
+            if (_originalBinaryMask == null)
+            {
+                System.Diagnostics.Debug.WriteLine("No original mask stored");
+                return false;
+            }
+
+            try
+            {
+                BinaryMask = _originalBinaryMask;
+                HasModifications = false;
+
+                System.Diagnostics.Debug.WriteLine("Restored original binary mask");
+
+                if (RankMap != null)
+                {
+                    OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
+                    System.Diagnostics.Debug.WriteLine("Recreated overlay with original mask");
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error restoring original mask: {ex.Message}");
                 return false;
             }
         }
@@ -655,6 +687,8 @@ namespace MURDOC_2024.ViewModel
             RankMap = null;
             OverlayImage = null;
             HasResult = false;
+            _originalBinaryMask = null;
+            HasModifications = false;
         }
     }
 }

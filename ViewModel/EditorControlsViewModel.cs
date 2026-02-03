@@ -71,7 +71,9 @@ namespace MURDOC_2024.ViewModel
             // Initialize ROI command placeholders
             SetPolygonModeCommand = new RelayCommand(EnablePolygonMode);
             SetFreehandModeCommand = new RelayCommand(EnableFreehandMode);
-            ClearROIsCommand = new RelayCommand(ClearROIs);
+
+            // Update the command to always be enabled when there's a result
+            ClearROIsCommand = new RelayCommand(ClearROIs, () => true); // Always enabled
             ExportROIMasksCommand = new RelayCommand(ExportROIMasks, () => ROICount > 0);
         }
 

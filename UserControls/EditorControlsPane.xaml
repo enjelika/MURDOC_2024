@@ -55,9 +55,10 @@
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0" 
-                            Content="🗑️ Clear" 
-                            Command="{Binding ClearROIsCommand}"
-                            Margin="0,0,3,5"/>
+                        Content="🗑️ Clear" 
+                        Command="{Binding ClearROIsCommand}"
+                        Margin="0,0,3,5"
+                        ToolTip="Revert to original mask outline (or clear all if not drawing)"/>
 
                     <Button Grid.Column="1" 
                             Content="💾 Export" 
