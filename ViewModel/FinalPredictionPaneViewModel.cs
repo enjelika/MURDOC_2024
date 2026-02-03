@@ -502,24 +502,35 @@ namespace MURDOC_2024.ViewModel
         /// <summary>
         /// Update binary mask with new polygon
         /// </summary>
-        public void UpdateMaskFromPolygon(List<Point> polygonPoints)
+        public bool UpdateMaskFromPolygon(List<Point> polygonPoints)
         {
             if (polygonPoints == null || polygonPoints.Count < 3 || OriginalImage == null)
-                return;
+            {
+                System.Diagnostics.Debug.WriteLine("Invalid polygon or no original image");
+                return false;
+            }
 
             try
             {
                 int width = OriginalImage.PixelWidth;
                 int height = OriginalImage.PixelHeight;
 
-                // Convert polygon to mask
+                System.Diagnostics.Debug.WriteLine($"Creating mask from polygon with {polygonPoints.Count} points");
+                System.Diagnostics.Debug.WriteLine($"Image dimensions: {width}x{height}");
+
+                // Convert polygon to mask using PolygonDrawingService
                 var polygonService = new PolygonDrawingService();
+                polygonService.SetImageDimensions(width, height);
+
                 byte[] newMaskData = polygonService.ConvertPolygonToMask(polygonPoints, width, height);
 
                 if (newMaskData == null)
-                    return;
+                {
+                    System.Diagnostics.Debug.WriteLine("Failed to convert polygon to mask");
+                    return false;
+                }
 
-                // Convert to BitmapImage
+                // Convert byte array to BitmapImage
                 var newMask = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
                 newMask.WritePixels(new Int32Rect(0, 0, width, height), newMaskData, width, 0);
                 newMask.Freeze();
@@ -527,16 +538,81 @@ namespace MURDOC_2024.ViewModel
                 // Convert to BitmapImage for consistency
                 BinaryMask = ConvertWriteableToBitmapImage(newMask);
 
+                System.Diagnostics.Debug.WriteLine("Updated BinaryMask with new polygon");
+
                 // Recreate overlay with new mask
                 if (RankMap != null)
                 {
                     OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
-                    System.Diagnostics.Debug.WriteLine("Updated overlay with new polygon mask");
+                    System.Diagnostics.Debug.WriteLine("Recreated overlay with new mask");
                 }
+
+                // Save modified mask to disk
+                SaveModifiedMask(newMaskData, width, height);
+
+                return true;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error updating mask from polygon: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Save modified mask to outputs directory
+        /// </summary>
+        private void SaveModifiedMask(byte[] maskData, int width, int height)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(OriginalImage?.UriSource?.LocalPath))
+                {
+                    System.Diagnostics.Debug.WriteLine("No original image path available for saving mask");
+                    return;
+                }
+
+                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                string fileName = System.IO.Path.GetFileNameWithoutExtension(OriginalImage.UriSource.LocalPath);
+                string outputDir = System.IO.Path.Combine(exeDir, "outputs", fileName);
+
+                // Ensure directory exists
+                System.IO.Directory.CreateDirectory(outputDir);
+
+                // Save modified binary mask
+                string modifiedMaskPath = System.IO.Path.Combine(outputDir, "binary_image_modified.png");
+
+                var writeable = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
+                writeable.WritePixels(new Int32Rect(0, 0, width, height), maskData, width, 0);
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(writeable));
+
+                using (var stream = System.IO.File.Create(modifiedMaskPath))
+                {
+                    encoder.Save(stream);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Saved modified mask to: {modifiedMaskPath}");
+
+                // Also save with timestamp for history
+                string timestampPath = System.IO.Path.Combine(
+                    outputDir,
+                    $"binary_image_modified_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+
+                using (var stream = System.IO.File.Create(timestampPath))
+                {
+                    encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(writeable));
+                    encoder.Save(stream);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Saved timestamped mask to: {timestampPath}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving modified mask: {ex.Message}");
             }
         }
 

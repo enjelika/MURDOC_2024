@@ -115,18 +115,71 @@ namespace MURDOC_2024.UserControls
 
         private void CompletePolygon()
         {
-            // Convert polygon to mask and update
-            ViewModel.UpdateMaskFromPolygon(new List<Point>(_drawingService.CurrentPolygon));
+            if (_drawingService.CurrentPolygon.Count < 3)
+            {
+                MessageBox.Show("Need at least 3 points to complete polygon", "Invalid Polygon",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
-            // Clear drawing
-            ClearDrawing();
+            try
+            {
+                // Polygon points are already in IMAGE coordinates
+                var imagePolygonPoints = new List<Point>(_drawingService.CurrentPolygon);
 
-            // Exit drawing mode
-            ViewModel.DisableDrawingMode();
+                // Convert polygon to mask and update ViewModel
+                bool success = ViewModel.UpdateMaskFromPolygon(imagePolygonPoints);
 
-            MessageBox.Show("Polygon applied to mask!", "Success",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+                if (success)
+                {
+                    // Clear drawing
+                    ClearDrawing();
+
+                    // Exit drawing mode
+                    ViewModel.DisableDrawingMode();
+
+                    // Notify parent that ROI was completed
+                    OnROICompleted();
+
+                    MessageBox.Show(
+                        "Polygon applied successfully!\n\n" +
+                        "The mask has been updated with your changes.",
+                        "Success",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Failed to apply polygon to mask.\n\n" +
+                        "Please try again or check the debug output.",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error completing polygon: {ex.Message}");
+                MessageBox.Show(
+                    $"Error applying polygon: {ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
+
+        /// <summary>
+        /// Notify that ROI was completed (for EditorControlsVM)
+        /// </summary>
+        private void OnROICompleted()
+        {
+            // This will be wired up through MainWindow later
+            ROICompleted?.Invoke(this, EventArgs.Empty);
+        }
+
+        // Add this event
+        public event EventHandler ROICompleted;
 
         private void ClearDrawing()
         {

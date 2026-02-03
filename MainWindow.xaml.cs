@@ -20,6 +20,9 @@ namespace MURDOC_2024
                 InitializeComponent();
                 Console.WriteLine("InitializeComponent completed");
 
+                // Wire up FinalPredictionPane event
+                FinalPredictionPaneControl.ROICompleted += OnROICompleted;
+
                 try
                 {
                     ViewModel = new MainWindowViewModel();
@@ -52,6 +55,20 @@ namespace MURDOC_2024
                 MessageBox.Show($"An error occurred during window initialization: {ex.Message}\n\nStackTrace: {ex.StackTrace}",
                     "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 Application.Current.Shutdown();
+            }
+        }
+
+        private void OnROICompleted(object sender, EventArgs e)
+        {
+            try
+            {
+                // Notify EditorControlsVM that ROI was completed
+                ViewModel?.EditorControlsVM?.OnROICompleted();
+                System.Diagnostics.Debug.WriteLine("MainWindow: ROI completed, notified EditorControlsVM");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error handling ROI completion: {ex.Message}");
             }
         }
 
