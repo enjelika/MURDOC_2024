@@ -315,27 +315,31 @@ namespace MURDOC_2024.UserControls
             if (ViewModel == null || !ViewModel.IsDrawingMode)
                 return;
 
+            // Don't interfere with panning
+            if (Keyboard.IsKeyDown(Key.Space))
+                return;
+
             Point canvasPoint = e.GetPosition(EditingCanvas);
 
-            // Check if clicking on an existing point marker (for dragging)
+            // Check if clicking near an existing point marker (within 10 pixels)
             for (int i = 0; i < _polygonPointMarkers.Count; i++)
             {
                 var marker = _polygonPointMarkers[i];
-                double markerX = Canvas.GetLeft(marker) + 6; // Center of marker (radius + 2)
-                double markerY = Canvas.GetTop(marker) + 6;
+                double markerX = Canvas.GetLeft(marker) + 5; // Center (radius 5)
+                double markerY = Canvas.GetTop(marker) + 5;
 
                 double distance = Math.Sqrt(
                     Math.Pow(canvasPoint.X - markerX, 2) +
                     Math.Pow(canvasPoint.Y - markerY, 2));
 
-                if (distance < 10) // Click within 10 pixels of marker center
+                if (distance < 10)
                 {
-                    // Start dragging this point
+                    // Start dragging EXISTING point
                     _isDraggingPoint = true;
                     _draggedPointIndex = i;
                     _draggedMarker = marker;
 
-                    // Change marker appearance to show it's being dragged
+                    // Visual feedback - make it orange and larger
                     marker.Fill = Brushes.Orange;
                     marker.Width = 12;
                     marker.Height = 12;
@@ -343,77 +347,150 @@ namespace MURDOC_2024.UserControls
                     Canvas.SetTop(marker, markerY - 6);
 
                     EditingCanvas.CaptureMouse();
-                    System.Diagnostics.Debug.WriteLine($"Started dragging point {i}");
+                    System.Diagnostics.Debug.WriteLine($"Started dragging existing point {i}");
+
+                    e.Handled = true;
                     return;
                 }
             }
 
-            // Not clicking on existing point - add new point
+            // Not near existing point - CREATE NEW POINT and immediately start dragging it
             if (ViewModel.CurrentDrawingMode == DrawingMode.Polygon)
             {
-                // Convert to image coordinates
                 Point imagePoint = CanvasToImageCoordinates(canvasPoint);
 
-                // Add point to polygon (in IMAGE coordinates)
+                // Add point to polygon (IMAGE coordinates)
                 _drawingService.AddPoint(imagePoint);
 
-                // Add visual marker (in CANVAS coordinates)
+                // Create visual marker (CANVAS coordinates)
                 var marker = CreatePointMarker(canvasPoint);
+
+                // Immediately put it in drag mode so user can position it
+                _isDraggingPoint = true;
+                _draggedPointIndex = _drawingService.CurrentPolygon.Count - 1;
+                _draggedMarker = marker;
+
+                // Visual feedback - orange and larger since we're dragging
+                marker.Fill = Brushes.Orange;
+                marker.Width = 12;
+                marker.Height = 12;
+                Canvas.SetLeft(marker, canvasPoint.X - 6);
+                Canvas.SetTop(marker, canvasPoint.Y - 6);
+
                 EditingCanvas.Children.Add(marker);
                 _polygonPointMarkers.Add(marker);
 
-                // Update polyline
+                EditingCanvas.CaptureMouse();
+
+                // Update polyline to show the new point
                 UpdatePolyline();
 
-                System.Diagnostics.Debug.WriteLine($"Added point - Canvas: {canvasPoint}, Image: {imagePoint}");
+                System.Diagnostics.Debug.WriteLine($"Created new point {_draggedPointIndex} and started dragging");
             }
+
+            e.Handled = true;
         }
 
         private void EditingCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_isDraggingPoint && _draggedPointIndex >= 0)
+            // Handle panning (takes priority)
+            if (_isPanning)
+            {
+                Point currentPos = e.GetPosition(this);
+                Vector delta = currentPos - _lastPanPosition;
+
+                _panOffset.X += delta.X;
+                _panOffset.Y += delta.Y;
+
+                _translateTransform.X = _panOffset.X;
+                _translateTransform.Y = _panOffset.Y;
+
+                _lastPanPosition = currentPos;
+                e.Handled = true;
+                return;
+            }
+
+            // Handle point dragging
+            if (_isDraggingPoint && _draggedPointIndex >= 0 && _draggedMarker != null)
             {
                 Point canvasPoint = e.GetPosition(EditingCanvas);
                 Point imagePoint = CanvasToImageCoordinates(canvasPoint);
 
                 // Update the point in the drawing service (IMAGE coordinates)
-                _drawingService.CurrentPolygon[_draggedPointIndex] = imagePoint;
+                if (_draggedPointIndex < _drawingService.CurrentPolygon.Count)
+                {
+                    _drawingService.CurrentPolygon[_draggedPointIndex] = imagePoint;
+                }
 
                 // Update marker position (CANVAS coordinates)
                 Canvas.SetLeft(_draggedMarker, canvasPoint.X - 6);
                 Canvas.SetTop(_draggedMarker, canvasPoint.Y - 6);
 
-                // Update polyline
+                // Update polyline in real-time
                 UpdatePolyline();
+
+                e.Handled = true;
             }
         }
 
         private void EditingCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine($"MouseLeftButtonUp fired. IsDragging={_isDraggingPoint}");
+
             if (_isDraggingPoint)
             {
-                // Stop dragging
-                _isDraggingPoint = false;
-
-                // Reset marker appearance
-                if (_draggedMarker != null)
+                try
                 {
-                    _draggedMarker.Fill = Brushes.Yellow;
-                    _draggedMarker.Width = 10;
-                    _draggedMarker.Height = 10;
+                    // Finalize the point position
+                    Point finalCanvasPoint = e.GetPosition(EditingCanvas);
+                    Point finalImagePoint = CanvasToImageCoordinates(finalCanvasPoint);
 
-                    Point center = new Point(
-                        Canvas.GetLeft(_draggedMarker) + 6,
-                        Canvas.GetTop(_draggedMarker) + 6);
-                    Canvas.SetLeft(_draggedMarker, center.X - 5);
-                    Canvas.SetTop(_draggedMarker, center.Y - 5);
+                    // Ensure the point is updated with final position
+                    if (_draggedPointIndex >= 0 && _draggedPointIndex < _drawingService.CurrentPolygon.Count)
+                    {
+                        _drawingService.CurrentPolygon[_draggedPointIndex] = finalImagePoint;
+                        System.Diagnostics.Debug.WriteLine($"Updated point {_draggedPointIndex} to final position: {finalImagePoint}");
+                    }
+
+                    // Reset marker appearance to normal (yellow, smaller)
+                    if (_draggedMarker != null)
+                    {
+                        _draggedMarker.Fill = Brushes.Yellow;
+                        _draggedMarker.Width = 10;
+                        _draggedMarker.Height = 10;
+
+                        // Recenter at final position
+                        Canvas.SetLeft(_draggedMarker, finalCanvasPoint.X - 5);
+                        Canvas.SetTop(_draggedMarker, finalCanvasPoint.Y - 5);
+
+                        System.Diagnostics.Debug.WriteLine($"Reset marker appearance at canvas position: {finalCanvasPoint}");
+                    }
+
+                    // Update polyline with final position
+                    UpdatePolyline();
+
+                    System.Diagnostics.Debug.WriteLine($"Finalized point {_draggedPointIndex}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error in MouseLeftButtonUp: {ex.Message}");
+                }
+                finally
+                {
+                    // ALWAYS clear drag state, even if there's an error
+                    _isDraggingPoint = false;
+                    _draggedPointIndex = -1;
+                    _draggedMarker = null;
+
+                    // Release mouse capture
+                    if (EditingCanvas.IsMouseCaptured)
+                    {
+                        EditingCanvas.ReleaseMouseCapture();
+                        System.Diagnostics.Debug.WriteLine("Released mouse capture");
+                    }
                 }
 
-                _draggedPointIndex = -1;
-                _draggedMarker = null;
-
-                EditingCanvas.ReleaseMouseCapture();
-                System.Diagnostics.Debug.WriteLine("Stopped dragging point");
+                e.Handled = true;
             }
         }
 

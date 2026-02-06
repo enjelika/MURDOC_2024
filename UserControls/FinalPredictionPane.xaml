@@ -102,6 +102,7 @@
                             MouseLeftButtonDown="EditingCanvas_MouseLeftButtonDown"
                             MouseMove="EditingCanvas_MouseMove"
                             MouseRightButtonDown="EditingCanvas_MouseRightButtonDown"
+                            MouseLeftButtonUp="EditingCanvas_MouseLeftButtonUp"
                             Visibility="{Binding IsDrawingMode, Converter={StaticResource BoolToVisConverter}}">
                         <!-- Polygon points will be added here dynamically -->
                     </Canvas>
