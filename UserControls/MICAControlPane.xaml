@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="270" d:DesignWidth="320">
+             d:DesignHeight="240" d:DesignWidth="320">
     <Grid>
         <StackPanel Orientation="Vertical" Background="Lightgray" Margin="5,0,5,0">
             <Label Content="Detection Controls:" FontWeight="Bold" Margin="0,0,5,10"/>
@@ -30,12 +30,14 @@
                 </StackPanel>
             </Border>
 
-            <!-- Model controls: Run models to gather prediction and outputs -->
-            <Button Content="Run Models" Command="{Binding RunCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <!-- Model controls: Run models to gather prediction and outputs -->
+                <Button Content="Run Models" Command="{Binding RunCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="5,5,10,5" />
 
-            <!-- Reset control: clears the GUI -->
-            <Button Content="Reset" Command="{Binding ResetCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="75,5,75,5" />
-
+                <!-- Reset control: clears the GUI -->
+                <Button Content="Reset" Command="{Binding ResetCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="5,5,10,5" />
+            </StackPanel>
+            
         </StackPanel>
     </Grid>
 </UserControl>

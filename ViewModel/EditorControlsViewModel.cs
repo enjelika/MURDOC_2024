@@ -28,6 +28,42 @@ namespace MURDOC_2024.ViewModel
         private object _selectedDetection;
         private DetectionResult _selectedDetectionResult;
 
+        private bool _isRankEditMode;
+        private bool _isIncreaseBrushActive;
+        private bool _isDecreaseBrushActive;
+        private double _brushSize = 20;
+        private double _brushStrength = 0.5;
+
+        public bool IsRankEditMode
+        {
+            get => _isRankEditMode;
+            set => SetProperty(ref _isRankEditMode, value);
+        }
+
+        public bool IsIncreaseBrushActive
+        {
+            get => _isIncreaseBrushActive;
+            set => SetProperty(ref _isIncreaseBrushActive, value);
+        }
+
+        public bool IsDecreaseBrushActive
+        {
+            get => _isDecreaseBrushActive;
+            set => SetProperty(ref _isDecreaseBrushActive, value);
+        }
+
+        public double BrushSize
+        {
+            get => _brushSize;
+            set => SetProperty(ref _brushSize, value);
+        }
+
+        public double BrushStrength
+        {
+            get => _brushStrength;
+            set => SetProperty(ref _brushStrength, value);
+        }
+
         // Commands
         public ICommand ConfirmDetectionCommand { get; }
         public ICommand RejectDetectionCommand { get; }
@@ -35,6 +71,12 @@ namespace MURDOC_2024.ViewModel
         public ICommand ViewFeedbackHistoryCommand { get; }
         public ICommand ExportFeedbackCommand { get; }
         public ICommand ResetSessionCommand { get; }
+        public ICommand SetIncreaseBrushCommand { get; }
+        public ICommand SetDecreaseBrushCommand { get; }
+        public ICommand IncreaseBrushSizeCommand { get; }
+        public ICommand DecreaseBrushSizeCommand { get; }
+        public ICommand EnterRankEditModeCommand { get; }
+        public ICommand SaveRankMapCommand { get; }
 
         // ROI Commands (Placeholders)
         public ICommand SetPolygonModeCommand { get; }
@@ -52,6 +94,9 @@ namespace MURDOC_2024.ViewModel
         public event EventHandler FreehandModeRequested;
         public event EventHandler ClearROIsRequested;
         public event EventHandler ExportROIMasksRequested;
+        public event EventHandler RankEditModeRequested;
+        public event EventHandler<RankBrushEventArgs> RankBrushChanged;
+        public event EventHandler SaveRankMapRequested;
 
         public EditorControlsPaneViewModel()
         {
@@ -75,6 +120,13 @@ namespace MURDOC_2024.ViewModel
             // Update the command to always be enabled when there's a result
             ClearROIsCommand = new RelayCommand(ClearROIs, () => true); // Always enabled
             ExportROIMasksCommand = new RelayCommand(ExportROIMasks, () => ROICount > 0);
+
+            SetIncreaseBrushCommand = new RelayCommand(SetIncreaseBrush);
+            SetDecreaseBrushCommand = new RelayCommand(SetDecreaseBrush);
+            IncreaseBrushSizeCommand = new RelayCommand(() => BrushSize = Math.Min(100, BrushSize + 5));
+            DecreaseBrushSizeCommand = new RelayCommand(() => BrushSize = Math.Max(5, BrushSize - 5));
+            EnterRankEditModeCommand = new RelayCommand(EnterRankEditMode);
+            SaveRankMapCommand = new RelayCommand(SaveRankMap, () => IsRankEditMode);
         }
 
         #region Properties
@@ -168,7 +220,37 @@ namespace MURDOC_2024.ViewModel
 
         #endregion
 
-        #region Public Methods
+        #region Methods
+
+        private void SetIncreaseBrush()
+        {
+            IsIncreaseBrushActive = true;
+            IsDecreaseBrushActive = false;
+            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Increase, BrushSize, BrushStrength));
+            System.Diagnostics.Debug.WriteLine("Set to Increase brush");
+        }
+
+        private void SetDecreaseBrush()
+        {
+            IsIncreaseBrushActive = false;
+            IsDecreaseBrushActive = true;
+            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Decrease, BrushSize, BrushStrength));
+            System.Diagnostics.Debug.WriteLine("Set to Decrease brush");
+        }
+
+        private void EnterRankEditMode()
+        {
+            IsRankEditMode = true;
+            IsIncreaseBrushActive = true; // Default to increase
+            RankEditModeRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine("Entered rank edit mode");
+        }
+
+        private void SaveRankMap()
+        {
+            SaveRankMapRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine("Save rank map requested");
+        }
 
         private void EnablePolygonMode()
         {

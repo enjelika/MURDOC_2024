@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Linq;
+using MURDOC_2024.Model;
 
 namespace MURDOC_2024.ViewModel
 {
@@ -19,6 +20,9 @@ namespace MURDOC_2024.ViewModel
 
         private BitmapImage _originalBinaryMask; // Store original before modifications
         private bool _hasModifications;
+
+        private byte[] _modifiedRankData; // Store modified rank values
+        private bool _hasRankModifications = false;
 
         public bool HasModifications
         {
@@ -52,7 +56,6 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _zoomLevelText, value);
         }
 
-        // Add these methods
         public void EnableDrawingMode(DrawingMode mode)
         {
             IsDrawingMode = true;
@@ -178,6 +181,59 @@ namespace MURDOC_2024.ViewModel
                 System.Diagnostics.Debug.WriteLine($"Error loading result layers: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
                 Clear();
+            }
+        }
+
+        /// <summary>
+        /// Apply brush stroke to rank map at image coordinates
+        /// </summary>
+        public void ApplyRankBrush(Point imagePoint, RankBrushMode mode, double brushSize, double brushStrength)
+        {
+            if (RankMap == null || OriginalImage == null)
+                return;
+
+            try
+            {
+                int width = OriginalImage.PixelWidth;
+                int height = OriginalImage.PixelHeight;
+
+                // Initialize modified data if first edit
+                if (_modifiedRankData == null)
+                {
+                    var grayBitmap = new FormatConvertedBitmap(RankMap, PixelFormats.Gray8, null, 0);
+                    _modifiedRankData = new byte[width * height];
+                    grayBitmap.CopyPixels(_modifiedRankData, width, 0);
+                }
+
+                // Apply brush
+                var brushService = new RankBrushService
+                {
+                    CurrentMode = mode,
+                    BrushSize = brushSize,
+                    BrushStrength = brushStrength
+                };
+
+                _modifiedRankData = brushService.ApplyBrushStroke(_modifiedRankData, width, height, imagePoint);
+                _hasRankModifications = true;
+
+                // Update RankMap with modified data
+                var newRankMap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
+                newRankMap.WritePixels(new Int32Rect(0, 0, width, height), _modifiedRankData, width, 0);
+                newRankMap.Freeze();
+
+                RankMap = ConvertWriteableToBitmapImage(newRankMap);
+
+                // Regenerate overlay
+                if (BinaryMask != null)
+                {
+                    OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Applied {mode} brush at {imagePoint}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error applying rank brush: {ex.Message}");
             }
         }
 

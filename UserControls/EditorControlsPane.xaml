@@ -6,12 +6,13 @@
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              xmlns:converters="clr-namespace:MURDOC_2024.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="650" d:DesignWidth="320">
+             d:DesignHeight="930" d:DesignWidth="320">
 
     <UserControl.Resources>
         <!-- Add the converter here -->
         <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisConverter"/>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
     </UserControl.Resources>
     
     <Border BorderBrush="#CCCCCC" 
@@ -87,6 +88,88 @@
                         </TextBlock>
                     </StackPanel>
                 </Border>
+
+                <!-- Rank Map Editing Section -->
+                <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
+
+                <Label Content="Rank Map Editing" FontWeight="Bold" FontSize="13"/>
+
+                <TextBlock Text="Adjust camouflage strength values:"
+           FontSize="12"
+           Foreground="#666666"
+           TextWrapping="Wrap"
+           Margin="0,0,0,8"/>
+
+                <!-- Brush Mode Selection -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0"
+            Content="➕ Increase"
+            Command="{Binding SetIncreaseBrushCommand}"
+            Margin="0,0,3,0"
+            Background="{Binding IsIncreaseBrushActive, Converter={StaticResource BoolToColorConverter}}"
+            ToolTip="Paint to increase camouflage weakness (make more detectable)"/>
+
+                    <Button Grid.Column="1"
+            Content="➖ Decrease"
+            Command="{Binding SetDecreaseBrushCommand}"
+            Margin="3,0,0,0"
+            Background="{Binding IsDecreaseBrushActive, Converter={StaticResource BoolToColorConverter}}"
+            ToolTip="Paint to decrease camouflage weakness (make more hidden)"/>
+                </Grid>
+
+                <!-- Brush Size -->
+                <Label Content="Brush Size:" FontSize="11" Padding="0,5,0,2"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Content="−" Width="25" Command="{Binding DecreaseBrushSizeCommand}"/>
+                    <Slider Grid.Column="1" 
+            Value="{Binding BrushSize}"
+            Minimum="5" Maximum="100"
+            TickFrequency="5"
+            IsSnapToTickEnabled="True"
+            Margin="5,0"/>
+                    <Button Grid.Column="2" Content="+" Width="25" Command="{Binding IncreaseBrushSizeCommand}"/>
+                </Grid>
+
+                <TextBlock HorizontalAlignment="Center" Margin="0,0,0,8">
+                    <Run Text="Size: "/>
+                    <Run Text="{Binding BrushSize}" FontWeight="Bold"/>
+                    <Run Text="px"/>
+                 </TextBlock>
+
+                            <!-- Brush Strength -->
+                <Label Content="Brush Strength:" FontSize="11" Padding="0,5,0,2"/>
+                <Slider Value="{Binding BrushStrength}"
+                    Minimum="0.1" Maximum="1.0"
+                    TickFrequency="0.1"
+                    IsSnapToTickEnabled="True"
+                    Margin="0,0,0,5"/>
+
+                <TextBlock HorizontalAlignment="Center" Margin="0,0,0,8">
+                    <Run Text="Strength: "/>
+                    <Run Text="{Binding BrushStrength, StringFormat='{}{0:P0}'}" FontWeight="Bold"/>
+                </TextBlock>
+
+                <!-- Action Buttons -->
+                <Button Content="🖌️ Enter Edit Mode"
+                    Command="{Binding EnterRankEditModeCommand}"
+                    Margin="0,0,0,5"
+                    ToolTip="Enter rank map editing mode"/>
+
+                <Button Content="💾 Save Changes"
+                    Command="{Binding SaveRankMapCommand}"
+                    Margin="0,0,0,5"
+                    ToolTip="Save modified rank map"/>
 
                 <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 

@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:MURDOC_2024"
         xmlns:controls="clr-namespace:MURDOC_2024.UserControls"
         mc:Ignorable="d"
-        Height="955" Width="1720"
+        Height="1010" Width="1720"
         ResizeMode="NoResize"
         Title="Mixed-Initiative Camouflage Analysis Tool"
         Background="LightGray"
@@ -29,10 +29,13 @@
                 <controls:InputImagePane DataContext="{Binding InputImageVM}" Margin="0,5,0,0"/>
 
                 <!-- Image Selection and Control Pane -->
-                <controls:ImageControlPane DataContext="{Binding ImageControlVM}" Height="210"/>
+                <controls:ImageControlPane DataContext="{Binding ImageControlVM}" Height="205"/>
 
                 <!-- MICA Control Pane -->
-                <controls:MICAControlPane Margin="0,15,0,0" DataContext="{Binding MICAControlVM}" />
+                <controls:MICAControlPane Margin="0,5,0,0" DataContext="{Binding MICAControlVM}" />
+
+                <!-- Preview Pane -->
+                <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}" Margin="0,5,0,0"/>
 
             </StackPanel>
 
@@ -82,12 +85,9 @@
                 <StackPanel Orientation="Vertical" 
                    HorizontalAlignment="Stretch"
                    Panel.ZIndex="0">
-
-                    <!-- Preview Pane - BACK ON TOP -->
-                    <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}" Margin="0,30,0,5"/>
-
+                    
                     <!-- Editor Controls -->
-                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}" Margin="0,5"/>
+                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}" Margin="0,40"/>
 
                 </StackPanel>
 

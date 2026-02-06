@@ -92,16 +92,19 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Controls\PolygonROICanvas.cs" />
+    <Compile Include="Converters\BoolToColorConverter.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
     <Compile Include="Converters\StringToVisibilityConverter.cs" />
     <Compile Include="Model\DetectionFeedback.cs" />
     <Compile Include="Model\DetectionResut.cs" />
     <Compile Include="Model\PolygonROI.cs" />
+    <Compile Include="Model\RankBrushMode.cs" />
     <Compile Include="Services\ImageService.cs" />
     <Compile Include="Services\IPythonService.cs" />
     <Compile Include="Services\PerformanceMetricsService.cs" />
     <Compile Include="Services\PolygonDrawingService.cs" />
     <Compile Include="Services\PythonModelService.cs" />
+    <Compile Include="Services\RankBrushServices.cs" />
     <Compile Include="UserControls\EditorControlsPane.xaml.cs">
       <DependentUpon>EditorControlsPane.xaml</DependentUpon>
     </Compile>
