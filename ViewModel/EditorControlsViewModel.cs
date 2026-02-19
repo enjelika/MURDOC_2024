@@ -222,22 +222,6 @@ namespace MURDOC_2024.ViewModel
 
         #region Methods
 
-        private void SetIncreaseBrush()
-        {
-            IsIncreaseBrushActive = true;
-            IsDecreaseBrushActive = false;
-            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Increase, BrushSize, BrushStrength));
-            System.Diagnostics.Debug.WriteLine("Set to Increase brush");
-        }
-
-        private void SetDecreaseBrush()
-        {
-            IsIncreaseBrushActive = false;
-            IsDecreaseBrushActive = true;
-            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Decrease, BrushSize, BrushStrength));
-            System.Diagnostics.Debug.WriteLine("Set to Decrease brush");
-        }
-
         private void EnterRankEditMode()
         {
             IsRankEditMode = true;
@@ -325,6 +309,32 @@ namespace MURDOC_2024.ViewModel
             (ConfirmDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (RejectDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (ExportFeedbackCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+
+        private void SetIncreaseBrush()
+        {
+            IsIncreaseBrushActive = true;
+            IsDecreaseBrushActive = false;
+
+            // Immediately enter rank edit mode with Increase brush
+            IsRankEditMode = true;
+            RankEditModeRequested?.Invoke(this, EventArgs.Empty);
+            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Increase, BrushSize, BrushStrength));
+
+            System.Diagnostics.Debug.WriteLine("Entered Rank Edit Mode with Increase brush");
+        }
+
+        private void SetDecreaseBrush()
+        {
+            IsIncreaseBrushActive = false;
+            IsDecreaseBrushActive = true;
+
+            // Immediately enter rank edit mode with Decrease brush
+            IsRankEditMode = true;
+            RankEditModeRequested?.Invoke(this, EventArgs.Empty);
+            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Decrease, BrushSize, BrushStrength));
+
+            System.Diagnostics.Debug.WriteLine("Entered Rank Edit Mode with Decrease brush");
         }
 
         public void SelectDetection(DetectionResult detection)

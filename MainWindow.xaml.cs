@@ -1,4 +1,5 @@
-﻿using MURDOC_2024.Services;
+﻿using MURDOC_2024.Model;
+using MURDOC_2024.Services;
 using MURDOC_2024.ViewModel;
 using System;
 using System.Windows;
@@ -34,7 +35,11 @@ namespace MURDOC_2024
                     ViewModel.FreehandModeRequested += OnFreehandModeRequested;
                     ViewModel.ClearROIsRequested += OnClearROIsRequested;
                     ViewModel.ROIMaskExportRequested += OnROIMaskExportRequested;
-                    ViewModel.ResetDrawingRequested += OnResetDrawingRequested; // ADD THIS LINE
+                    ViewModel.ResetDrawingRequested += OnResetDrawingRequested;
+
+                    ViewModel.RankEditModeRequested += OnRankEditModeRequested;
+                    ViewModel.RankBrushChangedRequested += OnRankBrushChanged;
+                    ViewModel.SaveRankMapRequested += OnSaveRankMapRequested;
                     Console.WriteLine("Subscribed to ViewModel drawing events");
                 }
                 catch (Exception viewModelEx)
@@ -83,6 +88,52 @@ namespace MURDOC_2024
             catch (Exception ex)
             {
                 Console.WriteLine($"Error resetting drawing: {ex.Message}");
+            }
+        }
+        
+        private void OnRankEditModeRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                var mode = ViewModel.EditorControlsVM.IsIncreaseBrushActive ? RankBrushMode.Increase : RankBrushMode.Decrease;
+                var brushSize = ViewModel.EditorControlsVM.BrushSize;
+                var brushStrength = ViewModel.EditorControlsVM.BrushStrength;
+
+                FinalPredictionPaneControl.EnableRankBrushMode(mode, brushSize, brushStrength);
+                System.Diagnostics.Debug.WriteLine($"MainWindow: Enabled rank brush mode - {mode}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error enabling rank edit mode: {ex.Message}");
+                MessageBox.Show($"Could not enable rank editing: {ex.Message}",
+                    "Edit Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OnRankBrushChanged(object sender, RankBrushEventArgs e)
+        {
+            try
+            {
+                FinalPredictionPaneControl.UpdateRankBrush(e.Mode, e.BrushSize, e.BrushStrength);
+                System.Diagnostics.Debug.WriteLine($"MainWindow: Updated brush - Mode: {e.Mode}, Size: {e.BrushSize}, Strength: {e.BrushStrength}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating rank brush: {ex.Message}");
+            }
+        }
+
+        private void OnSaveRankMapRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                FinalPredictionPaneControl.SaveModifiedRankMap();
+                System.Diagnostics.Debug.WriteLine("MainWindow: Saved modified rank map");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving rank map: {ex.Message}");
+                throw; // Re-throw so MainWindowViewModel can show error dialog
             }
         }
 

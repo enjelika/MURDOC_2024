@@ -81,6 +81,9 @@ namespace MURDOC_2024.ViewModel
         public event EventHandler ClearROIsRequested;
         public event EventHandler<string> ROIMaskExportRequested;
         public event EventHandler ResetDrawingRequested;
+        public event EventHandler RankEditModeRequested;
+        public event EventHandler<RankBrushEventArgs> RankBrushChangedRequested;
+        public event EventHandler SaveRankMapRequested;
 
         public MainWindowViewModel()
         {
@@ -129,6 +132,9 @@ namespace MURDOC_2024.ViewModel
             EditorControlsVM.FreehandModeRequested += OnFreehandModeRequested;
             EditorControlsVM.ClearROIsRequested += OnClearROIsRequested;
             EditorControlsVM.ExportROIMasksRequested += OnExportROIMasksRequested;
+            EditorControlsVM.RankEditModeRequested += OnRankEditModeRequested;
+            EditorControlsVM.RankBrushChanged += OnRankBrushChanged;
+            EditorControlsVM.SaveRankMapRequested += OnSaveRankMapRequested;
         }
 
         #region EditorControls Event Handlers
@@ -278,6 +284,51 @@ namespace MURDOC_2024.ViewModel
                 MessageBox.Show(
                     $"Error exporting ROI mask:\n{ex.Message}",
                     "Export Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void OnRankEditModeRequested(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("MainWindow: Rank edit mode requested");
+
+            // Enable rank editing mode on FinalPredictionPane
+            RankEditModeRequested?.Invoke(this, EventArgs.Empty);
+
+            _metricsService.LogInteraction("RankEditModeEntered", null);
+        }
+
+        private void OnRankBrushChanged(object sender, RankBrushEventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine($"MainWindow: Brush changed - Mode: {e.Mode}, Size: {e.BrushSize}, Strength: {e.BrushStrength}");
+
+            // Forward to FinalPredictionPane
+            RankBrushChangedRequested?.Invoke(this, e);
+        }
+
+        private void OnSaveRankMapRequested(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("MainWindow: Save rank map requested");
+
+            try
+            {
+                // Trigger save on FinalPredictionPane
+                SaveRankMapRequested?.Invoke(this, EventArgs.Empty);
+
+                MessageBox.Show(
+                    "Rank map modifications saved successfully!",
+                    "Save Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                _metricsService.LogInteraction("RankMapSaved", null);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error saving rank map:\n{ex.Message}",
+                    "Save Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }

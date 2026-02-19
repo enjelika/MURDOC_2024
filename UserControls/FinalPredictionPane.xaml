@@ -37,7 +37,7 @@
                 BorderBrush="#CCCCCC" 
                 BorderThickness="1">
 
-            <Grid>
+            <Grid ClipToBounds="True">
                 <!-- Placeholder when no result -->
                 <TextBlock Text="Final prediction will appear here after running models"
                            FontSize="14"
@@ -78,6 +78,7 @@
 
                 <!-- Layered prediction display -->
                 <Grid x:Name="LayeredImageGrid"
+                    ClipToBounds="True"
                     Visibility="{Binding HasResult, Converter={StaticResource BoolToVisConverter}}">
                     <!-- Base layer: Original image -->
                     <Image x:Name="BaseImageLayer"

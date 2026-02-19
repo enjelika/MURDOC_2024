@@ -1,4 +1,5 @@
-﻿using MURDOC_2024.Services;
+﻿using MURDOC_2024.Model;
+using MURDOC_2024.Services;
 using MURDOC_2024.ViewModel;
 using System;
 using System.Collections.Generic;
@@ -40,6 +41,13 @@ namespace MURDOC_2024.UserControls
         private bool _isDraggingPoint;
         private int _draggedPointIndex;
         private Ellipse _draggedMarker;
+
+        // Rank editing
+        private bool _isRankBrushMode;
+        private RankBrushMode _currentBrushMode;
+        private double _currentBrushSize = 20;
+        private double _currentBrushStrength = 0.5;
+        private bool _isRankPainting;
 
         public event EventHandler ROICompleted;
 
@@ -310,16 +318,115 @@ namespace MURDOC_2024.UserControls
             System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Polygon drawing enabled with editable outline and zoom/pan");
         }
 
+        #region Rank Brush Methods
+
+        /// <summary>
+        /// Enable rank brush editing mode
+        /// </summary>
+        public void EnableRankBrushMode(RankBrushMode mode, double brushSize, double brushStrength)
+        {
+            // Exit polygon drawing mode if active
+            if (ViewModel?.IsDrawingMode == true)
+            {
+                ViewModel.DisableDrawingMode();
+                ClearDrawing();
+            }
+
+            // Enable rank brush mode
+            _isRankBrushMode = true;
+            _currentBrushMode = mode;
+            _currentBrushSize = brushSize;
+            _currentBrushStrength = brushStrength;
+
+            EditingCanvas.Cursor = Cursors.Cross;
+            EditingCanvas.Visibility = Visibility.Visible;
+
+            string modeText = mode == RankBrushMode.Increase ? "Increase" : "Decrease";
+            System.Diagnostics.Debug.WriteLine($"Rank brush mode enabled - {modeText}, Size: {brushSize}px, Strength: {brushStrength:P0}");
+            System.Diagnostics.Debug.WriteLine("Right-click to exit rank editing mode");
+        }
+
+        /// <summary>
+        /// Disable rank brush editing mode
+        /// </summary>
+        public void DisableRankBrushMode()
+        {
+            _isRankBrushMode = false;
+            _isRankPainting = false;
+
+            EditingCanvas.Cursor = Cursors.Arrow;
+            EditingCanvas.Visibility = Visibility.Collapsed;
+
+            if (EditingCanvas.IsMouseCaptured)
+            {
+                EditingCanvas.ReleaseMouseCapture();
+            }
+
+            System.Diagnostics.Debug.WriteLine("Rank brush mode disabled");
+        }
+
+        /// <summary>
+        /// Update rank brush parameters (when changing size/strength/mode while active)
+        /// </summary>
+        public void UpdateRankBrush(RankBrushMode mode, double brushSize, double brushStrength)
+        {
+            _currentBrushMode = mode;
+            _currentBrushSize = brushSize;
+            _currentBrushStrength = brushStrength;
+
+            string modeText = mode == RankBrushMode.Increase ? "Increase" : "Decrease";
+            System.Diagnostics.Debug.WriteLine($"Brush updated: {modeText}, Size: {brushSize}px, Strength: {brushStrength:P0}");
+        }
+
+        /// <summary>
+        /// Save modified rank map to disk
+        /// </summary>
+        public void SaveModifiedRankMap()
+        {
+            if (ViewModel == null)
+            {
+                throw new Exception("ViewModel is null");
+            }
+
+            // Trigger save in ViewModel
+            ViewModel.SaveModifiedRankMap();
+        }
+
+        #endregion
+
         private void EditingCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (ViewModel == null || !ViewModel.IsDrawingMode)
+            if (ViewModel == null)
+                return;
+
+            // =================================================================
+            // RANK BRUSH MODE - Takes priority when active
+            // =================================================================
+            if (_isRankBrushMode)
+            {
+                _isRankPainting = true;
+                Point canvasPoint = e.GetPosition(EditingCanvas);
+                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
+
+                // Apply brush stroke
+                ViewModel.ApplyRankBrush(imagePoint, _currentBrushMode, _currentBrushSize, _currentBrushStrength);
+
+                EditingCanvas.CaptureMouse();
+                e.Handled = true;
+                return;
+            }
+
+            // =================================================================
+            // POLYGON DRAWING MODE - Only active when rank brush is off
+            // =================================================================
+            if (!ViewModel.IsDrawingMode)
                 return;
 
             // Don't interfere with panning
             if (Keyboard.IsKeyDown(Key.Space))
                 return;
 
-            Point canvasPoint = e.GetPosition(EditingCanvas);
+            Point canvasPoint2 = e.GetPosition(EditingCanvas);
 
             // Check if clicking near an existing point marker (within 10 pixels)
             for (int i = 0; i < _polygonPointMarkers.Count; i++)
@@ -329,8 +436,8 @@ namespace MURDOC_2024.UserControls
                 double markerY = Canvas.GetTop(marker) + 5;
 
                 double distance = Math.Sqrt(
-                    Math.Pow(canvasPoint.X - markerX, 2) +
-                    Math.Pow(canvasPoint.Y - markerY, 2));
+                    Math.Pow(canvasPoint2.X - markerX, 2) +
+                    Math.Pow(canvasPoint2.Y - markerY, 2));
 
                 if (distance < 10)
                 {
@@ -339,7 +446,7 @@ namespace MURDOC_2024.UserControls
                     _draggedPointIndex = i;
                     _draggedMarker = marker;
 
-                    // Visual feedback - make it orange and larger
+                    // Visual feedback
                     marker.Fill = Brushes.Orange;
                     marker.Width = 12;
                     marker.Height = 12;
@@ -354,18 +461,18 @@ namespace MURDOC_2024.UserControls
                 }
             }
 
-            // Not near existing point - CREATE NEW POINT and immediately start dragging it
+            // Not near existing point - CREATE NEW POINT
             if (ViewModel.CurrentDrawingMode == DrawingMode.Polygon)
             {
-                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
+                Point imagePoint = CanvasToImageCoordinates(canvasPoint2);
 
                 // Add point to polygon (IMAGE coordinates)
                 _drawingService.AddPoint(imagePoint);
 
                 // Create visual marker (CANVAS coordinates)
-                var marker = CreatePointMarker(canvasPoint);
+                var marker = CreatePointMarker(canvasPoint2);
 
-                // Immediately put it in drag mode so user can position it
+                // Immediately put it in drag mode
                 _isDraggingPoint = true;
                 _draggedPointIndex = _drawingService.CurrentPolygon.Count - 1;
                 _draggedMarker = marker;
@@ -374,15 +481,14 @@ namespace MURDOC_2024.UserControls
                 marker.Fill = Brushes.Orange;
                 marker.Width = 12;
                 marker.Height = 12;
-                Canvas.SetLeft(marker, canvasPoint.X - 6);
-                Canvas.SetTop(marker, canvasPoint.Y - 6);
+                Canvas.SetLeft(marker, canvasPoint2.X - 6);
+                Canvas.SetTop(marker, canvasPoint2.Y - 6);
 
                 EditingCanvas.Children.Add(marker);
                 _polygonPointMarkers.Add(marker);
 
                 EditingCanvas.CaptureMouse();
 
-                // Update polyline to show the new point
                 UpdatePolyline();
 
                 System.Diagnostics.Debug.WriteLine($"Created new point {_draggedPointIndex} and started dragging");
@@ -393,7 +499,24 @@ namespace MURDOC_2024.UserControls
 
         private void EditingCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            // Handle panning (takes priority)
+            // =================================================================
+            // RANK BRUSH PAINTING
+            // =================================================================
+            if (_isRankPainting && _isRankBrushMode)
+            {
+                Point canvasPoint = e.GetPosition(EditingCanvas);
+                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
+
+                // Apply brush stroke
+                ViewModel.ApplyRankBrush(imagePoint, _currentBrushMode, _currentBrushSize, _currentBrushStrength);
+
+                e.Handled = true;
+                return;
+            }
+
+            // =================================================================
+            // PANNING (works in both modes if Space is held)
+            // =================================================================
             if (_isPanning)
             {
                 Point currentPos = e.GetPosition(this);
@@ -410,7 +533,9 @@ namespace MURDOC_2024.UserControls
                 return;
             }
 
-            // Handle point dragging
+            // =================================================================
+            // POLYGON POINT DRAGGING
+            // =================================================================
             if (_isDraggingPoint && _draggedPointIndex >= 0 && _draggedMarker != null)
             {
                 Point canvasPoint = e.GetPosition(EditingCanvas);
@@ -435,38 +560,48 @@ namespace MURDOC_2024.UserControls
 
         private void EditingCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            // =================================================================
+            // STOP RANK PAINTING
+            // =================================================================
+            if (_isRankPainting)
+            {
+                _isRankPainting = false;
+                EditingCanvas.ReleaseMouseCapture();
+                System.Diagnostics.Debug.WriteLine("Stopped rank painting");
+                e.Handled = true;
+                return;
+            }
+
+            // =================================================================
+            // STOP POLYGON POINT DRAGGING
+            // =================================================================
             System.Diagnostics.Debug.WriteLine($"MouseLeftButtonUp fired. IsDragging={_isDraggingPoint}");
 
             if (_isDraggingPoint)
             {
                 try
                 {
-                    // Finalize the point position
                     Point finalCanvasPoint = e.GetPosition(EditingCanvas);
                     Point finalImagePoint = CanvasToImageCoordinates(finalCanvasPoint);
 
-                    // Ensure the point is updated with final position
                     if (_draggedPointIndex >= 0 && _draggedPointIndex < _drawingService.CurrentPolygon.Count)
                     {
                         _drawingService.CurrentPolygon[_draggedPointIndex] = finalImagePoint;
                         System.Diagnostics.Debug.WriteLine($"Updated point {_draggedPointIndex} to final position: {finalImagePoint}");
                     }
 
-                    // Reset marker appearance to normal (yellow, smaller)
                     if (_draggedMarker != null)
                     {
                         _draggedMarker.Fill = Brushes.Yellow;
                         _draggedMarker.Width = 10;
                         _draggedMarker.Height = 10;
 
-                        // Recenter at final position
                         Canvas.SetLeft(_draggedMarker, finalCanvasPoint.X - 5);
                         Canvas.SetTop(_draggedMarker, finalCanvasPoint.Y - 5);
 
                         System.Diagnostics.Debug.WriteLine($"Reset marker appearance at canvas position: {finalCanvasPoint}");
                     }
 
-                    // Update polyline with final position
                     UpdatePolyline();
 
                     System.Diagnostics.Debug.WriteLine($"Finalized point {_draggedPointIndex}");
@@ -477,12 +612,10 @@ namespace MURDOC_2024.UserControls
                 }
                 finally
                 {
-                    // ALWAYS clear drag state, even if there's an error
                     _isDraggingPoint = false;
                     _draggedPointIndex = -1;
                     _draggedMarker = null;
 
-                    // Release mouse capture
                     if (EditingCanvas.IsMouseCaptured)
                     {
                         EditingCanvas.ReleaseMouseCapture();
@@ -496,12 +629,32 @@ namespace MURDOC_2024.UserControls
 
         private void EditingCanvas_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // =================================================================
+            // EXIT RANK BRUSH MODE
+            // =================================================================
+            if (_isRankBrushMode)
+            {
+                DisableRankBrushMode();
+
+                MessageBox.Show(
+                    "Exited rank editing mode.\n\nModifications have been applied to the preview.\n" +
+                    "Click 'Save Changes' to save permanently.",
+                    "Rank Editing Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                e.Handled = true;
+                return;
+            }
+
+            // =================================================================
+            // COMPLETE POLYGON (existing behavior)
+            // =================================================================
             if (ViewModel == null || !ViewModel.IsDrawingMode)
                 return;
 
             if (_drawingService.CurrentPolygon.Count >= 3)
             {
-                // Complete the polygon
                 CompletePolygon();
             }
             else
@@ -774,7 +927,7 @@ namespace MURDOC_2024.UserControls
 
             System.Diagnostics.Debug.WriteLine($"Displayed editable mask outline with {imageContourPoints.Count} points");
         }
-
+                
         public void EnableFreehandDrawing()
         {
             _drawingService.StartDrawing(DrawingMode.Freehand);

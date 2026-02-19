@@ -744,6 +744,130 @@ namespace MURDOC_2024.ViewModel
             return bitmap;
         }
 
+        /// <summary>
+        /// Save modified rank map to disk (both PNG and normalized array)
+        /// </summary>
+        public void SaveModifiedRankMap()
+        {
+            if (!_hasRankModifications || _modifiedRankData == null)
+            {
+                System.Diagnostics.Debug.WriteLine("No rank modifications to save");
+                return;
+            }
+
+            try
+            {
+                if (string.IsNullOrEmpty(OriginalImage?.UriSource?.LocalPath))
+                {
+                    System.Diagnostics.Debug.WriteLine("No original image path available");
+                    return;
+                }
+
+                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                string fileName = System.IO.Path.GetFileNameWithoutExtension(OriginalImage.UriSource.LocalPath);
+                string outputDir = System.IO.Path.Combine(exeDir, "outputs", fileName);
+
+                System.IO.Directory.CreateDirectory(outputDir);
+
+                int width = OriginalImage.PixelWidth;
+                int height = OriginalImage.PixelHeight;
+
+                // Save as PNG (0-255 byte values for visualization)
+                string modifiedRankPath = System.IO.Path.Combine(outputDir, "fixation_image_modified.png");
+                SaveRankMapAsPNG(modifiedRankPath, width, height);
+
+                // Save as normalized numpy array (0-1 float values for Python)
+                string normalizedArrayPath = System.IO.Path.Combine(outputDir, "fixation_image_modified.npy");
+                SaveRankMapAsNormalizedArray(normalizedArrayPath, width, height);
+
+                // Save timestamped backups
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string timestampPngPath = System.IO.Path.Combine(outputDir, $"fixation_image_modified_{timestamp}.png");
+                string timestampNpyPath = System.IO.Path.Combine(outputDir, $"fixation_image_modified_{timestamp}.npy");
+
+                SaveRankMapAsPNG(timestampPngPath, width, height);
+                SaveRankMapAsNormalizedArray(timestampNpyPath, width, height);
+
+                System.Diagnostics.Debug.WriteLine($"Saved modified rank map:");
+                System.Diagnostics.Debug.WriteLine($"  PNG: {modifiedRankPath}");
+                System.Diagnostics.Debug.WriteLine($"  NPY: {normalizedArrayPath}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving modified rank map: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Save rank map as PNG (0-255 byte values)
+        /// </summary>
+        private void SaveRankMapAsPNG(string filepath, int width, int height)
+        {
+            var writeable = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
+            writeable.WritePixels(new Int32Rect(0, 0, width, height), _modifiedRankData, width, 0);
+
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(writeable));
+
+            using (var stream = System.IO.File.Create(filepath))
+            {
+                encoder.Save(stream);
+            }
+        }
+
+        /// <summary>
+        /// Save rank map as normalized numpy array (0-1 float values)
+        /// For Python processing compatibility
+        /// </summary>
+        private void SaveRankMapAsNormalizedArray(string filepath, int width, int height)
+        {
+            // Convert byte values (0-255) to normalized float values (0-1)
+            float[] normalizedData = new float[_modifiedRankData.Length];
+            for (int i = 0; i < _modifiedRankData.Length; i++)
+            {
+                normalizedData[i] = _modifiedRankData[i] / 255.0f;
+            }
+
+            // Save as numpy-compatible format
+            // NumPy .npy format has a simple header followed by data
+            using (var stream = new System.IO.FileStream(filepath, System.IO.FileMode.Create))
+            using (var writer = new System.IO.BinaryWriter(stream))
+            {
+                // NumPy .npy magic number
+                writer.Write((byte)0x93);
+                writer.Write("NUMPY".ToCharArray());
+
+                // Version 1.0
+                writer.Write((byte)0x01);
+                writer.Write((byte)0x00);
+
+                // Header describing the array
+                string header = $"{{'descr': '<f4', 'fortran_order': False, 'shape': ({height}, {width}), }}";
+
+                // Pad header to multiple of 64 bytes (including magic + version + header length)
+                int headerLen = header.Length;
+                int totalHeaderSize = 10 + headerLen; // 6 (magic) + 2 (version) + 2 (header length) + header
+                int padding = (64 - (totalHeaderSize % 64)) % 64;
+                header += new string(' ', padding) + '\n';
+
+                // Write header length (little-endian uint16)
+                ushort headerLengthWithPadding = (ushort)header.Length;
+                writer.Write(headerLengthWithPadding);
+
+                // Write header
+                writer.Write(header.ToCharArray());
+
+                // Write data (little-endian float32)
+                foreach (float value in normalizedData)
+                {
+                    writer.Write(value);
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($"Saved normalized array ({width}x{height}) with values in range [0, 1]");
+        }
+
         public void Clear()
         {
             OriginalImage = null;
