@@ -31,6 +31,7 @@ namespace MURDOC_2024.UserControls
         private const double MIN_ZOOM = 0.5;
         private const double MAX_ZOOM = 5.0;
         private const double ZOOM_STEP = 0.1;
+        private bool _isZoomPanInitialized = false; //
 
         // Add ScaleTransform and TranslateTransform for the canvas
         private ScaleTransform _scaleTransform;
@@ -72,6 +73,13 @@ namespace MURDOC_2024.UserControls
         /// </summary>
         private void InitializeZoomPan()
         {
+            // Prevent duplicate subscriptions
+            if (_isZoomPanInitialized)
+            {
+                System.Diagnostics.Debug.WriteLine("Zoom/Pan already initialized, skipping");
+                return;
+            }
+
             // Apply transforms to the ENTIRE GRID (not just canvas)
             LayeredImageGrid.RenderTransform = _transformGroup;
             LayeredImageGrid.RenderTransformOrigin = new Point(0.5, 0.5);
@@ -84,6 +92,7 @@ namespace MURDOC_2024.UserControls
             EditingCanvas.MouseUp += EditingCanvas_MouseUp_Pan;
             EditingCanvas.MouseMove += EditingCanvas_MouseMove_Pan;
 
+            _isZoomPanInitialized = true;
             System.Diagnostics.Debug.WriteLine("Zoom/Pan initialized on entire image grid");
         }
 
@@ -92,6 +101,12 @@ namespace MURDOC_2024.UserControls
         /// </summary>
         private void CleanupZoomPan()
         {
+            if (!_isZoomPanInitialized)
+            {
+                System.Diagnostics.Debug.WriteLine("Zoom/Pan not initialized, skipping cleanup");
+                return;
+            }
+
             LayeredImageGrid.MouseWheel -= EditingCanvas_MouseWheel;
             EditingCanvas.MouseDown -= EditingCanvas_MouseDown_Pan;
             EditingCanvas.MouseUp -= EditingCanvas_MouseUp_Pan;
@@ -107,6 +122,7 @@ namespace MURDOC_2024.UserControls
 
             LayeredImageGrid.RenderTransform = null;
 
+            _isZoomPanInitialized = false;
             System.Diagnostics.Debug.WriteLine("Zoom/Pan cleaned up");
         }
 
@@ -332,6 +348,9 @@ namespace MURDOC_2024.UserControls
                 ClearDrawing();
             }
 
+            // Initialize zoom/pan if not already done (so it works in rank mode too!)
+            InitializeZoomPan();
+
             // Enable rank brush mode
             _isRankBrushMode = true;
             _currentBrushMode = mode;
@@ -362,7 +381,8 @@ namespace MURDOC_2024.UserControls
                 EditingCanvas.ReleaseMouseCapture();
             }
 
-            System.Diagnostics.Debug.WriteLine("Rank brush mode disabled");
+            // DON'T clean up zoom/pan here - keep it active for next mode
+            System.Diagnostics.Debug.WriteLine("Rank brush mode disabled (zoom/pan still active)");
         }
 
         /// <summary>
@@ -379,7 +399,7 @@ namespace MURDOC_2024.UserControls
         }
 
         /// <summary>
-        /// Save modified rank map to disk
+        /// Save all modifications to disk
         /// </summary>
         public void SaveModifiedRankMap()
         {
@@ -389,7 +409,7 @@ namespace MURDOC_2024.UserControls
             }
 
             // Trigger save in ViewModel
-            ViewModel.SaveModifiedRankMap();
+            ViewModel.SaveAllModifications();
         }
 
         #endregion

@@ -169,7 +169,7 @@
                 <Button Content="💾 Save Changes"
                     Command="{Binding SaveRankMapCommand}"
                     Margin="0,0,0,5"
-                    ToolTip="Save modified rank map"/>
+                    ToolTip="Save all modifications (binary mask and rank map) to session folder"/>
 
                 <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 

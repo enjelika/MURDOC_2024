@@ -19,7 +19,13 @@ namespace MURDOC_2024.ViewModel
         private ImageSource _overlayImage;       // Colored rank map with transparency
 
         private BitmapImage _originalBinaryMask; // Store original before modifications
+
+        // Session tracking
+        private string _sessionId;
+        private DateTime _sessionStartTime;
         private bool _hasModifications;
+
+        public bool HasAnyModifications => HasModifications || _hasRankModifications;
 
         private byte[] _modifiedRankData; // Store modified rank values
         private bool _hasRankModifications = false;
@@ -28,6 +34,16 @@ namespace MURDOC_2024.ViewModel
         {
             get => _hasModifications;
             set => SetProperty(ref _hasModifications, value);
+        }
+
+        /// <summary>
+        /// Initialize a new editing session
+        /// </summary>
+        private void InitializeSession()
+        {
+            _sessionStartTime = DateTime.Now;
+            _sessionId = _sessionStartTime.ToString("yyyyMMdd_HHmmss");
+            System.Diagnostics.Debug.WriteLine($"Initialized editing session: {_sessionId}");
         }
 
         private bool _hasResult;
@@ -159,14 +175,13 @@ namespace MURDOC_2024.ViewModel
                 if (RankMap != null && BinaryMask != null && OriginalImage != null)
                 {
                     OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
+                    _originalBinaryMask = LoadImage(binaryMaskPath); // KEEP THIS HERE TOO
+                    HasModifications = false;
+                    _hasRankModifications = false;
+
+                    InitializeSession(); // ✅ CORRECT PLACEMENT - After everything loaded
+
                     System.Diagnostics.Debug.WriteLine("Created colored overlay");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"Cannot create overlay - missing components:");
-                    System.Diagnostics.Debug.WriteLine($"  Original: {OriginalImage != null}");
-                    System.Diagnostics.Debug.WriteLine($"  Binary: {BinaryMask != null}");
-                    System.Diagnostics.Debug.WriteLine($"  Rank: {RankMap != null}");
                 }
 
                 HasResult = OriginalImage != null && OverlayImage != null;
@@ -712,6 +727,191 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        /// <summary>
+        /// Save all modifications (binary mask and/or rank map) to session folder
+        /// </summary>
+        public void SaveAllModifications()
+        {
+            if (!HasAnyModifications)
+            {
+                System.Diagnostics.Debug.WriteLine("No modifications to save");
+                MessageBox.Show(
+                    "No modifications have been made.",
+                    "Nothing to Save",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                if (string.IsNullOrEmpty(OriginalImage?.UriSource?.LocalPath))
+                {
+                    throw new Exception("No original image path available");
+                }
+
+                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                string fileName = System.IO.Path.GetFileNameWithoutExtension(OriginalImage.UriSource.LocalPath);
+                string baseOutputDir = System.IO.Path.Combine(exeDir, "outputs", fileName);
+
+                // Create session folder
+                string sessionFolder = System.IO.Path.Combine(baseOutputDir, $"session_{_sessionId}");
+                System.IO.Directory.CreateDirectory(sessionFolder);
+
+                int savedCount = 0;
+                List<string> savedFiles = new List<string>();
+
+                // Save modified binary mask (if edited)
+                if (HasModifications && BinaryMask != null)
+                {
+                    string maskPath = System.IO.Path.Combine(sessionFolder, "binary_image_modified.png");
+                    SaveBinaryMaskToPNG(maskPath);
+                    savedFiles.Add("Binary Mask (PNG)");
+                    savedCount++;
+                    System.Diagnostics.Debug.WriteLine($"Saved binary mask to: {maskPath}");
+                }
+
+                // Save modified rank map (if edited)
+                if (_hasRankModifications && _modifiedRankData != null)
+                {
+                    int width = OriginalImage.PixelWidth;
+                    int height = OriginalImage.PixelHeight;
+
+                    // Save as PNG (0-255 for visualization)
+                    string rankPngPath = System.IO.Path.Combine(sessionFolder, "fixation_image_modified.png");
+                    SaveRankMapAsPNG(rankPngPath, width, height);
+                    savedFiles.Add("Rank Map (PNG)");
+
+                    // Save as normalized CSV (0-1 for Python)
+                    string rankCsvPath = System.IO.Path.Combine(sessionFolder, "fixation_image_modified.csv");
+                    SaveRankMapAsNormalizedCSV(rankCsvPath, width, height);
+                    savedFiles.Add("Rank Map (CSV normalized)");
+
+                    savedCount += 2;
+                    System.Diagnostics.Debug.WriteLine($"Saved rank map to: {rankPngPath} and {rankCsvPath}");
+                }
+
+                // Save session metadata
+                SaveSessionMetadata(sessionFolder, savedFiles);
+
+                // Show success message
+                MessageBox.Show(
+                    $"Session saved successfully!\n\n" +
+                    $"Location: {sessionFolder}\n\n" +
+                    $"Files saved: {savedCount}\n" +
+                    string.Join("\n", savedFiles.Select(f => $"  • {f}")),
+                    "Save Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                System.Diagnostics.Debug.WriteLine($"Session {_sessionId} saved successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving session: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Save session metadata as JSON
+        /// </summary>
+        private void SaveSessionMetadata(string sessionFolder, List<string> savedFiles)
+        {
+            try
+            {
+                var metadata = new
+                {
+                    SessionId = _sessionId,
+                    StartTime = _sessionStartTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                    SaveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    ImageName = System.IO.Path.GetFileNameWithoutExtension(OriginalImage?.UriSource?.LocalPath),
+                    ModificationsSaved = savedFiles,
+                    HasBinaryMaskEdit = HasModifications,
+                    HasRankMapEdit = _hasRankModifications
+                };
+
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(metadata, Newtonsoft.Json.Formatting.Indented);
+                string metadataPath = System.IO.Path.Combine(sessionFolder, "session_metadata.json");
+                System.IO.File.WriteAllText(metadataPath, json);
+
+                System.Diagnostics.Debug.WriteLine($"Saved session metadata to: {metadataPath}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving metadata: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Save binary mask as PNG
+        /// </summary>
+        private void SaveBinaryMaskToPNG(string filepath)
+        {
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(BinaryMask));
+
+            using (var stream = System.IO.File.Create(filepath))
+            {
+                encoder.Save(stream);
+            }
+        }
+
+        /// <summary>
+        /// Save rank map as PNG (0-255 byte values)
+        /// </summary>
+        private void SaveRankMapAsPNG(string filepath, int width, int height)
+        {
+            var writeable = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
+            writeable.WritePixels(new Int32Rect(0, 0, width, height), _modifiedRankData, width, 0);
+
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(writeable));
+
+            using (var stream = System.IO.File.Create(filepath))
+            {
+                encoder.Save(stream);
+            }
+        }
+
+        /// <summary>
+        /// Save rank map as CSV with normalized values (0-1)
+        /// Simple format, easy to load in Python with numpy.loadtxt()
+        /// </summary>
+        private void SaveRankMapAsNormalizedCSV(string filepath, int width, int height)
+        {
+            using (var writer = new System.IO.StreamWriter(filepath))
+            {
+                // Write dimensions as first line (comment)
+                writer.WriteLine($"# Rank Map: {width}x{height}");
+                writer.WriteLine($"# Values normalized to range [0, 1]");
+                writer.WriteLine($"# Session: {_sessionId}");
+
+                // Write data row by row
+                for (int y = 0; y < height; y++)
+                {
+                    var row = new List<string>();
+                    for (int x = 0; x < width; x++)
+                    {
+                        int idx = y * width + x;
+                        float normalizedValue = _modifiedRankData[idx] / 255.0f;
+                        row.Add(normalizedValue.ToString("F6")); // 6 decimal places
+                    }
+                    writer.WriteLine(string.Join(",", row));
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($"Saved normalized CSV ({width}x{height})");
+        }
+
+        /// <summary>
+        /// Legacy method - now redirects to unified save
+        /// </summary>
+        public void SaveModifiedRankMap()
+        {
+            SaveAllModifications();
+        }
+
         private BitmapImage ConvertWriteableToBitmapImage(WriteableBitmap writeable)
         {
             var encoder = new PngBitmapEncoder();
@@ -743,131 +943,7 @@ namespace MURDOC_2024.ViewModel
             bitmap.Freeze(); // Make thread-safe and ensure it's fully loaded
             return bitmap;
         }
-
-        /// <summary>
-        /// Save modified rank map to disk (both PNG and normalized array)
-        /// </summary>
-        public void SaveModifiedRankMap()
-        {
-            if (!_hasRankModifications || _modifiedRankData == null)
-            {
-                System.Diagnostics.Debug.WriteLine("No rank modifications to save");
-                return;
-            }
-
-            try
-            {
-                if (string.IsNullOrEmpty(OriginalImage?.UriSource?.LocalPath))
-                {
-                    System.Diagnostics.Debug.WriteLine("No original image path available");
-                    return;
-                }
-
-                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string fileName = System.IO.Path.GetFileNameWithoutExtension(OriginalImage.UriSource.LocalPath);
-                string outputDir = System.IO.Path.Combine(exeDir, "outputs", fileName);
-
-                System.IO.Directory.CreateDirectory(outputDir);
-
-                int width = OriginalImage.PixelWidth;
-                int height = OriginalImage.PixelHeight;
-
-                // Save as PNG (0-255 byte values for visualization)
-                string modifiedRankPath = System.IO.Path.Combine(outputDir, "fixation_image_modified.png");
-                SaveRankMapAsPNG(modifiedRankPath, width, height);
-
-                // Save as normalized numpy array (0-1 float values for Python)
-                string normalizedArrayPath = System.IO.Path.Combine(outputDir, "fixation_image_modified.npy");
-                SaveRankMapAsNormalizedArray(normalizedArrayPath, width, height);
-
-                // Save timestamped backups
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string timestampPngPath = System.IO.Path.Combine(outputDir, $"fixation_image_modified_{timestamp}.png");
-                string timestampNpyPath = System.IO.Path.Combine(outputDir, $"fixation_image_modified_{timestamp}.npy");
-
-                SaveRankMapAsPNG(timestampPngPath, width, height);
-                SaveRankMapAsNormalizedArray(timestampNpyPath, width, height);
-
-                System.Diagnostics.Debug.WriteLine($"Saved modified rank map:");
-                System.Diagnostics.Debug.WriteLine($"  PNG: {modifiedRankPath}");
-                System.Diagnostics.Debug.WriteLine($"  NPY: {normalizedArrayPath}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error saving modified rank map: {ex.Message}");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Save rank map as PNG (0-255 byte values)
-        /// </summary>
-        private void SaveRankMapAsPNG(string filepath, int width, int height)
-        {
-            var writeable = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
-            writeable.WritePixels(new Int32Rect(0, 0, width, height), _modifiedRankData, width, 0);
-
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(writeable));
-
-            using (var stream = System.IO.File.Create(filepath))
-            {
-                encoder.Save(stream);
-            }
-        }
-
-        /// <summary>
-        /// Save rank map as normalized numpy array (0-1 float values)
-        /// For Python processing compatibility
-        /// </summary>
-        private void SaveRankMapAsNormalizedArray(string filepath, int width, int height)
-        {
-            // Convert byte values (0-255) to normalized float values (0-1)
-            float[] normalizedData = new float[_modifiedRankData.Length];
-            for (int i = 0; i < _modifiedRankData.Length; i++)
-            {
-                normalizedData[i] = _modifiedRankData[i] / 255.0f;
-            }
-
-            // Save as numpy-compatible format
-            // NumPy .npy format has a simple header followed by data
-            using (var stream = new System.IO.FileStream(filepath, System.IO.FileMode.Create))
-            using (var writer = new System.IO.BinaryWriter(stream))
-            {
-                // NumPy .npy magic number
-                writer.Write((byte)0x93);
-                writer.Write("NUMPY".ToCharArray());
-
-                // Version 1.0
-                writer.Write((byte)0x01);
-                writer.Write((byte)0x00);
-
-                // Header describing the array
-                string header = $"{{'descr': '<f4', 'fortran_order': False, 'shape': ({height}, {width}), }}";
-
-                // Pad header to multiple of 64 bytes (including magic + version + header length)
-                int headerLen = header.Length;
-                int totalHeaderSize = 10 + headerLen; // 6 (magic) + 2 (version) + 2 (header length) + header
-                int padding = (64 - (totalHeaderSize % 64)) % 64;
-                header += new string(' ', padding) + '\n';
-
-                // Write header length (little-endian uint16)
-                ushort headerLengthWithPadding = (ushort)header.Length;
-                writer.Write(headerLengthWithPadding);
-
-                // Write header
-                writer.Write(header.ToCharArray());
-
-                // Write data (little-endian float32)
-                foreach (float value in normalizedData)
-                {
-                    writer.Write(value);
-                }
-            }
-
-            System.Diagnostics.Debug.WriteLine($"Saved normalized array ({width}x{height}) with values in range [0, 1]");
-        }
-
+                
         public void Clear()
         {
             OriginalImage = null;

@@ -233,7 +233,7 @@ namespace MURDOC_2024.ViewModel
         private void SaveRankMap()
         {
             SaveRankMapRequested?.Invoke(this, EventArgs.Empty);
-            System.Diagnostics.Debug.WriteLine("Save rank map requested");
+            System.Diagnostics.Debug.WriteLine("Save all modifications requested");
         }
 
         private void EnablePolygonMode()
