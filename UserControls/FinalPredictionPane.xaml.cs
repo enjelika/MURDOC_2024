@@ -329,6 +329,11 @@ namespace MURDOC_2024.UserControls
             ViewModel?.EnableDrawingMode(DrawingMode.Polygon);
 
             InitializeZoomPan(); // INITIALIZE ZOOM/PAN
+
+            // EXPLICITLY SHOW CANVAS (in case rank brush collapsed it)
+            EditingCanvas.Visibility = Visibility.Visible;
+            EditingCanvas.Cursor = Cursors.Arrow; // Reset cursor
+
             ShowOriginalMaskOutline();
 
             System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Polygon drawing enabled with editable outline and zoom/pan");
@@ -374,7 +379,6 @@ namespace MURDOC_2024.UserControls
             _isRankPainting = false;
 
             EditingCanvas.Cursor = Cursors.Arrow;
-            EditingCanvas.Visibility = Visibility.Collapsed;
 
             if (EditingCanvas.IsMouseCaptured)
             {
@@ -959,6 +963,13 @@ namespace MURDOC_2024.UserControls
         {
             ClearDrawing();
             CleanupZoomPan(); // CLEANUP ZOOM/PAN
+
+            // Only collapse canvas if we're truly done with all editing modes
+            if (!_isRankBrushMode)
+            {
+                EditingCanvas.Visibility = Visibility.Collapsed;
+            }
+
             ViewModel?.DisableDrawingMode();
             System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Drawing cancelled");
         }
@@ -972,6 +983,12 @@ namespace MURDOC_2024.UserControls
             {
                 EditingCanvas.Children.Remove(_originalMaskPolygon);
                 _originalMaskPolygon = null;
+            }
+
+            // Only collapse canvas if we're truly done with all editing modes
+            if (!_isRankBrushMode)
+            {
+                EditingCanvas.Visibility = Visibility.Collapsed;
             }
 
             ViewModel?.DisableDrawingMode();
