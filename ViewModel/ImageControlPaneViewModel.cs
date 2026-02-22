@@ -32,6 +32,49 @@ namespace MURDOC_2024.ViewModel
         public ICommand ResetCommand => _resetCommand;
         public ICommand SlidersCommand => _slidersCommand;
 
+        public int SliderBrightness
+        {
+            get => _sliderBrightness;
+            set
+            {
+                if (SetProperty(ref _sliderBrightness, value))
+                {
+                    _sliderBrightness = value;
+                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
+                }
+            }
+        }
+
+        public int SliderContrast
+        {
+            get => _sliderContrast;
+            set
+            {
+                if (SetProperty(ref _sliderContrast, value))
+                {
+                    _sliderContrast = value;
+                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
+                }
+            }
+        }
+
+        public int SliderSaturation
+        {
+            get => _sliderSaturation;
+            set
+            {
+                if (SetProperty(ref _sliderSaturation, value))
+                {
+                    _sliderSaturation = value;
+                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
+                }
+            }
+        }
+
+        public int Brightness => _sliderBrightness;
+        public int Contrast => _sliderContrast;
+        public int Saturation => _sliderSaturation;
+
         public bool IsRunButtonEnabled
         {
             get => _isRunButtonEnabled;
@@ -77,45 +120,6 @@ namespace MURDOC_2024.ViewModel
                 if (SetProperty(ref _isSlidersEnabled, value))
                 {
                     _slidersCommand?.RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        public int SliderBrightness
-        {
-            get => _sliderBrightness;
-            set
-            {
-                if (SetProperty(ref _sliderBrightness, value))
-                {
-                    _sliderBrightness = value;
-                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
-                }
-            }
-        }
-
-        public int SliderContrast
-        {
-            get => _sliderContrast;
-            set
-            {
-                if (SetProperty(ref _sliderContrast, value))
-                {
-                    _sliderContrast = value;
-                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
-                }
-            }
-        }
-
-        public int SliderSaturation
-        {
-            get => _sliderSaturation;
-            set
-            {
-                if (SetProperty(ref _sliderSaturation, value))
-                {
-                    _sliderSaturation = value;
-                    _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
                 }
             }
         }

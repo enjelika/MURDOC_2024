@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -12,7 +13,11 @@ namespace MURDOC_2024.ViewModel
         private bool _hasBinaryMaskEdits;
         private bool _hasRankMapEdits;
         private bool _hasActiveSession;
+        private int _imagesAnalyzed;
         private DispatcherTimer _durationTimer;
+
+        // Track detailed image data
+        private List<ImageSessionData> _imageDataList;
 
         public string CurrentImageName
         {
@@ -41,10 +46,22 @@ namespace MURDOC_2024.ViewModel
         public bool HasActiveSession
         {
             get => _hasActiveSession;
-            set => SetProperty(ref _hasActiveSession, value);
+            set
+            {
+                if (SetProperty(ref _hasActiveSession, value))
+                {
+                    UpdateCommandStates();
+                }
+            }
         }
 
         public bool HasAnyModifications => HasBinaryMaskEdits || HasRankMapEdits;
+
+        public int ImagesAnalyzed
+        {
+            get => _imagesAnalyzed;
+            set => SetProperty(ref _imagesAnalyzed, value);
+        }
 
         public ICommand EndSessionCommand { get; }
 
@@ -52,9 +69,11 @@ namespace MURDOC_2024.ViewModel
 
         public SessionInfoPaneViewModel()
         {
-            EndSessionCommand = new RelayCommand(EndSession, () => HasActiveSession && HasAnyModifications);
+            _imageDataList = new List<ImageSessionData>();
 
-            // Timer to update duration display every second
+            // CHANGED: Only require active session, not modifications
+            EndSessionCommand = new RelayCommand(EndSession, () => HasActiveSession);
+
             _durationTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(1)
@@ -64,16 +83,87 @@ namespace MURDOC_2024.ViewModel
 
         public void StartSession(string imageName)
         {
+            if (!HasActiveSession)
+            {
+                // Starting a new session
+                _sessionStartTime = DateTime.Now;
+                HasActiveSession = true;
+                ImagesAnalyzed = 0;
+                _imageDataList.Clear();
+
+                _durationTimer.Start();
+                UpdateDuration(null, null);
+
+                System.Diagnostics.Debug.WriteLine($"New session started");
+            }
+
+            // Set current image (whether new session or continuing)
             CurrentImageName = imageName;
-            _sessionStartTime = DateTime.Now;
-            HasActiveSession = true;
             HasBinaryMaskEdits = false;
             HasRankMapEdits = false;
 
-            _durationTimer.Start();
-            UpdateDuration(null, null);
+            System.Diagnostics.Debug.WriteLine($"Current image: {imageName}");
+        }
 
-            System.Diagnostics.Debug.WriteLine($"Session started for: {imageName}");
+        public void IncrementImageCount()
+        {
+            ImagesAnalyzed++;
+            System.Diagnostics.Debug.WriteLine($"Images analyzed: {ImagesAnalyzed}");
+        }
+
+        public void RecordImageData(string imageName, bool hasBinaryEdit, bool hasRankEdit,
+            int confirmedCount, int rejectedCount, int correctionCount,
+            int brightness, int contrast, int saturation,
+            double sensitivity, double responseBias)
+        {
+            // Check if we already have data for this image
+            var existing = _imageDataList.Find(d => d.ImageName == imageName);
+
+            if (existing != null)
+            {
+                // Update existing entry
+                existing.BinaryMaskEdited = hasBinaryEdit;
+                existing.RankMapEdited = hasRankEdit;
+                existing.ConfirmedDetections = confirmedCount;
+                existing.RejectedDetections = rejectedCount;
+                existing.CorrectionsMade = correctionCount;
+                existing.Brightness = brightness;
+                existing.Contrast = contrast;
+                existing.Saturation = saturation;
+                existing.Sensitivity = sensitivity;
+                existing.ResponseBias = responseBias;
+            }
+            else
+            {
+                // Add new entry
+                _imageDataList.Add(new ImageSessionData
+                {
+                    ImageName = imageName,
+                    BinaryMaskEdited = hasBinaryEdit,
+                    RankMapEdited = hasRankEdit,
+                    ConfirmedDetections = confirmedCount,
+                    RejectedDetections = rejectedCount,
+                    CorrectionsMade = correctionCount,
+                    Brightness = brightness,
+                    Contrast = contrast,
+                    Saturation = saturation,
+                    Sensitivity = sensitivity,
+                    ResponseBias = responseBias,
+                    AnalyzedAt = DateTime.Now
+                });
+            }
+        }
+
+        public SessionSummaryData GetSessionSummary()
+        {
+            return new SessionSummaryData
+            {
+                SessionStartTime = _sessionStartTime,
+                SessionEndTime = DateTime.Now,
+                TotalDuration = DateTime.Now - _sessionStartTime,
+                ImagesAnalyzed = ImagesAnalyzed,
+                Images = new List<ImageSessionData>(_imageDataList)
+            };
         }
 
         public void EndSessionInternal()
@@ -84,6 +174,8 @@ namespace MURDOC_2024.ViewModel
             SessionDuration = "00:00:00";
             HasBinaryMaskEdits = false;
             HasRankMapEdits = false;
+            ImagesAnalyzed = 0;
+            _imageDataList.Clear();
 
             UpdateCommandStates();
 
@@ -116,5 +208,36 @@ namespace MURDOC_2024.ViewModel
         {
             (EndSessionCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
+    }
+
+    // Data classes for session tracking
+    // Data classes for session tracking
+    public class ImageSessionData
+    {
+        public string ImageName { get; set; }
+        public bool BinaryMaskEdited { get; set; }
+        public bool RankMapEdited { get; set; }
+        public int ConfirmedDetections { get; set; }
+        public int RejectedDetections { get; set; }
+        public int CorrectionsMade { get; set; }
+        public DateTime AnalyzedAt { get; set; }
+
+        // Image adjustment parameters
+        public int Brightness { get; set; }
+        public int Contrast { get; set; }
+        public int Saturation { get; set; }
+
+        // Detection parameters
+        public double Sensitivity { get; set; }  // d' value
+        public double ResponseBias { get; set; }  // β value
+    }
+
+    public class SessionSummaryData
+    {
+        public DateTime SessionStartTime { get; set; }
+        public DateTime SessionEndTime { get; set; }
+        public TimeSpan TotalDuration { get; set; }
+        public int ImagesAnalyzed { get; set; }
+        public List<ImageSessionData> Images { get; set; }
     }
 }
