@@ -6,193 +6,205 @@
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              xmlns:converters="clr-namespace:MURDOC_2024.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="980" d:DesignWidth="1000">
+             d:DesignHeight="1040" d:DesignWidth="1000">
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisConverter"/>
     </UserControl.Resources>
 
-    <Grid Margin="5">
-        <Grid.RowDefinitions>
-            <!-- Title -->
-            <RowDefinition Height="Auto"/>
-            <!-- Main Image -->
-            <RowDefinition Height="*"/>
-            <!-- Colorbar Legend -->
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- Outer Border - matches other panes -->
+    <Border BorderBrush="#CCCCCC" 
+            BorderThickness="1" 
+            Background="White"
+            CornerRadius="4"
+            Margin="5">
 
-        <!-- ==================== TITLE ==================== -->
-        <TextBlock Grid.Row="0" 
-                   Text="Final Model Prediction" 
-                   FontWeight="Bold" 
-                   FontSize="14"
-                   HorizontalAlignment="Center"
-                   Panel.ZIndex="10"
-                   Margin="0,30,0,5"/>
-
-        <!-- ==================== MAIN PREDICTION IMAGE (LAYERED) ==================== -->
-        <Border Grid.Row="1" 
-                BorderBrush="#CCCCCC" 
-                BorderThickness="1">
-
-            <Grid ClipToBounds="True">
-                <!-- Placeholder when no result -->
-                <TextBlock Text="Final prediction will appear here after running models"
-                           FontSize="14"
-                           Foreground="#999999"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           TextWrapping="Wrap"
-                           TextAlignment="Center"
-                           Margin="20"
-                           Visibility="{Binding HasResult, Converter={StaticResource InverseBoolToVisConverter}}"/>
-
-                <StackPanel Orientation="Horizontal"
-                    Panel.ZIndex="10"        
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Margin="10"
-                    Visibility="{Binding IsDrawingMode, Converter={StaticResource BoolToVisConverter}}">
-                                    <Button Content="🔍+" 
-                        Width="30" Height="30"
-                        Click="ZoomIn_Click"
-                        ToolTip="Zoom In (Ctrl+Scroll)"/>
-                                    <Button Content="🔍−" 
-                        Width="30" Height="30"
-                        Margin="5,0,0,0"
-                        Click="ZoomOut_Click"
-                        ToolTip="Zoom Out (Ctrl+Scroll)"/>
-                                    <Button Content="⟲" 
-                        Width="30" Height="30"
-                        Margin="5,0,0,0"
-                        Click="ResetZoom_Click"
-                        ToolTip="Reset Zoom"/>
-                                    <TextBlock Text="{Binding ZoomLevelText}"
-                        VerticalAlignment="Center"
-                        Margin="10,0,0,0"
-                        FontSize="11"
-                        FontWeight="Bold"/>
-                </StackPanel>
-
-                <!-- Layered prediction display -->
-                <Grid x:Name="LayeredImageGrid"
-                    ClipToBounds="True"
-                    Visibility="{Binding HasResult, Converter={StaticResource BoolToVisConverter}}">
-                    <!-- Base layer: Original image -->
-                    <Image x:Name="BaseImageLayer"
-                           Source="{Binding OriginalImage}"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           RenderOptions.BitmapScalingMode="HighQuality"/>
-
-                    <!-- Overlay layer: Colored rank map with transparency -->
-                    <Image x:Name="OverlayLayer"
-                           Source="{Binding OverlayImage}"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Opacity="{Binding OverlayOpacity}"
-                           RenderOptions.BitmapScalingMode="HighQuality"/>
-
-                    <!-- Future: Canvas for editing -->
-                    <Canvas x:Name="EditingCanvas"
-                            Background="Transparent"
-                            MouseLeftButtonDown="EditingCanvas_MouseLeftButtonDown"
-                            MouseMove="EditingCanvas_MouseMove"
-                            MouseRightButtonDown="EditingCanvas_MouseRightButtonDown"
-                            MouseLeftButtonUp="EditingCanvas_MouseLeftButtonUp"
-                            Visibility="{Binding IsDrawingMode, Converter={StaticResource BoolToVisConverter}}">
-                        <!-- Polygon points will be added here dynamically -->
-                    </Canvas>
-                    
-                </Grid>
-            </Grid>
-        </Border>
-
-        <!-- ==================== HORIZONTAL COLORBAR LEGEND ==================== -->
-        <Grid Grid.Row="2" Margin="20,0,20,10"
-              Background="White">
+        <Grid Margin="10">
             <Grid.RowDefinitions>
-                <!-- Labels Row -->
+                <!-- Title -->
                 <RowDefinition Height="Auto"/>
-                <!-- Colorbar Row -->
+                <!-- Main Image -->
+                <RowDefinition Height="*"/>
+                <!-- Colorbar Legend -->
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Labels: Strong (left) to Weak (right) -->
-            <Grid Grid.Row="0" Margin="0,0,0,3">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- ==================== TITLE ==================== -->
+            <TextBlock Grid.Row="0" 
+                       Text="Final Model Prediction" 
+                       FontWeight="Bold" 
+                       FontSize="16"
+                       HorizontalAlignment="Center"
+                       Panel.ZIndex="10"
+                       Margin="0,5,0,10"/>
 
-                <!-- Left Label: Strong Camouflage -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <TextBlock Text="  Strong Camouflage" 
-                        FontWeight="SemiBold" 
-                        FontSize="10"
-                        Foreground="#333333"/>
-                    <TextBlock Text=" (Hidden)" 
-                        FontSize="9"
-                        FontStyle="Italic"
-                        Foreground="#666666"
-                        VerticalAlignment="Center"/>
-                </StackPanel>
-
-                <!-- Center Label -->
-                <TextBlock Grid.Column="1" 
-                    Text="Detection Confidence" 
-                    FontSize="9"
-                    Foreground="#888888"
-                    HorizontalAlignment="Center"/>
-
-                <!-- Right Label: Weak Camouflage -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <TextBlock Text="Weak Camouflage" 
-                        FontWeight="SemiBold" 
-                        FontSize="10"
-                        Foreground="#333333"/>
-                    <TextBlock Text=" (Detected)  " 
-                        FontSize="9"
-                        FontStyle="Italic"
-                        Foreground="#666666"
-                        VerticalAlignment="Center"/>
-                </StackPanel>
-            </Grid>
-
-            <!-- Horizontal Colorbar Gradient -->
+            <!-- ==================== MAIN PREDICTION IMAGE (LAYERED) ==================== -->
             <Border Grid.Row="1" 
-             BorderBrush="#333333" 
-             BorderThickness="1" 
-             CornerRadius="3"
-             Height="15"
-             HorizontalAlignment="Stretch">
-                <Rectangle RadiusX="2" RadiusY="2">
-                    <Rectangle.Fill>
-                        <!-- JET Colormap: Blue (left/strong) to Red (right/weak) -->
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <!-- Blue - Strongest Camouflage (hardest to detect) -->
-                            <GradientStop Color="#0000FF" Offset="0.0"/>
-                            <!-- Light Blue -->
-                            <GradientStop Color="#007FFF" Offset="0.20"/>
-                            <!-- Cyan -->
-                            <GradientStop Color="#00FFFF" Offset="0.35"/>
-                            <!-- Green -->
-                            <GradientStop Color="#00FF00" Offset="0.50"/>
-                            <!-- Yellow -->
-                            <GradientStop Color="#FFFF00" Offset="0.70"/>
-                            <!-- Orange -->
-                            <GradientStop Color="#FF7F00" Offset="0.85"/>
-                            <!-- Red - Weakest Camouflage (most easily detected) -->
-                            <GradientStop Color="#FF0000" Offset="1.0"/>
-                        </LinearGradientBrush>
-                    </Rectangle.Fill>
-                </Rectangle>
+                    BorderBrush="#CCCCCC" 
+                    BorderThickness="1"
+                    CornerRadius="2"
+                    Margin="0,0,0,10">
+
+                <Grid ClipToBounds="True">
+                    <!-- Placeholder when no result -->
+                    <TextBlock Text="Final prediction will appear here after running models"
+                               FontSize="14"
+                               Foreground="#999999"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               Margin="20"
+                               Visibility="{Binding HasResult, Converter={StaticResource InverseBoolToVisConverter}}"/>
+
+                    <!-- Zoom controls overlay -->
+                    <StackPanel Orientation="Horizontal"
+                        Panel.ZIndex="10"        
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="10"
+                        Visibility="{Binding IsDrawingMode, Converter={StaticResource BoolToVisConverter}}">
+                        <Button Content="🔍+" 
+                            Width="30" Height="30"
+                            Click="ZoomIn_Click"
+                            ToolTip="Zoom In (Ctrl+Scroll)"/>
+                        <Button Content="🔍−" 
+                            Width="30" Height="30"
+                            Margin="5,0,0,0"
+                            Click="ZoomOut_Click"
+                            ToolTip="Zoom Out (Ctrl+Scroll)"/>
+                        <Button Content="⟲" 
+                            Width="30" Height="30"
+                            Margin="5,0,0,0"
+                            Click="ResetZoom_Click"
+                            ToolTip="Reset Zoom"/>
+                        <TextBlock Text="{Binding ZoomLevelText}"
+                            VerticalAlignment="Center"
+                            Margin="10,0,0,0"
+                            FontSize="11"
+                            FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <!-- Layered prediction display -->
+                    <Grid x:Name="LayeredImageGrid"
+                        ClipToBounds="True"
+                        Visibility="{Binding HasResult, Converter={StaticResource BoolToVisConverter}}">
+                        <!-- Base layer: Original image -->
+                        <Image x:Name="BaseImageLayer"
+                               Source="{Binding OriginalImage}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                        <!-- Overlay layer: Colored rank map with transparency -->
+                        <Image x:Name="OverlayLayer"
+                               Source="{Binding OverlayImage}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Opacity="{Binding OverlayOpacity}"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                        <!-- Editing Canvas -->
+                        <Canvas x:Name="EditingCanvas"
+                                Background="Transparent"
+                                MouseLeftButtonDown="EditingCanvas_MouseLeftButtonDown"
+                                MouseMove="EditingCanvas_MouseMove"
+                                MouseRightButtonDown="EditingCanvas_MouseRightButtonDown"
+                                MouseLeftButtonUp="EditingCanvas_MouseLeftButtonUp"
+                                Visibility="{Binding IsDrawingMode, Converter={StaticResource BoolToVisConverter}}">
+                            <!-- Polygon points will be added here dynamically -->
+                        </Canvas>
+
+                    </Grid>
+                </Grid>
             </Border>
+
+            <!-- ==================== HORIZONTAL COLORBAR LEGEND ==================== -->
+            <Grid Grid.Row="2" 
+                  Margin="0,0,0,10">
+                <Grid.RowDefinitions>
+                    <!-- Labels Row -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Colorbar Row -->
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Labels: Strong (left) to Weak (right) -->
+                <Grid Grid.Row="0" Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left Label: Strong Camouflage -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                        <TextBlock Text="  Strong Camouflage" 
+                            FontWeight="Bold" 
+                            FontSize="12"
+                            Foreground="#333333"/>
+                        <TextBlock Text=" (Hidden)" 
+                            FontSize="11"
+                            FontStyle="Italic"
+                            Foreground="#666666"
+                            VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Center Label -->
+                    <TextBlock Grid.Column="1" 
+                        Text="Camouflage Detection Key" 
+                        FontSize="11"
+                        FontWeight="SemiBold"
+                        Foreground="#666666"
+                        HorizontalAlignment="Center"/>
+
+                    <!-- Right Label: Weak Camouflage -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="Weak Camouflage" 
+                            FontWeight="Bold" 
+                            FontSize="12"
+                            Foreground="#333333"/>
+                        <TextBlock Text=" (Detected)  " 
+                            FontSize="11"
+                            FontStyle="Italic"
+                            Foreground="#666666"
+                            VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Horizontal Colorbar Gradient -->
+                <Border Grid.Row="1" 
+                 BorderBrush="#333333" 
+                 BorderThickness="1.5" 
+                 CornerRadius="3"
+                 Height="28"
+                 HorizontalAlignment="Stretch">
+                    <Rectangle RadiusX="2" RadiusY="2">
+                        <Rectangle.Fill>
+                            <!-- JET Colormap: Blue (left/strong) to Red (right/weak) -->
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <!-- Blue - Strongest Camouflage (hardest to detect) -->
+                                <GradientStop Color="#0000FF" Offset="0.0"/>
+                                <!-- Light Blue -->
+                                <GradientStop Color="#007FFF" Offset="0.20"/>
+                                <!-- Cyan -->
+                                <GradientStop Color="#00FFFF" Offset="0.35"/>
+                                <!-- Green -->
+                                <GradientStop Color="#00FF00" Offset="0.50"/>
+                                <!-- Yellow -->
+                                <GradientStop Color="#FFFF00" Offset="0.70"/>
+                                <!-- Orange -->
+                                <GradientStop Color="#FF7F00" Offset="0.85"/>
+                                <!-- Red - Weakest Camouflage (most easily detected) -->
+                                <GradientStop Color="#FF0000" Offset="1.0"/>
+                            </LinearGradientBrush>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                </Border>
+            </Grid>
         </Grid>
-    </Grid>
+    </Border>
 </UserControl>

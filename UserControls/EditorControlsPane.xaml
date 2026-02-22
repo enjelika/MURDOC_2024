@@ -6,10 +6,9 @@
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              xmlns:converters="clr-namespace:MURDOC_2024.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="930" d:DesignWidth="320">
+             d:DesignHeight="1045" d:DesignWidth="320">
 
     <UserControl.Resources>
-        <!-- Add the converter here -->
         <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisConverter"/>
         <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
@@ -29,7 +28,7 @@
                    FontSize="12"
                    Foreground="#666666"
                    TextWrapping="Wrap"
-                   Margin="0,0,0,8"/>   
+                   Margin="0,0,0,8"/>
 
                 <!-- Enter Edit Mode Button -->
                 <Button Content="🖊️ Enter Edit Mode"
@@ -51,62 +50,60 @@
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </Button.Style>     
+                    </Button.Style>
                 </Button>
 
-                <!-- Polygon Point Editing (visible when edit mode active) -->
+                <!-- Polygon Point Editing (always visible, enabled when edit mode active) -->
                 <Border Background="#F5F5F5"
                     Padding="8"
                     CornerRadius="3"
-                    Margin="0,0,0,8"
-                    Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}">
+                    Margin="0,0,0,8">
                     <StackPanel>
                         <TextBlock Text="Polygon Editing:" 
                            FontWeight="Bold" 
                            FontSize="11" 
                            Margin="0,0,0,5"/>
 
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                                    <Button Grid.Column="0" 
-                            Content="➕ Add Points" 
-                            Command="{Binding SetAddPointsModeCommand}"
-                            Margin="0,0,3,0"
-                            Background="{Binding IsAddPointsMode, Converter={StaticResource BoolToColorConverter}}"
-                            ToolTip="Click on polygon to add new points"/>
+                            <Button Grid.Column="0" 
+                                Content="➕ Add Points" 
+                                Command="{Binding SetAddPointsModeCommand}"
+                                IsEnabled="{Binding IsEditModeActive}"
+                                Margin="0,0,3,0"
+                                Background="{Binding IsAddPointsMode, Converter={StaticResource BoolToColorConverter}}"
+                                ToolTip="Click on polygon to add new points"/>
 
-                                <Button Grid.Column="1" 
-                            Content="➖ Remove Points" 
-                            Command="{Binding SetRemovePointsModeCommand}"
-                            Margin="3,0,0,0"
-                            Background="{Binding IsRemovePointsMode, Converter={StaticResource BoolToColorConverter}}"
-                            ToolTip="Click on existing points to remove them"/>
+                            <Button Grid.Column="1" 
+                                Content="➖ Remove Points" 
+                                Command="{Binding SetRemovePointsModeCommand}"
+                                IsEnabled="{Binding IsEditModeActive}"
+                                Margin="3,0,0,0"
+                                Background="{Binding IsRemovePointsMode, Converter={StaticResource BoolToColorConverter}}"
+                                ToolTip="Click on existing points to remove them"/>
                         </Grid>
                     </StackPanel>
                 </Border>
 
                 <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 
-                <!-- Rank Map Editing Section (visible when edit mode active) -->
+                <!-- Rank Map Editing Section (always visible, enabled when edit mode active) -->
                 <Label Content="Rank Map Editing" 
                    FontWeight="Bold" 
-                   FontSize="13"
-                   Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}"/>
+                   FontSize="13"/>
 
                 <TextBlock Text="Adjust camouflage strength values:"
                    FontSize="12"
                    Foreground="#666666"
                    TextWrapping="Wrap"
-                   Margin="0,0,0,8"
-                   Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}"/>
+                   Margin="0,0,0,8"/>
 
                 <!-- Brush Mode Selection -->
-                <Grid Margin="0,0,0,8"
-                    Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}">
+                <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
@@ -115,6 +112,7 @@
                     <Button Grid.Column="0"
                         Content="➕ Increase"
                         Command="{Binding SetIncreaseBrushCommand}"
+                        IsEnabled="{Binding IsEditModeActive}"
                         Margin="0,0,3,0"
                         Background="{Binding IsIncreaseBrushActive, Converter={StaticResource BoolToColorConverter}}"
                         ToolTip="Paint to increase camouflage weakness (make more detectable)"/>
@@ -122,6 +120,7 @@
                     <Button Grid.Column="1"
                         Content="➖ Decrease"
                         Command="{Binding SetDecreaseBrushCommand}"
+                        IsEnabled="{Binding IsEditModeActive}"
                         Margin="3,0,0,0"
                         Background="{Binding IsDecreaseBrushActive, Converter={StaticResource BoolToColorConverter}}"
                         ToolTip="Paint to decrease camouflage weakness (make more hidden)"/>
@@ -130,56 +129,61 @@
                 <!-- Brush Size -->
                 <Label Content="Brush Size:" 
                    FontSize="11" 
-                   Padding="0,5,0,2"
-                   Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}"/>
-                <Grid Margin="0,0,0,8"
-                    Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}">
+                   Padding="0,5,0,2"/>
+                <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0" Content="−" Width="25" Command="{Binding DecreaseBrushSizeCommand}"/>
+                    <Button Grid.Column="0" 
+                            Content="−" 
+                            Width="25" 
+                            Command="{Binding DecreaseBrushSizeCommand}"
+                            IsEnabled="{Binding IsEditModeActive}"/>
                     <Slider Grid.Column="1" 
                         Value="{Binding BrushSize}"
                         Minimum="5" Maximum="100"
                         TickFrequency="5"
                         IsSnapToTickEnabled="True"
+                        IsEnabled="{Binding IsEditModeActive}"
                         Margin="5,0"/>
-                    <Button Grid.Column="2" Content="+" Width="25" Command="{Binding IncreaseBrushSizeCommand}"/>
+                    <Button Grid.Column="2" 
+                            Content="+" 
+                            Width="25" 
+                            Command="{Binding IncreaseBrushSizeCommand}"
+                            IsEnabled="{Binding IsEditModeActive}"/>
                 </Grid>
 
                 <TextBlock HorizontalAlignment="Center" 
-                   Margin="0,0,0,8"
-                   Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}">
+                   Margin="0,0,0,8">
                     <Run Text="Size: "/>
                     <Run Text="{Binding BrushSize}" FontWeight="Bold"/>
-                    <Run Text="px"/>    
+                    <Run Text="px"/>
                 </TextBlock>
 
                 <!-- Brush Strength -->
                 <Label Content="Brush Strength:" 
                    FontSize="11" 
-                   Padding="0,5,0,2"
-                   Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}"/>
+                   Padding="0,5,0,2"/>
                 <Slider Value="{Binding BrushStrength}"
                     Minimum="0.1" Maximum="1.0"
                     TickFrequency="0.1"
                     IsSnapToTickEnabled="True"
-                    Margin="0,0,0,5"
-                    Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}"/>
+                    IsEnabled="{Binding IsEditModeActive}"
+                    Margin="0,0,0,5"/>
 
                 <TextBlock HorizontalAlignment="Center" 
-                       Margin="0,0,0,8"
-                       Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}">
-                <Run Text="Strength: "/>
-                <Run Text="{Binding BrushStrength, StringFormat='{}{0:P0}'}" FontWeight="Bold"/>
+                       Margin="0,0,0,8">
+                    <Run Text="Strength: "/>
+                    <Run Text="{Binding BrushStrength, StringFormat='{}{0:P0}'}" FontWeight="Bold"/>
                 </TextBlock>
 
                 <!-- Save Button -->
                 <Button Content="💾 Save Changes"
                     Command="{Binding SaveChangesCommand}"
+                    IsEnabled="{Binding IsEditModeActive}"
                     Margin="0,0,0,5"
                     Padding="8,10"
                     Background="#E8F5E9"
@@ -197,9 +201,9 @@
                     <TextBlock FontSize="11" 
                            Foreground="#E65100"
                            TextWrapping="Wrap">
-                    <Run Text="⚠️ Editing Mode Active"/>
-                    <LineBreak/>
-                    <Run Text="Right-click to exit without saving"/>
+                        <Run Text="⚠️ Editing Mode Active"/>
+                        <LineBreak/>
+                        <Run Text="Right-click to exit without saving"/>
                     </TextBlock>
                 </Border>
 
@@ -341,13 +345,26 @@
                 </Border>
 
                 <Button Content="📊 View Feedback History" 
-                    Command="{Binding ViewFeedbackHistoryCommand}"
-                    Margin="0,0,0,5"/>
+                        Command="{Binding ViewFeedbackHistoryCommand}"
+                        Margin="0,0,0,5"
+                        Padding="8,10"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Background="#E3F2FD"
+                        BorderBrush="#2196F3"
+                        BorderThickness="2"
+                        ToolTip="View summary of all detection feedback"/>
 
                 <Button Content="💾 Export Feedback Data" 
-                    Command="{Binding ExportFeedbackCommand}"
-                    Margin="0,0,0,5"
-                    ToolTip="Save feedback history as JSON"/>
+                        Command="{Binding ExportFeedbackCommand}"
+                        Margin="0,0,0,5"
+                        Padding="8,10"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Background="#E8F5E9"
+                        BorderBrush="#4CAF50"
+                        BorderThickness="2"
+                        ToolTip="Save feedback history as JSON"/>
 
                 <Separator Margin="0,10,0,10" Background="#E0E0E0"/>
 
@@ -356,7 +373,8 @@
 
                 <Border Background="#F5F5F5" 
                         Padding="8" 
-                        CornerRadius="3">
+                        CornerRadius="3"
+                        Margin="0,0,0,8">
                     <StackPanel>
                         <TextBlock FontSize="11">
                             <Run Text="Total Interactions: "/>
@@ -373,7 +391,13 @@
 
                 <Button Content="🔄 Reset Session" 
                         Command="{Binding ResetSessionCommand}"
-                        Margin="0,8,0,0"
+                        Margin="0,0,0,0"
+                        Padding="8,10"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Background="#FFEBEE"
+                        BorderBrush="#F44336"
+                        BorderThickness="2"
                         ToolTip="Clear all ROIs and feedback"/>
 
             </StackPanel>

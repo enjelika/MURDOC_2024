@@ -5,39 +5,86 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="240" d:DesignWidth="320">
+             d:DesignHeight="280" d:DesignWidth="320">
     <Grid>
         <StackPanel Orientation="Vertical" Background="Lightgray" Margin="5,0,5,0">
-            <Label Content="Detection Controls:" FontWeight="Bold" Margin="0,0,5,10"/>
+
+            <Label Content="Detection Controls:" FontWeight="Bold" FontSize="13" Margin="0,-5,5,10"/>
 
             <!-- Sensitivity Control -->
-            <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="5,0,5,8">
+            <Border Background="White" 
+                    CornerRadius="3" 
+                    Padding="8" 
+                    Margin="5,0,5,8">
                 <StackPanel>
                     <TextBlock Text="Sensitivity (d')" FontWeight="SemiBold" FontSize="12"/>
-                    <Slider x:Name="SensitivitySlider" Minimum="0.5" Maximum="3.0" Value="{Binding Sensitivity}" Margin="0,5" />
+                    <Slider x:Name="SensitivitySlider" 
+                            Minimum="0.5" 
+                            Maximum="3.0" 
+                            Value="{Binding Sensitivity}" 
+                            Margin="0,5" />
                     <TextBlock Text="{Binding ElementName=SensitivitySlider, Path=Value, StringFormat='Value: {0:F2}'}" 
-                           HorizontalAlignment="Center" FontSize="10" Foreground="#666"/>
+                               HorizontalAlignment="Center" 
+                               FontSize="10" 
+                               Foreground="#666"/>
                 </StackPanel>
             </Border>
 
             <!-- Bias Control -->
-            <Border Background="#F8F8F8" CornerRadius="3" Padding="8" Margin="5,0,5,8">
+            <Border Background="White" 
+                    CornerRadius="3" 
+                    Padding="8" 
+                    Margin="5,0,5,8">
                 <StackPanel>
                     <TextBlock Text="Response Bias (β)" FontWeight="SemiBold" FontSize="12"/>
-                    <Slider x:Name="BiasSlider" Minimum="-2.0" Maximum="2.0" Value="{Binding Bias}" Margin="0,5"/>
+                    <Slider x:Name="BiasSlider" 
+                            Minimum="-2.0" 
+                            Maximum="2.0" 
+                            Value="{Binding Bias}" 
+                            Margin="0,5"/>
                     <TextBlock Text="{Binding ElementName=BiasSlider, Path=Value, StringFormat='Value: {0:F2}'}" 
-                           HorizontalAlignment="Center" FontSize="10" Foreground="#666"/>
+                               HorizontalAlignment="Center" 
+                               FontSize="10" 
+                               Foreground="#666"/>
                 </StackPanel>
             </Border>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <!-- Model controls: Run models to gather prediction and outputs -->
-                <Button Content="Run Models" Command="{Binding RunCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="5,5,10,5" />
+            <!-- Big Action Buttons -->
+            <Grid Margin="5,5,5,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-                <!-- Reset control: clears the GUI -->
-                <Button Content="Reset" Command="{Binding ResetCommand}" IsEnabled="{Binding IsRunButtonEnabled}" Margin="5,5,10,5" />
-            </StackPanel>
-            
+                <!-- Run Models Button -->
+                <Button Grid.Column="0"
+                        Content="▶ Run Models" 
+                        Command="{Binding RunCommand}" 
+                        IsEnabled="{Binding IsRunButtonEnabled}" 
+                        Margin="0,0,3,0"
+                        Padding="8,12"
+                        FontSize="13"
+                        FontWeight="Bold"
+                        Background="#E8F5E9"
+                        BorderBrush="#4CAF50"
+                        BorderThickness="2"
+                        ToolTip="Execute AI models on selected image"/>
+
+                <!-- Reset Button -->
+                <Button Grid.Column="1"
+                        Content="🔄 Reset" 
+                        Command="{Binding ResetCommand}" 
+                        IsEnabled="{Binding IsRunButtonEnabled}" 
+                        Margin="3,0,0,0"
+                        Padding="8,12"
+                        FontSize="13"
+                        FontWeight="Bold"
+                        Background="#FFF3E0"
+                        BorderBrush="#FFB74D"
+                        BorderThickness="2"
+                        ToolTip="Clear all results and reset controls"/>
+            </Grid>
+
         </StackPanel>
     </Grid>
 </UserControl>

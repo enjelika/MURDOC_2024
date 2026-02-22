@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:MURDOC_2024"
         xmlns:controls="clr-namespace:MURDOC_2024.UserControls"
         mc:Ignorable="d"
-        Height="1060" Width="1720"
+        Height="1200" Width="1720"
         ResizeMode="NoResize"
         Title="Mixed-Initiative Camouflage Analysis Tool"
         Background="LightGray"
@@ -29,7 +29,7 @@
                 <controls:InputImagePane DataContext="{Binding InputImageVM}" Margin="0,5,0,0"/>
 
                 <!-- Image Selection and Control Pane -->
-                <controls:ImageControlPane DataContext="{Binding ImageControlVM}" Height="205"/>
+                <controls:ImageControlPane DataContext="{Binding ImageControlVM}" Height="350"/>
 
                 <!-- MICA Control Pane -->
                 <controls:MICAControlPane Margin="0,5,0,0" DataContext="{Binding MICAControlVM}" />
@@ -45,7 +45,7 @@
                 <controls:FinalPredictionPane
                     x:Name="FinalPredictionPaneControl"
                     DataContext="{Binding FinalPredictionVM}"
-                    Height="985"
+                    Height="1050"
                     VerticalAlignment="Center"
                     Panel.ZIndex="0"/>
 
@@ -87,7 +87,7 @@
                    Panel.ZIndex="0">
                     
                     <!-- Editor Controls -->
-                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}" Margin="0,40"/>
+                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}" Margin="0,56"/>
 
                 </StackPanel>
 

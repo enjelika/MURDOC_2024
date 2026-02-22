@@ -5,39 +5,116 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              mc:Ignorable="d" 
-             d:DesignHeight="220" d:DesignWidth="320">
+             d:DesignHeight="350" d:DesignWidth="320">
     <Grid>
         <StackPanel Orientation="Vertical" Margin="5,5,5,0" Background="Lightgray">
+
             <!-- Image file select/browse button and text box -->
-            <Label Content="Select Image:" FontWeight="Bold"/>
+            <Label Content="Select Image:" FontWeight="Bold" FontSize="13"/>
 
-            <StackPanel Orientation="Vertical" Margin="5, -5, 5, 5">
-                <TextBox Text="{Binding SelectedImagePath, Mode=OneWay}" TextWrapping="NoWrap" MinWidth="200" Width="Auto" Margin="5,5,5,5" IsReadOnly="True" />
-                <Button Content="Browse" Command="{Binding BrowseCommand}" Margin="75,5,75,5" />
+            <StackPanel Orientation="Vertical" Margin="5,-5,5,5">
+                <TextBox Text="{Binding SelectedImagePath, Mode=OneWay}" 
+                         TextWrapping="NoWrap" 
+                         MinWidth="200" 
+                         Width="Auto" 
+                         Margin="5,5,5,8" 
+                         IsReadOnly="True" 
+                         FontSize="16"/>
+
+                <!-- Browse Button - Big and prominent -->
+                <Button Content="📁 Browse" 
+                        Command="{Binding BrowseCommand}" 
+                        Margin="5,0,5,10"
+                        Padding="8,10"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Background="#E3F2FD"
+                        BorderBrush="#2196F3"
+                        BorderThickness="2"
+                        ToolTip="Select an image file to analyze"/>
             </StackPanel>
 
-            <!-- Image Adjustment controls: Brightness, Contrast, Saturation -->
-            <StackPanel VerticalAlignment="Center">
-                <DockPanel VerticalAlignment="Center" Margin="5">
-                    <Label DockPanel.Dock="Left" FontWeight="Bold">Brightness:</Label>
-                    <TextBox Text="{Binding ElementName=sliderBrightness, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderBrightness" Value="{Binding SliderBrightness}" IsEnabled="{Binding IsSlidersEnabled}"/>
-                </DockPanel>
+            <!-- Image Adjustment Controls -->
+            <Label Content="Image Adjustments:" FontWeight="Bold" FontSize="13" Margin="5,-5,5,5"/>
 
-                <DockPanel VerticalAlignment="Center" Margin="5">
-                    <Label DockPanel.Dock="Left" Width="72" FontWeight="Bold">Contrast:</Label>
-                    <TextBox Text="{Binding ElementName=sliderContrast, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderContrast" Value="{Binding SliderContrast}" IsEnabled="{Binding IsSlidersEnabled}"/>
-                </DockPanel>
+            <!-- Brightness -->
+            <Border Background="White" 
+                    CornerRadius="3" 
+                    Padding="8" 
+                    Margin="5,0,5,8">
+                <StackPanel>
+                    <TextBlock Text="Brightness" FontWeight="SemiBold" FontSize="12"/>
+                    <DockPanel Margin="0,5,0,0">
+                        <TextBox Text="{Binding ElementName=sliderBrightness, Path=Value, UpdateSourceTrigger=PropertyChanged}" 
+                                 DockPanel.Dock="Right" 
+                                 TextAlignment="Center" 
+                                 Width="40" 
+                                 FontSize="11"
+                                 VerticalAlignment="Center"/>
+                        <Slider Minimum="-100" 
+                                Maximum="100" 
+                                TickFrequency="5" 
+                                IsSnapToTickEnabled="True" 
+                                Name="sliderBrightness" 
+                                Value="{Binding SliderBrightness}" 
+                                IsEnabled="{Binding IsSlidersEnabled}"
+                                Margin="0,0,5,0"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
 
-                <DockPanel VerticalAlignment="Center" Margin="5">
-                    <Label DockPanel.Dock="Left" FontWeight="Bold">Saturation:</Label>
-                    <TextBox Text="{Binding ElementName=sliderSaturation, Path=Value, UpdateSourceTrigger=PropertyChanged}" DockPanel.Dock="Right" TextAlignment="Center" Width="40" />
-                    <Slider Minimum ="-100" Maximum="100" TickPlacement="BottomRight" TickFrequency="5" IsSnapToTickEnabled="True" Name="sliderSaturation" Value="{Binding SliderSaturation}" IsEnabled="{Binding IsSlidersEnabled}"/>
-                </DockPanel>
-            </StackPanel>
+            <!-- Contrast -->
+            <Border Background="White" 
+                    CornerRadius="3" 
+                    Padding="8" 
+                    Margin="5,0,5,8">
+                <StackPanel>
+                    <TextBlock Text="Contrast" FontWeight="SemiBold" FontSize="12"/>
+                    <DockPanel Margin="0,5,0,0">
+                        <TextBox Text="{Binding ElementName=sliderContrast, Path=Value, UpdateSourceTrigger=PropertyChanged}" 
+                                 DockPanel.Dock="Right" 
+                                 TextAlignment="Center" 
+                                 Width="40" 
+                                 FontSize="11"
+                                 VerticalAlignment="Center"/>
+                        <Slider Minimum="-100" 
+                                Maximum="100" 
+                                TickFrequency="5" 
+                                IsSnapToTickEnabled="True" 
+                                Name="sliderContrast" 
+                                Value="{Binding SliderContrast}" 
+                                IsEnabled="{Binding IsSlidersEnabled}"
+                                Margin="0,0,5,0"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Saturation -->
+            <Border Background="White" 
+                    CornerRadius="3" 
+                    Padding="8" 
+                    Margin="5,0,5,8">
+                <StackPanel>
+                    <TextBlock Text="Saturation" FontWeight="SemiBold" FontSize="12"/>
+                    <DockPanel Margin="0,5,0,0">
+                        <TextBox Text="{Binding ElementName=sliderSaturation, Path=Value, UpdateSourceTrigger=PropertyChanged}" 
+                                 DockPanel.Dock="Right" 
+                                 TextAlignment="Center" 
+                                 Width="40" 
+                                 FontSize="11"
+                                 VerticalAlignment="Center"/>
+                        <Slider Minimum="-100" 
+                                Maximum="100" 
+                                TickFrequency="5" 
+                                IsSnapToTickEnabled="True" 
+                                Name="sliderSaturation" 
+                                Value="{Binding SliderSaturation}" 
+                                IsEnabled="{Binding IsSlidersEnabled}"
+                                Margin="0,0,5,0"/>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
 
         </StackPanel>
-
     </Grid>
 </UserControl>
