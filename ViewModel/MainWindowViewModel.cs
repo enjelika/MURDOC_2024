@@ -21,8 +21,6 @@ namespace MURDOC_2024.ViewModel
         private readonly PythonModelService _python;
         private bool _isRunningModels;
         private string _latestAdjustedImagePath;
-        private bool _hasAdjustedImage;
-        private BitmapImage _adjustedInputImage;
 
         // Performance metrics
         private PerformanceMetricsService _metricsService;
@@ -31,16 +29,12 @@ namespace MURDOC_2024.ViewModel
         // Detection tracking
         private List<DetectionResult> _currentDetections;
 
+        #region Properties
+
         public string SelectedImagePath
         {
             get => _selectedImagePath;
             set => SetProperty(ref _selectedImagePath, value);
-        }
-
-        public BitmapImage PreviewImage
-        {
-            get => _previewImage;
-            set => SetProperty(ref _previewImage, value);
         }
 
         public bool IsRunningModels
@@ -75,15 +69,20 @@ namespace MURDOC_2024.ViewModel
         public FinalPredictionPaneViewModel FinalPredictionVM { get; }
         public MICAControlViewModel MICAControlVM { get; }
         public EditorControlsPaneViewModel EditorControlsVM { get; }
+        public SessionInfoPaneViewModel SessionInfoVM { get; }
 
-        public event EventHandler PolygonModeRequested;
-        public event EventHandler FreehandModeRequested;
-        public event EventHandler ClearROIsRequested;
-        public event EventHandler<string> ROIMaskExportRequested;
+        #endregion
+
+        #region Events
+
         public event EventHandler ResetDrawingRequested;
-        public event EventHandler RankEditModeRequested;
+        public event EventHandler EnterEditModeRequested;
+        public event EventHandler ExitEditModeRequested;
+        public event EventHandler<PointEditMode> PointEditModeChanged;
+        public event EventHandler SaveAllModificationsRequested;
         public event EventHandler<RankBrushEventArgs> RankBrushChangedRequested;
-        public event EventHandler SaveRankMapRequested;
+
+        #endregion
 
         public MainWindowViewModel()
         {
@@ -120,6 +119,9 @@ namespace MURDOC_2024.ViewModel
                 resetAction: ResetAll
             );
 
+            SessionInfoVM = new SessionInfoPaneViewModel();
+            SessionInfoVM.EndSessionRequested += OnEndSessionRequested;
+
             EditorControlsVM = new EditorControlsPaneViewModel();
 
             // Subscribe to EditorControls events
@@ -128,16 +130,126 @@ namespace MURDOC_2024.ViewModel
             EditorControlsVM.FeedbackExportRequested += OnFeedbackExportRequested;
             EditorControlsVM.SessionResetRequested += OnSessionResetRequested;
             EditorControlsVM.DetectionFeedbackProvided += OnDetectionFeedbackProvided;
-            EditorControlsVM.PolygonModeRequested += OnPolygonModeRequested;
-            EditorControlsVM.FreehandModeRequested += OnFreehandModeRequested;
-            EditorControlsVM.ClearROIsRequested += OnClearROIsRequested;
-            EditorControlsVM.ExportROIMasksRequested += OnExportROIMasksRequested;
-            EditorControlsVM.RankEditModeRequested += OnRankEditModeRequested;
+            EditorControlsVM.EnterEditModeRequested += OnEnterEditModeRequested;
+            EditorControlsVM.ExitEditModeRequested += OnExitEditModeRequested;
+            EditorControlsVM.PointEditModeChanged += OnPointEditModeChanged;
+            EditorControlsVM.SaveChangesRequested += OnSaveChangesRequested;
             EditorControlsVM.RankBrushChanged += OnRankBrushChanged;
-            EditorControlsVM.SaveRankMapRequested += OnSaveRankMapRequested;
         }
 
-        #region EditorControls Event Handlers
+        #region Session Management
+
+        private void OnEndSessionRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                // Check if there are modifications to save
+                if (!FinalPredictionVM.HasAnyModifications)
+                {
+                    MessageBox.Show(
+                        "No modifications have been made to save.",
+                        "End Session",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
+                // Show confirmation dialog with retraining option
+                var result = MessageBox.Show(
+                    "Save session modifications?\n\n" +
+                    $"✓ Binary Mask: {(FinalPredictionVM.HasModifications ? "Edited" : "Unchanged")}\n" +
+                    $"✓ Rank Map: {(FinalPredictionVM.HasAnyModifications ? "Edited" : "Unchanged")}\n\n" +
+                    "Queue for LoRA retraining?\n\n" +
+                    "Yes = Save & Queue for Retraining\n" +
+                    "No = Save Only\n" +
+                    "Cancel = Don't Save",
+                    "End Session",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes || result == MessageBoxResult.No)
+                {
+                    // Save modifications
+                    SaveAllModificationsRequested?.Invoke(this, EventArgs.Empty);
+
+                    // Queue for retraining if user selected Yes
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        QueueSessionForRetraining();
+                    }
+
+                    // End session
+                    SessionInfoVM.EndSessionInternal();
+
+                    MessageBox.Show(
+                        "Session saved successfully!" +
+                        (result == MessageBoxResult.Yes ? "\n\nQueued for LoRA retraining." : ""),
+                        "Session Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error ending session:\n{ex.Message}",
+                    "Session Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void QueueSessionForRetraining()
+        {
+            try
+            {
+                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                string sessionsDir = Path.Combine(exeDir, "training_sessions");
+
+                // Create directory if it doesn't exist
+                Directory.CreateDirectory(sessionsDir);
+
+                string queueFile = Path.Combine(sessionsDir, "retrain_queue.txt");
+
+                // Get the most recent session folder from training_sessions
+                var sessionFolders = Directory.GetDirectories(sessionsDir, "session_*")
+                    .OrderByDescending(d => Directory.GetCreationTime(d))
+                    .ToList();
+
+                if (sessionFolders.Count > 0)
+                {
+                    string latestSession = Path.GetFileName(sessionFolders[0]);
+
+                    // Append to queue file
+                    File.AppendAllLines(queueFile, new[] { $"{latestSession}|{DateTime.Now:yyyy-MM-dd HH:mm:ss}" });
+
+                    System.Diagnostics.Debug.WriteLine($"Queued session for retraining: {latestSession}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("No session folder found to queue");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error queuing session: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Update session modification tracking
+        /// </summary>
+        public void UpdateSessionModifications()
+        {
+            SessionInfoVM.UpdateModificationStatus(
+                FinalPredictionVM.HasModifications,
+                FinalPredictionVM.HasAnyModifications
+            );
+        }
+
+        #endregion
+
+        #region Detection Feedback Event Handlers
 
         private void OnCorrectionModeToggled(object sender, EventArgs e)
         {
@@ -228,53 +340,57 @@ namespace MURDOC_2024.ViewModel
 
         private void OnDetectionFeedbackProvided(object sender, DetectionFeedback feedback)
         {
-            // Log feedback to metrics
             _metricsService.LogFeedback(feedback.FeedbackType.ToString(), feedback.DetectionId);
         }
 
-        private void OnPolygonModeRequested(object sender, EventArgs e)
-        {
-            System.Diagnostics.Debug.WriteLine("MainWindow: Polygon mode requested");
+        #endregion
 
-            // Notify the view to enable polygon drawing on FinalPredictionPane
-            PolygonModeRequested?.Invoke(this, EventArgs.Empty);
+        #region Unified Edit Mode Event Handlers
+
+        private void OnEnterEditModeRequested(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("MainWindow: Enter edit mode requested");
+            EnterEditModeRequested?.Invoke(this, EventArgs.Empty);
         }
 
-        private void OnFreehandModeRequested(object sender, EventArgs e)
+        private void OnExitEditModeRequested(object sender, EventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("MainWindow: Freehand mode requested");
-
-            // Notify the view to enable freehand drawing on FinalPredictionPane
-            FreehandModeRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine("MainWindow: Exit edit mode requested");
+            ExitEditModeRequested?.Invoke(this, EventArgs.Empty);
         }
 
-        private void OnClearROIsRequested(object sender, EventArgs e)
+        private void OnPointEditModeChanged(object sender, PointEditMode mode)
         {
-            System.Diagnostics.Debug.WriteLine("MainWindow: Clear ROIs requested");
-
-            // Notify the view to clear all drawing
-            ClearROIsRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine($"MainWindow: Point edit mode changed to {mode}");
+            PointEditModeChanged?.Invoke(this, mode);
         }
 
-        private void OnExportROIMasksRequested(object sender, EventArgs e)
+        private void OnSaveChangesRequested(object sender, EventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine("MainWindow: Save changes requested");
+
             try
             {
-                var dialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Filter = "PNG files (*.png)|*.png|All files (*.*)|*.*",
-                    DefaultExt = ".png",
-                    FileName = $"roi_mask_{DateTime.Now:yyyyMMdd_HHmmss}.png"
-                };
+                bool hadMaskEdits = FinalPredictionVM.HasModifications;
+                bool hadRankEdits = FinalPredictionVM.HasAnyModifications;
 
-                if (dialog.ShowDialog() == true)
-                {
-                    // Export current mask from FinalPredictionPane
-                    ROIMaskExportRequested?.Invoke(this, dialog.FileName);
+                SaveAllModificationsRequested?.Invoke(this, EventArgs.Empty);
 
+                // Update session modification tracking
+                UpdateSessionModifications();
+
+                EditorControlsVM.ExitEditMode();
+
+                // Show what was saved
+                string savedItems = "";
+                if (hadMaskEdits) savedItems += "✓ Binary Mask (polygon)\n";
+                if (hadRankEdits) savedItems += "✓ Rank Map (brush)\n";
+
+                if (!string.IsNullOrEmpty(savedItems))
+                {
                     MessageBox.Show(
-                        "ROI mask exported successfully!",
-                        "Export Complete",
+                        $"Changes saved successfully!\n\n{savedItems}",
+                        "Save Complete",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
                 }
@@ -282,56 +398,17 @@ namespace MURDOC_2024.ViewModel
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Error exporting ROI mask:\n{ex.Message}",
-                    "Export Error",
+                    $"Error saving changes:\n{ex.Message}",
+                    "Save Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
-        }
-
-        private void OnRankEditModeRequested(object sender, EventArgs e)
-        {
-            System.Diagnostics.Debug.WriteLine("MainWindow: Rank edit mode requested");
-
-            // Enable rank editing mode on FinalPredictionPane
-            RankEditModeRequested?.Invoke(this, EventArgs.Empty);
-
-            _metricsService.LogInteraction("RankEditModeEntered", null);
         }
 
         private void OnRankBrushChanged(object sender, RankBrushEventArgs e)
         {
             System.Diagnostics.Debug.WriteLine($"MainWindow: Brush changed - Mode: {e.Mode}, Size: {e.BrushSize}, Strength: {e.BrushStrength}");
-
-            // Forward to FinalPredictionPane
             RankBrushChangedRequested?.Invoke(this, e);
-        }
-
-        private void OnSaveRankMapRequested(object sender, EventArgs e)
-        {
-            System.Diagnostics.Debug.WriteLine("MainWindow: Save rank map requested");
-
-            try
-            {
-                // Trigger save on FinalPredictionPane
-                SaveRankMapRequested?.Invoke(this, EventArgs.Empty);
-
-                MessageBox.Show(
-                    "Rank map modifications saved successfully!",
-                    "Save Complete",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                _metricsService.LogInteraction("RankMapSaved", null);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    $"Error saving rank map:\n{ex.Message}",
-                    "Save Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
         }
 
         #endregion
@@ -343,26 +420,23 @@ namespace MURDOC_2024.ViewModel
             EditorControlsVM.AddFeedback(feedback);
         }
 
-        /// <summary>
-        /// Handle detection clicks from FinalPredictionPane
-        /// </summary>
         public void OnDetectionClicked(DetectionResult detection)
         {
             if (detection == null) return;
 
-            // Log the click
             _metricsService.LogDetectionClick(
                 detection.Id,
                 detection.Label,
                 detection.Confidence);
 
-            // Update editor controls
             EditorControlsVM.SelectDetection(detection);
         }
 
-        /// <summary>
-        /// Parse consolidated detections from IAI output and auto-select the first one
-        /// </summary>
+        public List<DetectionResult> GetCurrentDetections()
+        {
+            return _currentDetections;
+        }
+
         private void ParseDetections(string iaiOutput)
         {
             _currentDetections.Clear();
@@ -378,14 +452,12 @@ namespace MURDOC_2024.ViewModel
 
                 foreach (var line in lines)
                 {
-                    // Look for consolidated regions section
                     if (line.Contains("consolidated region"))
                     {
                         inConsolidatedSection = true;
                         continue;
                     }
 
-                    // Parse detection lines (format: "1. Object (leg), Confidence: 70.98% (2 parts)")
                     if (inConsolidatedSection && Regex.IsMatch(line.Trim(), @"^\d+\."))
                     {
                         var detection = ParseDetectionLine(line, detectionIndex);
@@ -399,7 +471,7 @@ namespace MURDOC_2024.ViewModel
 
                 System.Diagnostics.Debug.WriteLine($"Parsed {_currentDetections.Count} detections from IAI output");
 
-                // AUTO-SELECT: If we have any detections, auto-select the first one (highest confidence)
+                // Auto-select first detection if available
                 if (_currentDetections.Count > 0)
                 {
                     Application.Current.Dispatcher.Invoke(() =>
@@ -408,28 +480,24 @@ namespace MURDOC_2024.ViewModel
                         System.Diagnostics.Debug.WriteLine($"Auto-selected detection: {_currentDetections[0].Label}");
                     });
                 }
-                else
+                else if (iaiOutput.Contains("Object present"))
                 {
-                    // No detections parsed - create a generic one from "Object present" message
-                    if (iaiOutput.Contains("Object present"))
+                    var genericDetection = new DetectionResult
                     {
-                        var genericDetection = new DetectionResult
-                        {
-                            Id = Guid.NewGuid().ToString(),
-                            Label = "Camouflaged Object",
-                            Confidence = ExtractFirstConfidenceFromOutput(iaiOutput),
-                            ImagePath = SelectedImagePath,
-                            PartCount = 1
-                        };
+                        Id = Guid.NewGuid().ToString(),
+                        Label = "Camouflaged Object",
+                        Confidence = ExtractFirstConfidenceFromOutput(iaiOutput),
+                        ImagePath = SelectedImagePath,
+                        PartCount = 1
+                    };
 
-                        _currentDetections.Add(genericDetection);
+                    _currentDetections.Add(genericDetection);
 
-                        Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            EditorControlsVM.SelectDetection(genericDetection);
-                            System.Diagnostics.Debug.WriteLine($"Created and selected generic detection");
-                        });
-                    }
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        EditorControlsVM.SelectDetection(genericDetection);
+                        System.Diagnostics.Debug.WriteLine($"Created and selected generic detection");
+                    });
                 }
             }
             catch (Exception ex)
@@ -438,9 +506,6 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
-        /// <summary>
-        /// Extract first confidence value from output (fallback method)
-        /// </summary>
         private double ExtractFirstConfidenceFromOutput(string output)
         {
             if (string.IsNullOrEmpty(output))
@@ -448,7 +513,6 @@ namespace MURDOC_2024.ViewModel
 
             try
             {
-                // Look for patterns like "Confidence: 70.98%"
                 var match = Regex.Match(output, @"Confidence:\s*([\d.]+)%");
                 if (match.Success)
                 {
@@ -457,36 +521,26 @@ namespace MURDOC_2024.ViewModel
             }
             catch { }
 
-            return 0.5; // Default fallback
+            return 0.5;
         }
 
-        /// <summary>
-        /// Parse a single detection line
-        /// Format: "1. Object (leg), Confidence: 70.98% (2 parts)"
-        /// </summary>
         private DetectionResult ParseDetectionLine(string line, int index)
         {
             try
             {
-                // Remove leading number and dot
                 var content = Regex.Replace(line, @"^\d+\.\s*", "").Trim();
-
-                // Split by comma
                 var parts = content.Split(',');
                 if (parts.Length < 2)
                     return null;
 
-                // Extract label (e.g., "Object (leg)")
                 var label = parts[0].Trim();
 
-                // Extract confidence (e.g., "Confidence: 70.98%")
                 var confidenceMatch = Regex.Match(parts[1], @"([\d.]+)%");
                 if (!confidenceMatch.Success)
                     return null;
 
                 var confidence = double.Parse(confidenceMatch.Groups[1].Value) / 100.0;
 
-                // Extract part count if present (e.g., "(2 parts)")
                 int partCount = 1;
                 var partCountMatch = Regex.Match(content, @"\((\d+)\s+parts?\)");
                 if (partCountMatch.Success)
@@ -494,22 +548,14 @@ namespace MURDOC_2024.ViewModel
                     partCount = int.Parse(partCountMatch.Groups[1].Value);
                 }
 
-                // Extract parts breakdown from next line if available
-                // (This would require reading ahead in the parsing logic)
-
-                var detection = new DetectionResult
+                return new DetectionResult
                 {
                     Id = Guid.NewGuid().ToString(),
                     Label = label,
                     Confidence = confidence,
                     PartCount = partCount,
-                    ImagePath = SelectedImagePath,
-                    // Note: BoundingBox coordinates would need to come from
-                    // a separate JSON file or modified Python output
-                    // For now, we'll work with just the label and confidence
+                    ImagePath = SelectedImagePath
                 };
-
-                return detection;
             }
             catch (Exception ex)
             {
@@ -518,70 +564,9 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
-        /// <summary>
-        /// Get current detections (for UI binding or other uses)
-        /// </summary>
-        public List<DetectionResult> GetCurrentDetections()
-        {
-            return _currentDetections;
-        }
-
         #endregion
 
-        #region Metrics Export
-
-        /// <summary>
-        /// Export performance metrics
-        /// </summary>
-        public void ExportPerformanceMetrics()
-        {
-            try
-            {
-                var saveDialog = new Microsoft.Win32.SaveFileDialog
-                {
-                    Filter = "JSON files (*.json)|*.json|CSV files (*.csv)|*.csv|All files (*.*)|*.*",
-                    DefaultExt = ".json",
-                    FileName = $"metrics_session_{DateTime.Now:yyyyMMdd_HHmmss}"
-                };
-
-                if (saveDialog.ShowDialog() == true)
-                {
-                    if (saveDialog.FileName.EndsWith(".csv"))
-                    {
-                        _metricsService.ExportCSV(saveDialog.FileName);
-                    }
-                    else
-                    {
-                        _metricsService.ExportMetrics(saveDialog.FileName);
-                    }
-
-                    // Also generate and display report
-                    var report = _metricsService.GenerateReport();
-
-                    MessageBox.Show(
-                        $"Metrics exported successfully!\n\n" +
-                        $"Session Duration: {TimeSpan.FromSeconds(report.SessionDuration):hh\\:mm\\:ss}\n" +
-                        $"Total Tasks: {report.TotalTasks}\n" +
-                        $"Total Interactions: {report.TotalInteractions}\n" +
-                        $"Avg Task Duration: {report.AverageTaskDuration:F2}s\n" +
-                        $"Avg Model Execution: {report.AverageModelExecutionTime:F2}s\n" +
-                        $"Feedback Actions: {report.FeedbackActions}",
-                        "Export Complete",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    $"Error exporting metrics:\n{ex.Message}",
-                    "Export Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-        }
-
-        #endregion
+        #region Model Execution
 
         private void OnImageSelected(string path)
         {
@@ -589,8 +574,14 @@ namespace MURDOC_2024.ViewModel
             InputImageVM.LoadImage(path);
             MICAControlVM.OnImageSelected(path);
 
-            // Track task start
             _metricsService.StartTask(path);
+
+            // Start session tracking with ORIGINAL filename (not temp adjusted filename)
+            string imageName = Path.GetFileName(path);
+            SessionInfoVM.StartSession(imageName);
+
+            System.Diagnostics.Debug.WriteLine($"Selected image: {path}");
+            System.Diagnostics.Debug.WriteLine($"Session started for: {imageName}");
         }
 
         private async void RunModelsCommand()
@@ -608,13 +599,6 @@ namespace MURDOC_2024.ViewModel
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
-        }
-
-        private void LogStateChange(string context)
-        {
-            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {context}:");
-            System.Diagnostics.Debug.WriteLine($"  IsRunningModels: {IsRunningModels}");
-            System.Diagnostics.Debug.WriteLine($"  IsNotRunningModels: {IsNotRunningModels}");
         }
 
         private async Task RunModelsAsync()
@@ -638,22 +622,24 @@ namespace MURDOC_2024.ViewModel
                 });
 
                 string imageToProcess = GetImageToUse();
+
+                // DEBUG: Log which image is being processed
+                System.Diagnostics.Debug.WriteLine($"=== PROCESSING IMAGE ===");
+                System.Diagnostics.Debug.WriteLine($"Original image: {SelectedImagePath}");
+                System.Diagnostics.Debug.WriteLine($"Processing: {imageToProcess}");
+                System.Diagnostics.Debug.WriteLine($"File exists: {File.Exists(imageToProcess)}");
+
                 string iaiMessage = null;
 
-                // Start timing model execution
                 _modelExecutionTimer.Restart();
 
-                // Run Python model
                 iaiMessage = await RunPythonModelAsync(imageToProcess);
 
-                // Stop timing
                 _modelExecutionTimer.Stop();
                 _metricsService.LogModelRun(_modelExecutionTimer.Elapsed.TotalSeconds);
 
-                // Parse detections from output
                 ParseDetections(iaiMessage);
 
-                // Load outputs
                 await Task.Run(() => LoadModelOutputs());
 
                 await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -708,40 +694,56 @@ namespace MURDOC_2024.ViewModel
                 : await _python.RunIAIModelsBypassAsync(imagePath);
         }
 
-        private void ResetAll()
+        private void LoadModelOutputs()
         {
-            SelectedImagePath = string.Empty;
-            _adjustedInputImage = null;
-            _hasAdjustedImage = false;
-            _latestAdjustedImagePath = null;
+            if (string.IsNullOrEmpty(SelectedImagePath))
+                return;
 
-            InputImageVM.InputImage = null;
-            IAIOutputVM.IAIOutputMessage = string.Empty;
-            ImageControlVM.ExecuteResetCommand();
-            ImageControlVM.SelectedImagePath = string.Empty;
+            try
+            {
+                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
-            RankNetVM.Clear();
-            EfficientDetVM.Clear();
-            FinalPredictionVM.Clear();
-            PreviewPaneVM.ClearPreview();
+                // CRITICAL FIX: Get the filename from the actual processed image
+                string processedImagePath = GetImageToUse();
+                string selectedName = Path.GetFileNameWithoutExtension(processedImagePath);
 
-            _currentDetections.Clear();
+                // But keep the original path for session tracking
+                string originalPath = SelectedImagePath;
 
-            // Clear the editor state
-            EditorControlsVM.ClearSelection();
-            EditorControlsVM.CurrentDetections?.Clear();
+                string offrampsFolderPath = Path.Combine(exeDir, "offramp_output_images");
+                string outputsFolderPath = Path.Combine(exeDir, "outputs", selectedName);
+                string detectionFolderPath = Path.Combine(exeDir, "detection_results");
+                string predictionFolderPath = Path.Combine(exeDir, "results");
 
-            // Clear drawing state on FinalPredictionPane
-            ResetDrawingRequested?.Invoke(this, EventArgs.Empty);
+                System.Diagnostics.Debug.WriteLine($"Loading outputs for: {selectedName}");
+                System.Diagnostics.Debug.WriteLine($"Original image: {originalPath}");
+                System.Diagnostics.Debug.WriteLine($"Processed image: {processedImagePath}");
 
-            ImageControlVM?.SetButtonStates(false);
-            MICAControlVM?.SetButtonStates(false);
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    RankNetVM.LoadResults(offrampsFolderPath, outputsFolderPath);
+                    EfficientDetVM.LoadResults(detectionFolderPath, outputsFolderPath, selectedName);
 
-            ImageControlVM?.UpdateCommandStates();
-            MICAControlVM?.UpdateCommandStates();
-            EditorControlsVM?.UpdateCommandStates();
-            CommandManager.InvalidateRequerySuggested();
+                    // Pass the ORIGINAL image path for session tracking, not the temp adjusted path
+                    FinalPredictionVM.LoadResult(predictionFolderPath, selectedName, originalPath);
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading model outputs: {ex.Message}");
+            }
         }
+
+        private void LogStateChange(string context)
+        {
+            System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {context}:");
+            System.Diagnostics.Debug.WriteLine($"  IsRunningModels: {IsRunningModels}");
+            System.Diagnostics.Debug.WriteLine($"  IsNotRunningModels: {IsNotRunningModels}");
+        }
+
+        #endregion
+
+        #region Image Adjustment
 
         private void AdjustInputImage(int brightness, int contrast, int saturation)
         {
@@ -757,12 +759,9 @@ namespace MURDOC_2024.ViewModel
                     return;
 
                 _latestAdjustedImagePath = _imageService.SaveBitmapToTemp(adjusted);
-                _adjustedInputImage = adjusted;
-                _hasAdjustedImage = true;
 
                 InputImageVM.InputImage = new BitmapImage(new Uri(_latestAdjustedImagePath));
 
-                // Log parameter changes
                 _metricsService.LogParameterChange("ImageAdjustment",
                     null,
                     new { Brightness = brightness, Contrast = contrast, Saturation = saturation });
@@ -779,36 +778,6 @@ namespace MURDOC_2024.ViewModel
                 return _latestAdjustedImagePath;
 
             return SelectedImagePath;
-        }
-
-        private void LoadModelOutputs()
-        {
-            if (string.IsNullOrEmpty(SelectedImagePath))
-                return;
-
-            try
-            {
-                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string selectedName = Path.GetFileNameWithoutExtension(SelectedImagePath);
-
-                string offrampsFolderPath = Path.Combine(exeDir, "offramp_output_images");
-                string outputsFolderPath = Path.Combine(exeDir, "outputs", selectedName);
-                string detectionFolderPath = Path.Combine(exeDir, "detection_results");
-                string predictionFolderPath = Path.Combine(exeDir, "results");
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    RankNetVM.LoadResults(offrampsFolderPath, outputsFolderPath);
-                    EfficientDetVM.LoadResults(detectionFolderPath, outputsFolderPath, selectedName);
-
-                    // Pass the original image path so it can be found
-                    FinalPredictionVM.LoadResult(predictionFolderPath, selectedName, SelectedImagePath);
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading model outputs: {ex.Message}");
-            }
         }
 
         public void HandlePreviewImageChanged(string imagePath)
@@ -829,11 +798,111 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        #endregion
+
+        #region Reset and Cleanup
+
+        private void ResetAll()
+        {
+            SelectedImagePath = string.Empty;
+            _latestAdjustedImagePath = null;
+
+            InputImageVM.InputImage = null;
+            IAIOutputVM.IAIOutputMessage = string.Empty;
+            ImageControlVM.ExecuteResetCommand();
+            ImageControlVM.SelectedImagePath = string.Empty;
+
+            RankNetVM.Clear();
+            EfficientDetVM.Clear();
+            FinalPredictionVM.Clear();
+            PreviewPaneVM.ClearPreview();
+
+            _currentDetections.Clear();
+
+            EditorControlsVM.ClearSelection();
+            EditorControlsVM.CurrentDetections?.Clear();
+
+            // Exit edit mode before resetting drawing
+            if (EditorControlsVM.IsEditModeActive)
+            {
+                EditorControlsVM.ExitEditMode();
+            }
+
+            // End session if active
+            if (SessionInfoVM.HasActiveSession)
+            {
+                SessionInfoVM.EndSessionInternal();
+            }
+
+            ResetDrawingRequested?.Invoke(this, EventArgs.Empty);
+
+            ImageControlVM?.SetButtonStates(false);
+            MICAControlVM?.SetButtonStates(false);
+
+            ImageControlVM?.UpdateCommandStates();
+            MICAControlVM?.UpdateCommandStates();
+            EditorControlsVM?.UpdateCommandStates();
+            CommandManager.InvalidateRequerySuggested();
+        }
+
         public void Dispose()
         {
             _metricsService?.EndSession();
             (_python as IDisposable)?.Dispose();
             GC.SuppressFinalize(this);
         }
+
+        #endregion
+
+        #region Metrics Export
+
+        public void ExportPerformanceMetrics()
+        {
+            try
+            {
+                var saveDialog = new Microsoft.Win32.SaveFileDialog
+                {
+                    Filter = "JSON files (*.json)|*.json|CSV files (*.csv)|*.csv|All files (*.*)|*.*",
+                    DefaultExt = ".json",
+                    FileName = $"metrics_session_{DateTime.Now:yyyyMMdd_HHmmss}"
+                };
+
+                if (saveDialog.ShowDialog() == true)
+                {
+                    if (saveDialog.FileName.EndsWith(".csv"))
+                    {
+                        _metricsService.ExportCSV(saveDialog.FileName);
+                    }
+                    else
+                    {
+                        _metricsService.ExportMetrics(saveDialog.FileName);
+                    }
+
+                    var report = _metricsService.GenerateReport();
+
+                    MessageBox.Show(
+                        $"Metrics exported successfully!\n\n" +
+                        $"Session Duration: {TimeSpan.FromSeconds(report.SessionDuration):hh\\:mm\\:ss}\n" +
+                        $"Total Tasks: {report.TotalTasks}\n" +
+                        $"Total Interactions: {report.TotalInteractions}\n" +
+                        $"Avg Task Duration: {report.AverageTaskDuration:F2}s\n" +
+                        $"Avg Model Execution: {report.AverageModelExecutionTime:F2}s\n" +
+                        $"Feedback Actions: {report.FeedbackActions}",
+                        "Export Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Error exporting metrics:\n{ex.Message}",
+                    "Export Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
     }
 }

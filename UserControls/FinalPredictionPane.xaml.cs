@@ -31,19 +31,20 @@ namespace MURDOC_2024.UserControls
         private const double MIN_ZOOM = 0.5;
         private const double MAX_ZOOM = 5.0;
         private const double ZOOM_STEP = 0.1;
-        private bool _isZoomPanInitialized = false; //
+        private bool _isZoomPanInitialized = false;
 
-        // Add ScaleTransform and TranslateTransform for the canvas
+        // Transform objects for zoom/pan
         private ScaleTransform _scaleTransform;
         private TranslateTransform _translateTransform;
         private TransformGroup _transformGroup;
 
-        // Dragging state
+        // Polygon editing state
         private bool _isDraggingPoint;
         private int _draggedPointIndex;
         private Ellipse _draggedMarker;
+        private PointEditMode _currentPointEditMode = PointEditMode.Add;
 
-        // Rank editing
+        // Rank editing state
         private bool _isRankBrushMode;
         private RankBrushMode _currentBrushMode;
         private double _currentBrushSize = 20;
@@ -68,32 +69,205 @@ namespace MURDOC_2024.UserControls
             _transformGroup.Children.Add(_translateTransform);
         }
 
+        #region Unified Edit Mode (Current)
+
         /// <summary>
-        /// Set up zoom and pan when entering drawing mode
+        /// Enter unified edit mode (polygon + rank brush)
+        /// </summary>
+        public void EnterUnifiedEditMode(RankBrushMode brushMode, double brushSize, double brushStrength)
+        {
+            // Enable polygon drawing
+            _drawingService.StartDrawing(DrawingMode.Polygon);
+            ViewModel?.EnableDrawingMode(DrawingMode.Polygon);
+
+            // Enable rank brush
+            _isRankBrushMode = true;
+            _currentBrushMode = brushMode;
+            _currentBrushSize = brushSize;
+            _currentBrushStrength = brushStrength;
+
+            // Initialize zoom/pan
+            InitializeZoomPan();
+
+            // Show canvas and original outline
+            EditingCanvas.Visibility = Visibility.Visible;
+            EditingCanvas.Cursor = Cursors.Cross;
+            ShowOriginalMaskOutline();
+
+            // Default to polygon editing mode
+            _currentEditSubMode = EditSubMode.PolygonEditing;
+
+            System.Diagnostics.Debug.WriteLine("Entered unified edit mode (polygon + rank)");
+        }
+
+        /// <summary>
+        /// Apply polygon modifications to the binary mask (if any)
+        /// </summary>
+        private bool ApplyPolygonChangesIfModified()
+        {
+            // Check if we're in unified edit mode with polygon points
+            if (!ViewModel.IsDrawingMode || _drawingService.CurrentPolygon.Count < 3)
+            {
+                System.Diagnostics.Debug.WriteLine("No polygon modifications to apply");
+                return true; // No polygon to apply, that's okay
+            }
+
+            try
+            {
+                // Check if polygon has been modified from original
+                var currentPolygon = new List<Point>(_drawingService.CurrentPolygon);
+
+                System.Diagnostics.Debug.WriteLine($"Applying polygon with {currentPolygon.Count} points to binary mask");
+
+                // Convert polygon to mask and update ViewModel
+                bool success = ViewModel.UpdateMaskFromPolygon(currentPolygon);
+
+                if (success)
+                {
+                    System.Diagnostics.Debug.WriteLine("Successfully applied polygon changes to binary mask");
+                    return true;
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("Failed to apply polygon changes");
+                    MessageBox.Show(
+                        "Failed to apply polygon changes to mask.\n\nPlease try again.",
+                        "Polygon Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error applying polygon changes: {ex.Message}");
+                MessageBox.Show(
+                    $"Error applying polygon changes:\n{ex.Message}",
+                    "Polygon Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Exit unified edit mode
+        /// </summary>
+        public void ExitUnifiedEditMode()
+        {
+            // Disable polygon drawing
+            _drawingService.CancelDrawing();
+            ViewModel?.DisableDrawingMode();
+
+            // Disable rank brush
+            _isRankBrushMode = false;
+            _isRankPainting = false;
+
+            // Clear sub-mode
+            _currentEditSubMode = EditSubMode.None;
+
+            // Cleanup
+            ClearDrawing();
+            CleanupZoomPan();
+
+            EditingCanvas.Visibility = Visibility.Collapsed;
+            EditingCanvas.Cursor = Cursors.Arrow;
+
+            if (EditingCanvas.IsMouseCaptured)
+            {
+                EditingCanvas.ReleaseMouseCapture();
+            }
+
+            System.Diagnostics.Debug.WriteLine("Exited unified edit mode");
+        }
+
+        /// <summary>
+        /// Set point editing mode (Add or Remove)
+        /// </summary>
+        public void SetPointEditMode(PointEditMode mode)
+        {
+            _currentPointEditMode = mode;
+
+            // Switch to polygon editing sub-mode
+            _currentEditSubMode = EditSubMode.PolygonEditing;
+            EditingCanvas.Cursor = Cursors.Hand; // Hand cursor for point editing
+
+            System.Diagnostics.Debug.WriteLine($"Point edit mode set to: {mode} (Polygon editing active)");
+        }
+
+        /// <summary>
+        /// Update rank brush parameters while in edit mode
+        /// </summary>
+        public void UpdateRankBrush(RankBrushMode mode, double brushSize, double brushStrength)
+        {
+            _currentBrushMode = mode;
+            _currentBrushSize = brushSize;
+            _currentBrushStrength = brushStrength;
+
+            // Switch to rank brushing sub-mode
+            _currentEditSubMode = EditSubMode.RankBrushing;
+            EditingCanvas.Cursor = Cursors.Cross; // Cross cursor for painting
+
+            string modeText = mode == RankBrushMode.Increase ? "Increase" : "Decrease";
+            System.Diagnostics.Debug.WriteLine($"Brush updated: {modeText}, Size: {brushSize}px, Strength: {brushStrength:P0} (Rank brushing active)");
+        }
+
+        /// <summary>
+        /// Save all modifications to disk (applies polygon changes first)
+        /// </summary>
+        public void SaveModifiedRankMap()
+        {
+            if (ViewModel == null)
+            {
+                throw new Exception("ViewModel is null");
+            }
+
+            try
+            {
+                // STEP 1: Apply polygon modifications to binary mask (if any)
+                bool polygonApplied = ApplyPolygonChangesIfModified();
+
+                if (!polygonApplied)
+                {
+                    // User was notified by ApplyPolygonChangesIfModified
+                    return;
+                }
+
+                // STEP 2: Save all modifications (binary mask + rank map)
+                ViewModel.SaveAllModifications();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error saving modifications: {ex.Message}");
+                throw;
+            }
+        }
+
+        #endregion
+
+        #region Zoom and Pan
+
+        /// <summary>
+        /// Set up zoom and pan when entering edit mode
         /// </summary>
         private void InitializeZoomPan()
         {
-            // Prevent duplicate subscriptions
             if (_isZoomPanInitialized)
             {
                 System.Diagnostics.Debug.WriteLine("Zoom/Pan already initialized, skipping");
                 return;
             }
 
-            // Apply transforms to the ENTIRE GRID (not just canvas)
             LayeredImageGrid.RenderTransform = _transformGroup;
             LayeredImageGrid.RenderTransformOrigin = new Point(0.5, 0.5);
 
-            // Subscribe to mouse wheel for zoom on the parent grid
             LayeredImageGrid.MouseWheel += EditingCanvas_MouseWheel;
-
-            // Pan handlers stay on EditingCanvas for better control
             EditingCanvas.MouseDown += EditingCanvas_MouseDown_Pan;
             EditingCanvas.MouseUp += EditingCanvas_MouseUp_Pan;
             EditingCanvas.MouseMove += EditingCanvas_MouseMove_Pan;
 
             _isZoomPanInitialized = true;
-            System.Diagnostics.Debug.WriteLine("Zoom/Pan initialized on entire image grid");
+            System.Diagnostics.Debug.WriteLine("Zoom/Pan initialized");
         }
 
         /// <summary>
@@ -112,7 +286,6 @@ namespace MURDOC_2024.UserControls
             EditingCanvas.MouseUp -= EditingCanvas_MouseUp_Pan;
             EditingCanvas.MouseMove -= EditingCanvas_MouseMove_Pan;
 
-            // Reset transforms
             _zoomLevel = 1.0;
             _panOffset = new Point(0, 0);
             _scaleTransform.ScaleX = 1.0;
@@ -126,38 +299,29 @@ namespace MURDOC_2024.UserControls
             System.Diagnostics.Debug.WriteLine("Zoom/Pan cleaned up");
         }
 
-        /// <summary>
-        /// Handle mouse wheel zoom
-        /// </summary>
         private void EditingCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (!Keyboard.IsKeyDown(Key.LeftCtrl) && !Keyboard.IsKeyDown(Key.RightCtrl))
-                return; // Only zoom with Ctrl held
+                return;
 
             double zoomDelta = e.Delta > 0 ? ZOOM_STEP : -ZOOM_STEP;
             double newZoom = Math.Max(MIN_ZOOM, Math.Min(MAX_ZOOM, _zoomLevel + zoomDelta));
 
             if (newZoom != _zoomLevel)
             {
-                // Get mouse position relative to the LayeredImageGrid
                 Point mousePos = e.GetPosition(LayeredImageGrid);
-
-                // Calculate zoom factor
                 double zoomFactor = newZoom / _zoomLevel;
 
-                // Adjust pan to zoom towards mouse position
                 _panOffset.X = mousePos.X - (mousePos.X - _panOffset.X) * zoomFactor;
                 _panOffset.Y = mousePos.Y - (mousePos.Y - _panOffset.Y) * zoomFactor;
 
                 _zoomLevel = newZoom;
 
-                // Apply transforms
                 _scaleTransform.ScaleX = _zoomLevel;
                 _scaleTransform.ScaleY = _zoomLevel;
                 _translateTransform.X = _panOffset.X;
                 _translateTransform.Y = _panOffset.Y;
 
-                // Update zoom display
                 if (ViewModel != null)
                     ViewModel.ZoomLevelText = $"{(_zoomLevel * 100):F0}%";
 
@@ -167,9 +331,6 @@ namespace MURDOC_2024.UserControls
             e.Handled = true;
         }
 
-        /// <summary>
-        /// Start panning with middle mouse button
-        /// </summary>
         private void EditingCanvas_MouseDown_Pan(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton == MouseButton.Middle ||
@@ -183,9 +344,6 @@ namespace MURDOC_2024.UserControls
             }
         }
 
-        /// <summary>
-        /// Stop panning
-        /// </summary>
         private void EditingCanvas_MouseUp_Pan(object sender, MouseButtonEventArgs e)
         {
             if (_isPanning && (e.ChangedButton == MouseButton.Middle || e.ChangedButton == MouseButton.Left))
@@ -197,9 +355,6 @@ namespace MURDOC_2024.UserControls
             }
         }
 
-        /// <summary>
-        /// Handle panning motion
-        /// </summary>
         private void EditingCanvas_MouseMove_Pan(object sender, MouseEventArgs e)
         {
             if (_isPanning)
@@ -218,27 +373,76 @@ namespace MURDOC_2024.UserControls
             }
         }
 
-        /// <summary>
-        /// Zoom in programmatically
-        /// </summary>
+        private void EditingCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            // =================================================================
+            // RANK BRUSH PAINTING (only if in rank brushing sub-mode)
+            // =================================================================
+            if (_isRankPainting && _isRankBrushMode && _currentEditSubMode == EditSubMode.RankBrushing)
+            {
+                Point canvasPoint = e.GetPosition(EditingCanvas);
+                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
+
+                ViewModel.ApplyRankBrush(imagePoint, _currentBrushMode, _currentBrushSize, _currentBrushStrength);
+
+                e.Handled = true;
+                return;
+            }
+
+            // =================================================================
+            // PANNING (works in both modes if Space is held)
+            // =================================================================
+            if (_isPanning)
+            {
+                Point currentPos = e.GetPosition(this);
+                Vector delta = currentPos - _lastPanPosition;
+
+                _panOffset.X += delta.X;
+                _panOffset.Y += delta.Y;
+
+                _translateTransform.X = _panOffset.X;
+                _translateTransform.Y = _panOffset.Y;
+
+                _lastPanPosition = currentPos;
+                e.Handled = true;
+                return;
+            }
+
+            // =================================================================
+            // POLYGON POINT DRAGGING (only if in polygon editing sub-mode)
+            // =================================================================
+            if (_isDraggingPoint && _draggedPointIndex >= 0 && _draggedMarker != null &&
+                _currentEditSubMode == EditSubMode.PolygonEditing)
+            {
+                Point canvasPoint = e.GetPosition(EditingCanvas);
+                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
+
+                if (_draggedPointIndex < _drawingService.CurrentPolygon.Count)
+                {
+                    _drawingService.CurrentPolygon[_draggedPointIndex] = imagePoint;
+                }
+
+                Canvas.SetLeft(_draggedMarker, canvasPoint.X - 6);
+                Canvas.SetTop(_draggedMarker, canvasPoint.Y - 6);
+
+                UpdatePolyline();
+
+                e.Handled = true;
+            }
+        }
+
         public void ZoomIn()
         {
             double newZoom = Math.Min(MAX_ZOOM, _zoomLevel + ZOOM_STEP * 2);
             SetZoom(newZoom);
         }
 
-        /// <summary>
-        /// Zoom out programmatically
-        /// </summary>
         public void ZoomOut()
         {
             double newZoom = Math.Max(MIN_ZOOM, _zoomLevel - ZOOM_STEP * 2);
             SetZoom(newZoom);
         }
 
-        /// <summary>
-        /// Reset zoom to 100%
-        /// </summary>
         public void ResetZoom()
         {
             SetZoom(1.0);
@@ -247,28 +451,37 @@ namespace MURDOC_2024.UserControls
             _translateTransform.Y = 0;
         }
 
-        /// <summary>
-        /// Set specific zoom level
-        /// </summary>
         private void SetZoom(double zoom)
         {
             _zoomLevel = zoom;
             _scaleTransform.ScaleX = _zoomLevel;
             _scaleTransform.ScaleY = _zoomLevel;
-            ViewModel.ZoomLevelText = $"{(_zoomLevel * 100):F0}%";
+            if (ViewModel != null)
+                ViewModel.ZoomLevelText = $"{(_zoomLevel * 100):F0}%";
             System.Diagnostics.Debug.WriteLine($"Zoom set to: {_zoomLevel:F2}x");
         }
 
-        /// <summary>
-        /// Convert canvas coordinates to image pixel coordinates (accounting for zoom/pan)
-        /// </summary>
+        private enum EditSubMode
+        {
+            None,
+            PolygonEditing,
+            RankBrushing
+        }
+
+        private EditSubMode _currentEditSubMode = EditSubMode.None;
+
+        private void ZoomIn_Click(object sender, RoutedEventArgs e) => ZoomIn();
+        private void ZoomOut_Click(object sender, RoutedEventArgs e) => ZoomOut();
+        private void ResetZoom_Click(object sender, RoutedEventArgs e) => ResetZoom();
+
+        #endregion
+
+        #region Coordinate Conversion
+
         private Point CanvasToImageCoordinates(Point canvasPoint)
         {
             if (ViewModel?.OriginalImage == null)
                 return canvasPoint;
-
-            // First, get the position relative to the LayeredImageGrid
-            // (This accounts for zoom/pan since the grid is transformed)
 
             double canvasWidth = LayeredImageGrid.ActualWidth;
             double canvasHeight = LayeredImageGrid.ActualHeight;
@@ -276,7 +489,6 @@ namespace MURDOC_2024.UserControls
             int imageWidth = ViewModel.OriginalImage.PixelWidth;
             int imageHeight = ViewModel.OriginalImage.PixelHeight;
 
-            // Calculate scale for Stretch="Uniform"
             double scaleX = canvasWidth / imageWidth;
             double scaleY = canvasHeight / imageHeight;
             double scale = Math.Min(scaleX, scaleY);
@@ -293,9 +505,6 @@ namespace MURDOC_2024.UserControls
             return new Point(imageX, imageY);
         }
 
-        /// <summary>
-        /// Convert image pixel coordinates to canvas coordinates (accounting for zoom/pan)
-        /// </summary>
         private Point ImageToCanvasCoordinates(Point imagePoint)
         {
             if (ViewModel?.OriginalImage == null)
@@ -323,154 +532,111 @@ namespace MURDOC_2024.UserControls
             return new Point(canvasX, canvasY);
         }
 
-        public void EnablePolygonDrawing()
-        {
-            _drawingService.StartDrawing(DrawingMode.Polygon);
-            ViewModel?.EnableDrawingMode(DrawingMode.Polygon);
-
-            InitializeZoomPan(); // INITIALIZE ZOOM/PAN
-
-            // EXPLICITLY SHOW CANVAS (in case rank brush collapsed it)
-            EditingCanvas.Visibility = Visibility.Visible;
-            EditingCanvas.Cursor = Cursors.Arrow; // Reset cursor
-
-            ShowOriginalMaskOutline();
-
-            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Polygon drawing enabled with editable outline and zoom/pan");
-        }
-
-        #region Rank Brush Methods
-
-        /// <summary>
-        /// Enable rank brush editing mode
-        /// </summary>
-        public void EnableRankBrushMode(RankBrushMode mode, double brushSize, double brushStrength)
-        {
-            // Exit polygon drawing mode if active
-            if (ViewModel?.IsDrawingMode == true)
-            {
-                ViewModel.DisableDrawingMode();
-                ClearDrawing();
-            }
-
-            // Initialize zoom/pan if not already done (so it works in rank mode too!)
-            InitializeZoomPan();
-
-            // Enable rank brush mode
-            _isRankBrushMode = true;
-            _currentBrushMode = mode;
-            _currentBrushSize = brushSize;
-            _currentBrushStrength = brushStrength;
-
-            EditingCanvas.Cursor = Cursors.Cross;
-            EditingCanvas.Visibility = Visibility.Visible;
-
-            string modeText = mode == RankBrushMode.Increase ? "Increase" : "Decrease";
-            System.Diagnostics.Debug.WriteLine($"Rank brush mode enabled - {modeText}, Size: {brushSize}px, Strength: {brushStrength:P0}");
-            System.Diagnostics.Debug.WriteLine("Right-click to exit rank editing mode");
-        }
-
-        /// <summary>
-        /// Disable rank brush editing mode
-        /// </summary>
-        public void DisableRankBrushMode()
-        {
-            _isRankBrushMode = false;
-            _isRankPainting = false;
-
-            EditingCanvas.Cursor = Cursors.Arrow;
-
-            if (EditingCanvas.IsMouseCaptured)
-            {
-                EditingCanvas.ReleaseMouseCapture();
-            }
-
-            // DON'T clean up zoom/pan here - keep it active for next mode
-            System.Diagnostics.Debug.WriteLine("Rank brush mode disabled (zoom/pan still active)");
-        }
-
-        /// <summary>
-        /// Update rank brush parameters (when changing size/strength/mode while active)
-        /// </summary>
-        public void UpdateRankBrush(RankBrushMode mode, double brushSize, double brushStrength)
-        {
-            _currentBrushMode = mode;
-            _currentBrushSize = brushSize;
-            _currentBrushStrength = brushStrength;
-
-            string modeText = mode == RankBrushMode.Increase ? "Increase" : "Decrease";
-            System.Diagnostics.Debug.WriteLine($"Brush updated: {modeText}, Size: {brushSize}px, Strength: {brushStrength:P0}");
-        }
-
-        /// <summary>
-        /// Save all modifications to disk
-        /// </summary>
-        public void SaveModifiedRankMap()
-        {
-            if (ViewModel == null)
-            {
-                throw new Exception("ViewModel is null");
-            }
-
-            // Trigger save in ViewModel
-            ViewModel.SaveAllModifications();
-        }
-
         #endregion
+
+        #region Mouse Event Handlers
 
         private void EditingCanvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (ViewModel == null)
                 return;
 
+            // Don't interfere with panning
+            if (Keyboard.IsKeyDown(Key.Space))
+                return;
+
+            Point canvasPoint = e.GetPosition(EditingCanvas);
+
             // =================================================================
-            // RANK BRUSH MODE - Takes priority when active
+            // UNIFIED EDIT MODE - Check which sub-mode is active
+            // =================================================================
+            if (_isRankBrushMode && ViewModel.IsDrawingMode)
+            {
+                // In unified mode - check sub-mode
+                if (_currentEditSubMode == EditSubMode.RankBrushing)
+                {
+                    // RANK BRUSH PAINTING
+                    _isRankPainting = true;
+                    Point imagePoint = CanvasToImageCoordinates(canvasPoint);
+
+                    ViewModel.ApplyRankBrush(imagePoint, _currentBrushMode, _currentBrushSize, _currentBrushStrength);
+
+                    EditingCanvas.CaptureMouse();
+                    e.Handled = true;
+                    return;
+                }
+                else if (_currentEditSubMode == EditSubMode.PolygonEditing)
+                {
+                    // POLYGON POINT EDITING
+                    HandlePolygonPointClick(canvasPoint);
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+            // =================================================================
+            // LEGACY: Separate modes (shouldn't happen in unified mode)
             // =================================================================
             if (_isRankBrushMode)
             {
                 _isRankPainting = true;
-                Point canvasPoint = e.GetPosition(EditingCanvas);
                 Point imagePoint = CanvasToImageCoordinates(canvasPoint);
-
-                // Apply brush stroke
                 ViewModel.ApplyRankBrush(imagePoint, _currentBrushMode, _currentBrushSize, _currentBrushStrength);
-
                 EditingCanvas.CaptureMouse();
                 e.Handled = true;
                 return;
             }
 
-            // =================================================================
-            // POLYGON DRAWING MODE - Only active when rank brush is off
-            // =================================================================
-            if (!ViewModel.IsDrawingMode)
+            if (ViewModel.IsDrawingMode)
+            {
+                HandlePolygonPointClick(canvasPoint);
+                e.Handled = true;
                 return;
+            }
+        }
 
-            // Don't interfere with panning
-            if (Keyboard.IsKeyDown(Key.Space))
-                return;
-
-            Point canvasPoint2 = e.GetPosition(EditingCanvas);
-
+        /// <summary>
+        /// Handle polygon point clicking (add, remove, or drag)
+        /// </summary>
+        private void HandlePolygonPointClick(Point canvasPoint)
+        {
             // Check if clicking near an existing point marker (within 10 pixels)
             for (int i = 0; i < _polygonPointMarkers.Count; i++)
             {
                 var marker = _polygonPointMarkers[i];
-                double markerX = Canvas.GetLeft(marker) + 5; // Center (radius 5)
+                double markerX = Canvas.GetLeft(marker) + 5;
                 double markerY = Canvas.GetTop(marker) + 5;
 
                 double distance = Math.Sqrt(
-                    Math.Pow(canvasPoint2.X - markerX, 2) +
-                    Math.Pow(canvasPoint2.Y - markerY, 2));
+                    Math.Pow(canvasPoint.X - markerX, 2) +
+                    Math.Pow(canvasPoint.Y - markerY, 2));
 
                 if (distance < 10)
                 {
-                    // Start dragging EXISTING point
+                    // REMOVE MODE: Delete the point
+                    if (_currentPointEditMode == PointEditMode.Remove)
+                    {
+                        if (_polygonPointMarkers.Count <= 3)
+                        {
+                            MessageBox.Show("Cannot remove point - polygon needs at least 3 points",
+                                "Minimum Points", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            return;
+                        }
+
+                        EditingCanvas.Children.Remove(marker);
+                        _polygonPointMarkers.RemoveAt(i);
+                        _drawingService.CurrentPolygon.RemoveAt(i);
+                        UpdatePolyline();
+
+                        System.Diagnostics.Debug.WriteLine($"Removed point {i}");
+                        return;
+                    }
+
+                    // ADD MODE: Start dragging existing point
                     _isDraggingPoint = true;
                     _draggedPointIndex = i;
                     _draggedMarker = marker;
 
-                    // Visual feedback
                     marker.Fill = Brushes.Orange;
                     marker.Width = 12;
                     marker.Height = 12;
@@ -480,113 +646,41 @@ namespace MURDOC_2024.UserControls
                     EditingCanvas.CaptureMouse();
                     System.Diagnostics.Debug.WriteLine($"Started dragging existing point {i}");
 
-                    e.Handled = true;
                     return;
                 }
             }
 
-            // Not near existing point - CREATE NEW POINT
-            if (ViewModel.CurrentDrawingMode == DrawingMode.Polygon)
+            // CREATE NEW POINT (Add mode only)
+            if (_currentPointEditMode == PointEditMode.Add && ViewModel.CurrentDrawingMode == DrawingMode.Polygon)
             {
-                Point imagePoint = CanvasToImageCoordinates(canvasPoint2);
+                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
 
-                // Add point to polygon (IMAGE coordinates)
                 _drawingService.AddPoint(imagePoint);
 
-                // Create visual marker (CANVAS coordinates)
-                var marker = CreatePointMarker(canvasPoint2);
+                var marker = CreatePointMarker(canvasPoint);
 
-                // Immediately put it in drag mode
                 _isDraggingPoint = true;
                 _draggedPointIndex = _drawingService.CurrentPolygon.Count - 1;
                 _draggedMarker = marker;
 
-                // Visual feedback - orange and larger since we're dragging
                 marker.Fill = Brushes.Orange;
                 marker.Width = 12;
                 marker.Height = 12;
-                Canvas.SetLeft(marker, canvasPoint2.X - 6);
-                Canvas.SetTop(marker, canvasPoint2.Y - 6);
+                Canvas.SetLeft(marker, canvasPoint.X - 6);
+                Canvas.SetTop(marker, canvasPoint.Y - 6);
 
                 EditingCanvas.Children.Add(marker);
                 _polygonPointMarkers.Add(marker);
-
                 EditingCanvas.CaptureMouse();
-
                 UpdatePolyline();
 
                 System.Diagnostics.Debug.WriteLine($"Created new point {_draggedPointIndex} and started dragging");
-            }
-
-            e.Handled = true;
-        }
-
-        private void EditingCanvas_MouseMove(object sender, MouseEventArgs e)
-        {
-            // =================================================================
-            // RANK BRUSH PAINTING
-            // =================================================================
-            if (_isRankPainting && _isRankBrushMode)
-            {
-                Point canvasPoint = e.GetPosition(EditingCanvas);
-                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
-
-                // Apply brush stroke
-                ViewModel.ApplyRankBrush(imagePoint, _currentBrushMode, _currentBrushSize, _currentBrushStrength);
-
-                e.Handled = true;
-                return;
-            }
-
-            // =================================================================
-            // PANNING (works in both modes if Space is held)
-            // =================================================================
-            if (_isPanning)
-            {
-                Point currentPos = e.GetPosition(this);
-                Vector delta = currentPos - _lastPanPosition;
-
-                _panOffset.X += delta.X;
-                _panOffset.Y += delta.Y;
-
-                _translateTransform.X = _panOffset.X;
-                _translateTransform.Y = _panOffset.Y;
-
-                _lastPanPosition = currentPos;
-                e.Handled = true;
-                return;
-            }
-
-            // =================================================================
-            // POLYGON POINT DRAGGING
-            // =================================================================
-            if (_isDraggingPoint && _draggedPointIndex >= 0 && _draggedMarker != null)
-            {
-                Point canvasPoint = e.GetPosition(EditingCanvas);
-                Point imagePoint = CanvasToImageCoordinates(canvasPoint);
-
-                // Update the point in the drawing service (IMAGE coordinates)
-                if (_draggedPointIndex < _drawingService.CurrentPolygon.Count)
-                {
-                    _drawingService.CurrentPolygon[_draggedPointIndex] = imagePoint;
-                }
-
-                // Update marker position (CANVAS coordinates)
-                Canvas.SetLeft(_draggedMarker, canvasPoint.X - 6);
-                Canvas.SetTop(_draggedMarker, canvasPoint.Y - 6);
-
-                // Update polyline in real-time
-                UpdatePolyline();
-
-                e.Handled = true;
             }
         }
 
         private void EditingCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            // =================================================================
-            // STOP RANK PAINTING
-            // =================================================================
+            // Stop rank painting
             if (_isRankPainting)
             {
                 _isRankPainting = false;
@@ -596,11 +690,7 @@ namespace MURDOC_2024.UserControls
                 return;
             }
 
-            // =================================================================
-            // STOP POLYGON POINT DRAGGING
-            // =================================================================
-            System.Diagnostics.Debug.WriteLine($"MouseLeftButtonUp fired. IsDragging={_isDraggingPoint}");
-
+            // Stop polygon point dragging
             if (_isDraggingPoint)
             {
                 try
@@ -611,7 +701,6 @@ namespace MURDOC_2024.UserControls
                     if (_draggedPointIndex >= 0 && _draggedPointIndex < _drawingService.CurrentPolygon.Count)
                     {
                         _drawingService.CurrentPolygon[_draggedPointIndex] = finalImagePoint;
-                        System.Diagnostics.Debug.WriteLine($"Updated point {_draggedPointIndex} to final position: {finalImagePoint}");
                     }
 
                     if (_draggedMarker != null)
@@ -622,17 +711,9 @@ namespace MURDOC_2024.UserControls
 
                         Canvas.SetLeft(_draggedMarker, finalCanvasPoint.X - 5);
                         Canvas.SetTop(_draggedMarker, finalCanvasPoint.Y - 5);
-
-                        System.Diagnostics.Debug.WriteLine($"Reset marker appearance at canvas position: {finalCanvasPoint}");
                     }
 
                     UpdatePolyline();
-
-                    System.Diagnostics.Debug.WriteLine($"Finalized point {_draggedPointIndex}");
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error in MouseLeftButtonUp: {ex.Message}");
                 }
                 finally
                 {
@@ -643,7 +724,6 @@ namespace MURDOC_2024.UserControls
                     if (EditingCanvas.IsMouseCaptured)
                     {
                         EditingCanvas.ReleaseMouseCapture();
-                        System.Diagnostics.Debug.WriteLine("Released mouse capture");
                     }
                 }
 
@@ -653,40 +733,51 @@ namespace MURDOC_2024.UserControls
 
         private void EditingCanvas_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // =================================================================
-            // EXIT RANK BRUSH MODE
-            // =================================================================
-            if (_isRankBrushMode)
+            // Exit unified edit mode on right-click
+            if (ViewModel?.IsDrawingMode == true || _isRankBrushMode)
             {
-                DisableRankBrushMode();
+                // Check if there are unsaved changes
+                bool hasPolygonChanges = _drawingService.CurrentPolygon.Count >= 3;
+                bool hasRankChanges = ViewModel.HasAnyModifications;
 
-                MessageBox.Show(
-                    "Exited rank editing mode.\n\nModifications have been applied to the preview.\n" +
-                    "Click 'Save Changes' to save permanently.",
-                    "Rank Editing Complete",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                string warningMessage = "Exit editing mode without saving?\n\n";
+
+                if (hasPolygonChanges)
+                {
+                    warningMessage += "⚠️ You have unsaved polygon edits\n";
+                }
+                if (hasRankChanges)
+                {
+                    warningMessage += "⚠️ You have unsaved rank map edits\n";
+                }
+
+                warningMessage += "\nClick 'Save Changes' to save your modifications.";
+
+                var result = MessageBox.Show(
+                    warningMessage,
+                    "Exit Edit Mode",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    ExitUnifiedEditMode();
+
+                    // Notify ViewModel to update UI state
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var mainWindow = Application.Current.MainWindow as MainWindow;
+                        mainWindow?.ViewModel?.EditorControlsVM?.ExitEditMode();
+                    });
+                }
 
                 e.Handled = true;
                 return;
             }
-
-            // =================================================================
-            // COMPLETE POLYGON (existing behavior)
-            // =================================================================
-            if (ViewModel == null || !ViewModel.IsDrawingMode)
-                return;
-
-            if (_drawingService.CurrentPolygon.Count >= 3)
-            {
-                CompletePolygon();
-            }
-            else
-            {
-                MessageBox.Show("Need at least 3 points to complete polygon", "Invalid Polygon",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
         }
+        #endregion
+
+        #region Polygon Helpers
 
         private Ellipse CreatePointMarker(Point canvasPoint)
         {
@@ -697,7 +788,7 @@ namespace MURDOC_2024.UserControls
                 Fill = Brushes.Yellow,
                 Stroke = Brushes.Black,
                 StrokeThickness = 2,
-                Cursor = Cursors.Hand // Show it's draggable
+                Cursor = Cursors.Hand
             };
 
             Canvas.SetLeft(marker, canvasPoint.X - 5);
@@ -715,7 +806,6 @@ namespace MURDOC_2024.UserControls
 
             if (_drawingService.CurrentPolygon.Count > 1)
             {
-                // Convert image coordinates to canvas coordinates for display
                 var canvasPoints = _drawingService.CurrentPolygon
                     .Select(p => ImageToCanvasCoordinates(p))
                     .ToList();
@@ -727,183 +817,13 @@ namespace MURDOC_2024.UserControls
                     Points = new PointCollection(canvasPoints)
                 };
 
-                // Make sure polyline is behind the markers
                 Canvas.SetZIndex(_currentPolyline, -1);
 
                 EditingCanvas.Children.Add(_currentPolyline);
             }
         }
 
-        private void CompletePolygon()
-        {
-            if (_drawingService.CurrentPolygon.Count < 3)
-            {
-                MessageBox.Show("Need at least 3 points to complete polygon", "Invalid Polygon",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                // Polygon points are already in IMAGE coordinates
-                var imagePolygonPoints = new List<Point>(_drawingService.CurrentPolygon);
-
-                // Convert polygon to mask and update ViewModel
-                bool success = ViewModel.UpdateMaskFromPolygon(imagePolygonPoints);
-
-                if (success)
-                {
-                    // Clear drawing
-                    ClearDrawing();
-
-                    // Exit drawing mode
-                    ViewModel.DisableDrawingMode();
-
-                    // Notify parent that ROI was completed
-                    OnROICompleted();
-
-                    MessageBox.Show(
-                        "Polygon applied successfully!\n\n" +
-                        "The mask has been updated with your changes.",
-                        "Success",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show(
-                        "Failed to apply polygon to mask.\n\n" +
-                        "Please try again or check the debug output.",
-                        "Error",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error completing polygon: {ex.Message}");
-                MessageBox.Show(
-                    $"Error applying polygon: {ex.Message}",
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// Revert to original mask outline (clear user modifications)
-        /// </summary>
-        public void RevertToOriginalMask()
-        {
-            if (ViewModel == null || !ViewModel.IsDrawingMode)
-            {
-                System.Diagnostics.Debug.WriteLine("Not in drawing mode, nothing to revert");
-                return;
-            }
-
-            try
-            {
-                // Clear current drawing
-                ClearDrawing();
-
-                // Reload the original mask outline
-                ShowOriginalMaskOutline();
-
-                System.Diagnostics.Debug.WriteLine("Reverted to original mask outline");
-
-                MessageBox.Show(
-                    "Reverted to original mask outline.\n\n" +
-                    "Your modifications have been discarded.",
-                    "Reverted",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error reverting to original mask: {ex.Message}");
-                MessageBox.Show(
-                    $"Error reverting: {ex.Message}",
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// Restore original mask (even after modifications were applied)
-        /// </summary>
-        public void RestoreOriginalMask()
-        {
-            if (ViewModel == null)
-            {
-                System.Diagnostics.Debug.WriteLine("ViewModel is null");
-                return;
-            }
-
-            try
-            {
-                bool success = ViewModel.RestoreOriginalMask();
-
-                if (success)
-                {
-                    // Clear any drawing state
-                    ClearDrawing();
-
-                    // Optionally re-enter drawing mode with original outline
-                    if (ViewModel.IsDrawingMode)
-                    {
-                        ShowOriginalMaskOutline();
-                    }
-
-                    System.Diagnostics.Debug.WriteLine("Restored original mask successfully");
-
-                    MessageBox.Show(
-                        "Reverted to original mask.\n\n" +
-                        "All modifications have been discarded.",
-                        "Mask Restored",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show(
-                        "No original mask available to restore.",
-                        "Cannot Restore",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error restoring original mask: {ex.Message}");
-                MessageBox.Show(
-                    $"Error restoring mask: {ex.Message}",
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-        }
-
-        private void ClearDrawing()
-        {
-            EditingCanvas.Children.Clear();
-            _polygonPointMarkers.Clear();
-            _currentPolyline = null;
-            _drawingService.CancelDrawing();
-            _isDraggingPoint = false;
-            _draggedPointIndex = -1;
-            _draggedMarker = null;
-        }
-
-        private void OnROICompleted()
-        {
-            ROICompleted?.Invoke(this, EventArgs.Empty);
-        }
-
-        /// <summary>
-        /// Show the original mask outline as editable polygon
-        /// </summary>
-        public void ShowOriginalMaskOutline()
+        private void ShowOriginalMaskOutline()
         {
             if (ViewModel == null)
                 return;
@@ -938,7 +858,7 @@ namespace MURDOC_2024.UserControls
             _drawingService.CurrentPolygon.Clear();
             _drawingService.CurrentPolygon.AddRange(imageContourPoints);
 
-            // Add editable point markers for each contour point
+            // Add editable point markers
             foreach (var imagePoint in imageContourPoints)
             {
                 var canvasPoint = ImageToCanvasCoordinates(imagePoint);
@@ -951,90 +871,23 @@ namespace MURDOC_2024.UserControls
 
             System.Diagnostics.Debug.WriteLine($"Displayed editable mask outline with {imageContourPoints.Count} points");
         }
-                
-        public void EnableFreehandDrawing()
+
+        private void ClearDrawing()
         {
-            _drawingService.StartDrawing(DrawingMode.Freehand);
-            ViewModel?.EnableDrawingMode(DrawingMode.Freehand);
-            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Freehand drawing enabled");
+            EditingCanvas.Children.Clear();
+            _polygonPointMarkers.Clear();
+            _currentPolyline = null;
+            _drawingService.CancelDrawing();
+            _isDraggingPoint = false;
+            _draggedPointIndex = -1;
+            _draggedMarker = null;
         }
 
-        public void CancelDrawing()
+        private void OnROICompleted()
         {
-            ClearDrawing();
-            CleanupZoomPan(); // CLEANUP ZOOM/PAN
-
-            // Only collapse canvas if we're truly done with all editing modes
-            if (!_isRankBrushMode)
-            {
-                EditingCanvas.Visibility = Visibility.Collapsed;
-            }
-
-            ViewModel?.DisableDrawingMode();
-            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Drawing cancelled");
+            ROICompleted?.Invoke(this, EventArgs.Empty);
         }
 
-        public void ResetDrawing()
-        {
-            ClearDrawing();
-            CleanupZoomPan(); // CLEANUP ZOOM/PAN
-
-            if (_originalMaskPolygon != null)
-            {
-                EditingCanvas.Children.Remove(_originalMaskPolygon);
-                _originalMaskPolygon = null;
-            }
-
-            // Only collapse canvas if we're truly done with all editing modes
-            if (!_isRankBrushMode)
-            {
-                EditingCanvas.Visibility = Visibility.Collapsed;
-            }
-
-            ViewModel?.DisableDrawingMode();
-
-            System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Drawing state reset");
-        }
-
-        public void ExportCurrentMask(string filename)
-        {
-            try
-            {
-                if (ViewModel?.BinaryMask == null)
-                {
-                    throw new Exception("No mask available to export");
-                }
-
-                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(ViewModel.BinaryMask));
-
-                using (var stream = System.IO.File.Create(filename))
-                {
-                    encoder.Save(stream);
-                }
-
-                System.Diagnostics.Debug.WriteLine($"Exported mask to: {filename}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error exporting mask: {ex.Message}");
-                throw;
-            }
-        }
-
-        private void ZoomIn_Click(object sender, RoutedEventArgs e)
-        {
-            ZoomIn();
-        }
-
-        private void ZoomOut_Click(object sender, RoutedEventArgs e)
-        {
-            ZoomOut();
-        }
-
-        private void ResetZoom_Click(object sender, RoutedEventArgs e)
-        {
-            ResetZoom();
-        }
+        #endregion
     }
 }

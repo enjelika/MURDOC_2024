@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:MURDOC_2024.UserControls"
              xmlns:converters="clr-namespace:MURDOC_2024.Converters"
              mc:Ignorable="d" 
-             d:DesignHeight="920" d:DesignWidth="1000">
+             d:DesignHeight="980" d:DesignWidth="1000">
 
     <UserControl.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>

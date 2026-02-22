@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:MURDOC_2024"
         xmlns:controls="clr-namespace:MURDOC_2024.UserControls"
         mc:Ignorable="d"
-        Height="1010" Width="1720"
+        Height="1060" Width="1720"
         ResizeMode="NoResize"
         Title="Mixed-Initiative Camouflage Analysis Tool"
         Background="LightGray"
@@ -34,8 +34,8 @@
                 <!-- MICA Control Pane -->
                 <controls:MICAControlPane Margin="0,5,0,0" DataContext="{Binding MICAControlVM}" />
 
-                <!-- Preview Pane -->
-                <controls:PreviewImagePane DataContext="{Binding PreviewPaneVM}" Margin="0,5,0,0"/>
+                <!-- Session Info Pane -->
+                <controls:SessionInfoPane DataContext="{Binding SessionInfoVM}" Margin="0,5,0,0"/> 
 
             </StackPanel>
 
@@ -45,7 +45,7 @@
                 <controls:FinalPredictionPane
                     x:Name="FinalPredictionPaneControl"
                     DataContext="{Binding FinalPredictionVM}"
-                    Height="910"
+                    Height="985"
                     VerticalAlignment="Center"
                     Panel.ZIndex="0"/>
 

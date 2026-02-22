@@ -92,11 +92,14 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Controls\PolygonROICanvas.cs" />
+    <Compile Include="Converters\BoolToCheckmarkConverter.cs" />
     <Compile Include="Converters\BoolToColorConverter.cs" />
+    <Compile Include="Converters\BoolToEditColorConverter.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
     <Compile Include="Converters\StringToVisibilityConverter.cs" />
     <Compile Include="Model\DetectionFeedback.cs" />
     <Compile Include="Model\DetectionResut.cs" />
+    <Compile Include="Model\PointEditMode.cs" />
     <Compile Include="Model\PolygonROI.cs" />
     <Compile Include="Model\RankBrushMode.cs" />
     <Compile Include="Services\ImageService.cs" />
@@ -132,6 +135,9 @@
     <Compile Include="UserControls\RankNetOutputPane.xaml.cs">
       <DependentUpon>RankNetOutputPane.xaml</DependentUpon>
     </Compile>
+    <Compile Include="UserControls\SessionInfoPane.xaml.cs">
+      <DependentUpon>SessionInfoPane.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ViewModel\EditorControlsViewModel.cs" />
     <Compile Include="ViewModel\EfficientDetD7ViewModel.cs" />
     <Compile Include="ViewModel\FinalPredictionPaneViewModel.cs" />
@@ -143,6 +149,7 @@
     <Compile Include="ViewModel\PreviewPaneViewModel.cs" />
     <Compile Include="ViewModel\RankNetPaneViewModel.cs" />
     <Compile Include="ViewModel\RelayCommand.cs" />
+    <Compile Include="ViewModel\SessionInfoPaneViewModel.cs" />
     <Compile Include="ViewModel\ViewModelBase.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -189,6 +196,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="UserControls\RankNetOutputPane.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UserControls\SessionInfoPane.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -1,12 +1,13 @@
 ﻿using MURDOC_2024.Services;
 using System;
-using System.IO;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Linq;
+using System.Linq; // For OrderByDescending
 using MURDOC_2024.Model;
+using IOPath = System.IO.Path;  // CREATE ALIAS to avoid conflict with System.Windows.Shapes.Path
+using System.IO;
 
 namespace MURDOC_2024.ViewModel
 {
@@ -17,7 +18,7 @@ namespace MURDOC_2024.ViewModel
         private BitmapImage _rankMap;            // Confidence/fixation heatmap
         
         private ImageSource _overlayImage;       // Colored rank map with transparency
-
+        private string _originalImagePath;
         private BitmapImage _originalBinaryMask; // Store original before modifications
 
         // Session tracking
@@ -190,6 +191,16 @@ namespace MURDOC_2024.ViewModel
                 {
                     System.Diagnostics.Debug.WriteLine($"Failed to load complete result for: {fileNameWithoutExtension}");
                 }
+
+                _originalImagePath = originalImagePath;
+
+                // Initialize session
+                InitializeSession();
+
+                // Check if there's an existing session with modifications
+                LoadExistingSessionIfAvailable(fileNameWithoutExtension);
+
+                System.Diagnostics.Debug.WriteLine("FinalPredictionPane: Result loaded successfully");
             }
             catch (Exception ex)
             {
@@ -685,14 +696,14 @@ namespace MURDOC_2024.ViewModel
                 }
 
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string fileName = System.IO.Path.GetFileNameWithoutExtension(OriginalImage.UriSource.LocalPath);
-                string outputDir = System.IO.Path.Combine(exeDir, "outputs", fileName);
+                string fileName = IOPath.GetFileNameWithoutExtension(OriginalImage.UriSource.LocalPath);
+                string outputDir = IOPath.Combine(exeDir, "outputs", fileName);
 
                 // Ensure directory exists
                 System.IO.Directory.CreateDirectory(outputDir);
 
                 // Save modified binary mask
-                string modifiedMaskPath = System.IO.Path.Combine(outputDir, "binary_image_modified.png");
+                string modifiedMaskPath = IOPath.Combine(outputDir, "binary_image_modified.png");
 
                 var writeable = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
                 writeable.WritePixels(new Int32Rect(0, 0, width, height), maskData, width, 0);
@@ -708,7 +719,7 @@ namespace MURDOC_2024.ViewModel
                 System.Diagnostics.Debug.WriteLine($"Saved modified mask to: {modifiedMaskPath}");
 
                 // Also save with timestamp for history
-                string timestampPath = System.IO.Path.Combine(
+                string timestampPath = IOPath.Combine(
                     outputDir,
                     $"binary_image_modified_{DateTime.Now:yyyyMMdd_HHmmss}.png");
 
@@ -728,95 +739,223 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
-        /// Save all modifications (binary mask and/or rank map) to session folder
+        /// Save all modifications to LoRA training format
+        /// Structure: session_YYYYMMDD_HHMMSS/
+        ///   ├── bi_gt/     (binary masks)
+        ///   ├── fix/       (rank maps)
+        ///   └── img/       (original images)
         /// </summary>
         public void SaveAllModifications()
         {
             if (!HasAnyModifications)
             {
                 System.Diagnostics.Debug.WriteLine("No modifications to save");
-                MessageBox.Show(
-                    "No modifications have been made.",
-                    "Nothing to Save",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
                 return;
             }
 
             try
             {
-                if (string.IsNullOrEmpty(OriginalImage?.UriSource?.LocalPath))
-                {
-                    throw new Exception("No original image path available");
-                }
-
-                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string fileName = System.IO.Path.GetFileNameWithoutExtension(OriginalImage.UriSource.LocalPath);
-                string baseOutputDir = System.IO.Path.Combine(exeDir, "outputs", fileName);
-
                 // Create session folder
-                string sessionFolder = System.IO.Path.Combine(baseOutputDir, $"session_{_sessionId}");
-                System.IO.Directory.CreateDirectory(sessionFolder);
+                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                string sessionFolder = IOPath.Combine(exeDir, "training_sessions", $"session_{_sessionId}");
+                Directory.CreateDirectory(sessionFolder);
 
-                int savedCount = 0;
+                // Create subfolders
+                string biGtFolder = IOPath.Combine(sessionFolder, "bi_gt");
+                string fixFolder = IOPath.Combine(sessionFolder, "fix");
+                string imgFolder = IOPath.Combine(sessionFolder, "img");
+
+                Directory.CreateDirectory(biGtFolder);
+                Directory.CreateDirectory(fixFolder);
+                Directory.CreateDirectory(imgFolder);
+
                 List<string> savedFiles = new List<string>();
+                string imageName = IOPath.GetFileNameWithoutExtension(_originalImagePath);
 
-                // Save modified binary mask (if edited)
-                if (HasModifications && BinaryMask != null)
+                // Save binary mask if modified
+                if (HasModifications)
                 {
-                    string maskPath = System.IO.Path.Combine(sessionFolder, "binary_image_modified.png");
+                    string maskPath = IOPath.Combine(biGtFolder, $"{imageName}.png");
                     SaveBinaryMaskToPNG(maskPath);
-                    savedFiles.Add("Binary Mask (PNG)");
-                    savedCount++;
-                    System.Diagnostics.Debug.WriteLine($"Saved binary mask to: {maskPath}");
+                    savedFiles.Add($"Binary Mask: {maskPath}");
+
+                    // CRITICAL: Reload the saved mask back into BinaryMask property
+                    // This ensures subsequent edits start from the saved version
+                    ReloadBinaryMaskFromFile(maskPath);
+
+                    System.Diagnostics.Debug.WriteLine($"Saved and reloaded binary mask: {maskPath}");
                 }
 
-                // Save modified rank map (if edited)
-                if (_hasRankModifications && _modifiedRankData != null)
+                // Save rank map if modified
+                if (_hasRankModifications && _modifiedRankData != null && RankMap != null)
                 {
-                    int width = OriginalImage.PixelWidth;
-                    int height = OriginalImage.PixelHeight;
+                    string rankPath = IOPath.Combine(fixFolder, $"{imageName}.png");
+                    SaveRankMapAsPNG(rankPath, RankMap.PixelWidth, RankMap.PixelHeight);
+                    savedFiles.Add($"Rank Map: {rankPath}");
 
-                    // Save as PNG (0-255 for visualization)
-                    string rankPngPath = System.IO.Path.Combine(sessionFolder, "fixation_image_modified.png");
-                    SaveRankMapAsPNG(rankPngPath, width, height);
-                    savedFiles.Add("Rank Map (PNG)");
+                    // CRITICAL: Reload the saved rank map back into memory
+                    ReloadRankMapFromFile(rankPath);
 
-                    // Save as normalized CSV (0-1 for Python)
-                    string rankCsvPath = System.IO.Path.Combine(sessionFolder, "fixation_image_modified.csv");
-                    SaveRankMapAsNormalizedCSV(rankCsvPath, width, height);
-                    savedFiles.Add("Rank Map (CSV normalized)");
-
-                    savedCount += 2;
-                    System.Diagnostics.Debug.WriteLine($"Saved rank map to: {rankPngPath} and {rankCsvPath}");
+                    System.Diagnostics.Debug.WriteLine($"Saved and reloaded rank map: {rankPath}");
                 }
 
-                // Save session metadata
-                SaveSessionMetadata(sessionFolder, savedFiles);
+                // Copy original image
+                if (!string.IsNullOrEmpty(_originalImagePath) && File.Exists(_originalImagePath))
+                {
+                    string extension = IOPath.GetExtension(_originalImagePath);
+                    string imgPath = IOPath.Combine(imgFolder, $"{imageName}{extension}");
+                    File.Copy(_originalImagePath, imgPath, overwrite: true);
+                    savedFiles.Add($"Original Image: {imgPath}");
+                }
 
-                // Show success message
-                MessageBox.Show(
-                    $"Session saved successfully!\n\n" +
-                    $"Location: {sessionFolder}\n\n" +
-                    $"Files saved: {savedCount}\n" +
-                    string.Join("\n", savedFiles.Select(f => $"  • {f}")),
-                    "Save Complete",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                // Save metadata
+                SaveSessionMetadata(sessionFolder, savedFiles, imageName);
 
-                System.Diagnostics.Debug.WriteLine($"Session {_sessionId} saved successfully");
+                System.Diagnostics.Debug.WriteLine($"Session saved: {sessionFolder}");
+                System.Diagnostics.Debug.WriteLine($"Files saved: {savedFiles.Count}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error saving session: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error saving modifications: {ex.Message}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Reload binary mask from saved file back into memory
+        /// </summary>
+        private void ReloadBinaryMaskFromFile(string filepath)
+        {
+            try
+            {
+                var uri = new Uri(filepath);
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = uri;
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                BinaryMask = bitmap;
+
+                // Important: Mark as original so GetMaskContourPoints works correctly
+                _originalBinaryMask = bitmap;
+
+                System.Diagnostics.Debug.WriteLine("Reloaded binary mask from saved file");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error reloading binary mask: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Reload rank map from saved file back into memory
+        /// </summary>
+        private void ReloadRankMapFromFile(string filepath)
+        {
+            try
+            {
+                var uri = new Uri(filepath);
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = uri;
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+                bitmap.Freeze();
+
+                // Update RankMap
+                RankMap = bitmap;
+
+                // Update modified rank data from the saved file
+                if (bitmap.Format == PixelFormats.Gray8)
+                {
+                    int width = bitmap.PixelWidth;
+                    int height = bitmap.PixelHeight;
+                    int stride = width;
+                    _modifiedRankData = new byte[height * stride];
+                    bitmap.CopyPixels(_modifiedRankData, stride, 0);
+                }
+
+                // Regenerate overlay
+                OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
+
+                System.Diagnostics.Debug.WriteLine("Reloaded rank map from saved file");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error reloading rank map: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Check if there's an existing session with modifications for this image
+        /// </summary>
+        private void LoadExistingSessionIfAvailable(string imageName)
+        {
+            try
+            {
+                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+                string sessionsDir = IOPath.Combine(exeDir, "training_sessions");
+
+                if (!Directory.Exists(sessionsDir))
+                    return;
+
+                // Find the most recent session for this image
+                var sessionFolders = Directory.GetDirectories(sessionsDir, "session_*")
+                    .OrderByDescending(d => Directory.GetCreationTime(d))
+                    .ToList();
+
+                foreach (var sessionFolder in sessionFolders)
+                {
+                    // Check if this session has modifications for our image
+                    string biGtPath = IOPath.Combine(sessionFolder, "bi_gt", $"{imageName}.png");
+                    string fixPath = IOPath.Combine(sessionFolder, "fix", $"{imageName}.png");
+
+                    bool hasBinaryMask = File.Exists(biGtPath);
+                    bool hasRankMap = File.Exists(fixPath);
+
+                    if (hasBinaryMask || hasRankMap)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Found existing session: {sessionFolder}");
+
+                        // Load the saved binary mask
+                        if (hasBinaryMask)
+                        {
+                            ReloadBinaryMaskFromFile(biGtPath);
+                            HasModifications = true;
+                            System.Diagnostics.Debug.WriteLine("Loaded existing binary mask modifications");
+                        }
+
+                        // Load the saved rank map
+                        if (hasRankMap)
+                        {
+                            ReloadRankMapFromFile(fixPath);
+                            _hasRankModifications = true;
+                            System.Diagnostics.Debug.WriteLine("Loaded existing rank map modifications");
+                        }
+
+                        // Use this session ID to continue the session
+                        string sessionName = IOPath.GetFileName(sessionFolder);
+                        _sessionId = sessionName.Replace("session_", "");
+
+                        break; // Use the most recent session
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading existing session: {ex.Message}");
+                // Don't throw - just continue with fresh start if session load fails
             }
         }
 
         /// <summary>
         /// Save session metadata as JSON
         /// </summary>
-        private void SaveSessionMetadata(string sessionFolder, List<string> savedFiles)
+        private void SaveSessionMetadata(string sessionFolder, List<string> savedFiles, string imageName)
         {
             try
             {
@@ -825,14 +964,21 @@ namespace MURDOC_2024.ViewModel
                     SessionId = _sessionId,
                     StartTime = _sessionStartTime.ToString("yyyy-MM-dd HH:mm:ss"),
                     SaveTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    ImageName = System.IO.Path.GetFileNameWithoutExtension(OriginalImage?.UriSource?.LocalPath),
+                    ImageName = imageName,
                     ModificationsSaved = savedFiles,
                     HasBinaryMaskEdit = HasModifications,
-                    HasRankMapEdit = _hasRankModifications
+                    HasRankMapEdit = _hasRankModifications,
+                    LoRATrainingReady = true,
+                    FolderStructure = new
+                    {
+                        BiGt = "bi_gt/ - Binary ground truth masks",
+                        Fix = "fix/ - Fixation/rank maps",
+                        Img = "img/ - Original input images"
+                    }
                 };
 
                 string json = Newtonsoft.Json.JsonConvert.SerializeObject(metadata, Newtonsoft.Json.Formatting.Indented);
-                string metadataPath = System.IO.Path.Combine(sessionFolder, "session_metadata.json");
+                string metadataPath = IOPath.Combine(sessionFolder, "session_metadata.json");
                 System.IO.File.WriteAllText(metadataPath, json);
 
                 System.Diagnostics.Debug.WriteLine($"Saved session metadata to: {metadataPath}");

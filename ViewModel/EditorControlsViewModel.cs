@@ -17,10 +17,6 @@ namespace MURDOC_2024.ViewModel
         private bool _isCorrectionModeActive;
         private DateTime _sessionStartTime;
 
-        // ROI tracking
-        private int _roiCount;
-        private bool _isDrawingROI;
-
         // Selection state
         private bool _hasSelectedDetection;
         private string _selectedDetectionLabel;
@@ -28,18 +24,39 @@ namespace MURDOC_2024.ViewModel
         private object _selectedDetection;
         private DetectionResult _selectedDetectionResult;
 
-        private bool _isRankEditMode;
+        // Edit mode state
+        private bool _isEditModeActive;
+        private bool _isAddPointsMode;
+        private bool _isRemovePointsMode;
+
+        // Rank brush state
         private bool _isIncreaseBrushActive;
         private bool _isDecreaseBrushActive;
         private double _brushSize = 20;
         private double _brushStrength = 0.5;
 
-        public bool IsRankEditMode
+        #region Properties
+
+        // Edit mode
+        public bool IsEditModeActive
         {
-            get => _isRankEditMode;
-            set => SetProperty(ref _isRankEditMode, value);
+            get => _isEditModeActive;
+            set => SetProperty(ref _isEditModeActive, value);
         }
 
+        public bool IsAddPointsMode
+        {
+            get => _isAddPointsMode;
+            set => SetProperty(ref _isAddPointsMode, value);
+        }
+
+        public bool IsRemovePointsMode
+        {
+            get => _isRemovePointsMode;
+            set => SetProperty(ref _isRemovePointsMode, value);
+        }
+
+        // Rank brush
         public bool IsIncreaseBrushActive
         {
             get => _isIncreaseBrushActive;
@@ -64,85 +81,7 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _brushStrength, value);
         }
 
-        // Commands
-        public ICommand ConfirmDetectionCommand { get; }
-        public ICommand RejectDetectionCommand { get; }
-        public ICommand EnableCorrectionModeCommand { get; }
-        public ICommand ViewFeedbackHistoryCommand { get; }
-        public ICommand ExportFeedbackCommand { get; }
-        public ICommand ResetSessionCommand { get; }
-        public ICommand SetIncreaseBrushCommand { get; }
-        public ICommand SetDecreaseBrushCommand { get; }
-        public ICommand IncreaseBrushSizeCommand { get; }
-        public ICommand DecreaseBrushSizeCommand { get; }
-        public ICommand EnterRankEditModeCommand { get; }
-        public ICommand SaveRankMapCommand { get; }
-
-        // ROI Commands (Placeholders)
-        public ICommand SetPolygonModeCommand { get; }
-        public ICommand SetFreehandModeCommand { get; }
-        public ICommand ClearROIsCommand { get; }
-        public ICommand ExportROIMasksCommand { get; }
-
-        // Events for MainWindowViewModel communication
-        public event EventHandler CorrectionModeToggled;
-        public event EventHandler FeedbackHistoryViewRequested;
-        public event EventHandler FeedbackExportRequested;
-        public event EventHandler SessionResetRequested;
-        public event EventHandler<DetectionFeedback> DetectionFeedbackProvided;
-        public event EventHandler PolygonModeRequested;
-        public event EventHandler FreehandModeRequested;
-        public event EventHandler ClearROIsRequested;
-        public event EventHandler ExportROIMasksRequested;
-        public event EventHandler RankEditModeRequested;
-        public event EventHandler<RankBrushEventArgs> RankBrushChanged;
-        public event EventHandler SaveRankMapRequested;
-
-        public EditorControlsPaneViewModel()
-        {
-            FeedbackHistory = new ObservableCollection<DetectionFeedback>();
-            CurrentDetections = new ObservableCollection<DetectionResult>();
-            _sessionStartTime = DateTime.Now;
-
-            // Initialize commands
-            ConfirmDetectionCommand = new RelayCommand(ExecuteConfirm, () => HasSelectedDetection);
-            RejectDetectionCommand = new RelayCommand(ExecuteReject, () => HasSelectedDetection);
-
-            EnableCorrectionModeCommand = new RelayCommand(ToggleCorrectionMode);
-            ViewFeedbackHistoryCommand = new RelayCommand(ViewFeedbackHistory);
-            ExportFeedbackCommand = new RelayCommand(ExportFeedback, () => FeedbackHistory.Count > 0);
-            ResetSessionCommand = new RelayCommand(ResetSession);
-
-            // Initialize ROI command placeholders
-            SetPolygonModeCommand = new RelayCommand(EnablePolygonMode);
-            SetFreehandModeCommand = new RelayCommand(EnableFreehandMode);
-
-            // Update the command to always be enabled when there's a result
-            ClearROIsCommand = new RelayCommand(ClearROIs, () => true); // Always enabled
-            ExportROIMasksCommand = new RelayCommand(ExportROIMasks, () => ROICount > 0);
-
-            SetIncreaseBrushCommand = new RelayCommand(SetIncreaseBrush);
-            SetDecreaseBrushCommand = new RelayCommand(SetDecreaseBrush);
-            IncreaseBrushSizeCommand = new RelayCommand(() => BrushSize = Math.Min(100, BrushSize + 5));
-            DecreaseBrushSizeCommand = new RelayCommand(() => BrushSize = Math.Max(5, BrushSize - 5));
-            EnterRankEditModeCommand = new RelayCommand(EnterRankEditMode);
-            SaveRankMapCommand = new RelayCommand(SaveRankMap, () => IsRankEditMode);
-        }
-
-        #region Properties
-
-        public int ROICount
-        {
-            get => _roiCount;
-            set => SetProperty(ref _roiCount, value);
-        }
-
-        public bool IsDrawingROI
-        {
-            get => _isDrawingROI;
-            set => SetProperty(ref _isDrawingROI, value);
-        }
-
+        // Feedback
         public ObservableCollection<DetectionFeedback> FeedbackHistory
         {
             get => _feedbackHistory;
@@ -155,6 +94,7 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _currentDetections, value);
         }
 
+        // Selection
         public object SelectedDetection
         {
             get => _selectedDetection;
@@ -186,6 +126,7 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _selectedDetectionConfidence, value);
         }
 
+        // Counts
         public int ConfirmedCount
         {
             get => _confirmedCount;
@@ -220,65 +161,147 @@ namespace MURDOC_2024.ViewModel
 
         #endregion
 
-        #region Methods
+        #region Commands
 
-        private void EnterRankEditMode()
+        // Edit mode commands
+        public ICommand EnterEditModeCommand { get; }
+        public ICommand SetAddPointsModeCommand { get; }
+        public ICommand SetRemovePointsModeCommand { get; }
+        public ICommand SaveChangesCommand { get; }
+
+        // Rank brush commands
+        public ICommand SetIncreaseBrushCommand { get; }
+        public ICommand SetDecreaseBrushCommand { get; }
+        public ICommand IncreaseBrushSizeCommand { get; }
+        public ICommand DecreaseBrushSizeCommand { get; }
+
+        // Detection feedback commands
+        public ICommand ConfirmDetectionCommand { get; }
+        public ICommand RejectDetectionCommand { get; }
+        public ICommand EnableCorrectionModeCommand { get; }
+        public ICommand ViewFeedbackHistoryCommand { get; }
+        public ICommand ExportFeedbackCommand { get; }
+        public ICommand ResetSessionCommand { get; }
+
+        #endregion
+
+        #region Events
+
+        // Edit mode events
+        public event EventHandler EnterEditModeRequested;
+        public event EventHandler ExitEditModeRequested;
+        public event EventHandler<PointEditMode> PointEditModeChanged;
+        public event EventHandler SaveChangesRequested;
+
+        // Rank brush events
+        public event EventHandler<RankBrushEventArgs> RankBrushChanged;
+
+        // Feedback events
+        public event EventHandler CorrectionModeToggled;
+        public event EventHandler FeedbackHistoryViewRequested;
+        public event EventHandler FeedbackExportRequested;
+        public event EventHandler SessionResetRequested;
+        public event EventHandler<DetectionFeedback> DetectionFeedbackProvided;
+
+        #endregion
+
+        public EditorControlsPaneViewModel()
         {
-            IsRankEditMode = true;
-            IsIncreaseBrushActive = true; // Default to increase
-            RankEditModeRequested?.Invoke(this, EventArgs.Empty);
-            System.Diagnostics.Debug.WriteLine("Entered rank edit mode");
+            FeedbackHistory = new ObservableCollection<DetectionFeedback>();
+            CurrentDetections = new ObservableCollection<DetectionResult>();
+            _sessionStartTime = DateTime.Now;
+
+            // Edit mode commands
+            EnterEditModeCommand = new RelayCommand(EnterEditMode);
+            SetAddPointsModeCommand = new RelayCommand(SetAddPointsMode);
+            SetRemovePointsModeCommand = new RelayCommand(SetRemovePointsMode);
+            SaveChangesCommand = new RelayCommand(SaveChanges);
+
+            // Rank brush commands
+            SetIncreaseBrushCommand = new RelayCommand(SetIncreaseBrush);
+            SetDecreaseBrushCommand = new RelayCommand(SetDecreaseBrush);
+            IncreaseBrushSizeCommand = new RelayCommand(() => BrushSize = Math.Min(100, BrushSize + 5));
+            DecreaseBrushSizeCommand = new RelayCommand(() => BrushSize = Math.Max(5, BrushSize - 5));
+
+            // Detection feedback commands
+            ConfirmDetectionCommand = new RelayCommand(ExecuteConfirm, () => HasSelectedDetection);
+            RejectDetectionCommand = new RelayCommand(ExecuteReject, () => HasSelectedDetection);
+            EnableCorrectionModeCommand = new RelayCommand(ToggleCorrectionMode);
+            ViewFeedbackHistoryCommand = new RelayCommand(ViewFeedbackHistory);
+            ExportFeedbackCommand = new RelayCommand(ExportFeedback, () => FeedbackHistory.Count > 0);
+            ResetSessionCommand = new RelayCommand(ResetSession);
         }
 
-        private void SaveRankMap()
+        #region Edit Mode Methods
+
+        private void EnterEditMode()
         {
-            SaveRankMapRequested?.Invoke(this, EventArgs.Empty);
-            System.Diagnostics.Debug.WriteLine("Save all modifications requested");
+            IsEditModeActive = true;
+            IsAddPointsMode = true; // Default to add points
+            IsRemovePointsMode = false;
+            IsIncreaseBrushActive = true; // Default to increase brush
+            IsDecreaseBrushActive = false;
+
+            EnterEditModeRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine("Entered unified edit mode");
         }
 
-        private void EnablePolygonMode()
+        public void ExitEditMode()
         {
-            IsDrawingROI = true;
-            PolygonModeRequested?.Invoke(this, EventArgs.Empty);
-            System.Diagnostics.Debug.WriteLine("Polygon mode requested");
+            IsEditModeActive = false;
+            IsAddPointsMode = false;
+            IsRemovePointsMode = false;
+
+            ExitEditModeRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine("Exited edit mode");
         }
 
-        private void EnableFreehandMode()
+        private void SetAddPointsMode()
         {
-            IsDrawingROI = true;
-            FreehandModeRequested?.Invoke(this, EventArgs.Empty);
-            System.Diagnostics.Debug.WriteLine("Freehand mode requested");
+            IsAddPointsMode = true;
+            IsRemovePointsMode = false;
+            PointEditModeChanged?.Invoke(this, PointEditMode.Add);
+            System.Diagnostics.Debug.WriteLine("Set to Add Points mode");
         }
 
-        private void ClearROIs()
+        private void SetRemovePointsMode()
         {
-            ROICount = 0;
-            IsDrawingROI = false;
-            ClearROIsRequested?.Invoke(this, EventArgs.Empty);
+            IsAddPointsMode = false;
+            IsRemovePointsMode = true;
+            PointEditModeChanged?.Invoke(this, PointEditMode.Remove);
+            System.Diagnostics.Debug.WriteLine("Set to Remove Points mode");
         }
 
-        private void ExportROIMasks()
+        private void SaveChanges()
         {
-            ExportROIMasksRequested?.Invoke(this, EventArgs.Empty);
+            SaveChangesRequested?.Invoke(this, EventArgs.Empty);
+            System.Diagnostics.Debug.WriteLine("Save changes requested");
         }
 
-        public void OnROICompleted()
+        #endregion
+
+        #region Rank Brush Methods
+
+        private void SetIncreaseBrush()
         {
-            IsDrawingROI = false;
-            ROICount++;
-            UpdateCommandStates();
+            IsIncreaseBrushActive = true;
+            IsDecreaseBrushActive = false;
+            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Increase, BrushSize, BrushStrength));
+            System.Diagnostics.Debug.WriteLine("Set to Increase brush");
         }
 
-        public void OnROICancelled()
+        private void SetDecreaseBrush()
         {
-            IsDrawingROI = false;
-            UpdateCommandStates();
+            IsIncreaseBrushActive = false;
+            IsDecreaseBrushActive = true;
+            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Decrease, BrushSize, BrushStrength));
+            System.Diagnostics.Debug.WriteLine("Set to Decrease brush");
         }
 
-        /// <summary>
-        /// Called by MainWindowViewModel to add feedback from external sources
-        /// Fixes CS1061 error
-        /// </summary>
+        #endregion
+
+        #region Detection Feedback Methods
+
         public void AddFeedback(DetectionFeedback feedback)
         {
             if (feedback == null) return;
@@ -286,55 +309,13 @@ namespace MURDOC_2024.ViewModel
             FeedbackHistory.Add(feedback);
             UpdateFeedbackCounts();
 
-            // Notify MainWindowViewModel to log to metrics
             DetectionFeedbackProvided?.Invoke(this, feedback);
-
             UpdateCommandStates();
         }
 
-        /// <summary>
-        /// Returns the history collection for export or display
-        /// Fixes CS1061 error
-        /// </summary>
         public ObservableCollection<DetectionFeedback> GetFeedbackHistory()
         {
             return FeedbackHistory;
-        }
-
-        /// <summary>
-        /// External trigger to force button state re-evaluation
-        /// </summary>
-        public void UpdateCommandStates()
-        {
-            (ConfirmDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            (RejectDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            (ExportFeedbackCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        }
-
-        private void SetIncreaseBrush()
-        {
-            IsIncreaseBrushActive = true;
-            IsDecreaseBrushActive = false;
-
-            // Immediately enter rank edit mode with Increase brush
-            IsRankEditMode = true;
-            RankEditModeRequested?.Invoke(this, EventArgs.Empty);
-            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Increase, BrushSize, BrushStrength));
-
-            System.Diagnostics.Debug.WriteLine("Entered Rank Edit Mode with Increase brush");
-        }
-
-        private void SetDecreaseBrush()
-        {
-            IsIncreaseBrushActive = false;
-            IsDecreaseBrushActive = true;
-
-            // Immediately enter rank edit mode with Decrease brush
-            IsRankEditMode = true;
-            RankEditModeRequested?.Invoke(this, EventArgs.Empty);
-            RankBrushChanged?.Invoke(this, new RankBrushEventArgs(RankBrushMode.Decrease, BrushSize, BrushStrength));
-
-            System.Diagnostics.Debug.WriteLine("Entered Rank Edit Mode with Decrease brush");
         }
 
         public void SelectDetection(DetectionResult detection)
@@ -353,26 +334,11 @@ namespace MURDOC_2024.ViewModel
             ResetCounts();
         }
 
-        #endregion
-
-        #region Private Helpers
-
-        private void UpdateSelectedDetectionDisplay()
+        public void UpdateCommandStates()
         {
-            if (_selectedDetectionResult == null)
-            {
-                HasSelectedDetection = false;
-                SelectedDetectionLabel = string.Empty;
-                SelectedDetectionConfidence = 0.0;
-            }
-            else
-            {
-                HasSelectedDetection = true;
-                SelectedDetectionLabel = _selectedDetectionResult.Label;
-                SelectedDetectionConfidence = _selectedDetectionResult.Confidence;
-            }
-
-            UpdateCommandStates();
+            (ConfirmDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (RejectDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (ExportFeedbackCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
 
         private void ExecuteConfirm()
@@ -415,6 +381,24 @@ namespace MURDOC_2024.ViewModel
         {
             IsCorrectionModeActive = !IsCorrectionModeActive;
             CorrectionModeToggled?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void UpdateSelectedDetectionDisplay()
+        {
+            if (_selectedDetectionResult == null)
+            {
+                HasSelectedDetection = false;
+                SelectedDetectionLabel = string.Empty;
+                SelectedDetectionConfidence = 0.0;
+            }
+            else
+            {
+                HasSelectedDetection = true;
+                SelectedDetectionLabel = _selectedDetectionResult.Label;
+                SelectedDetectionConfidence = _selectedDetectionResult.Confidence;
+            }
+
+            UpdateCommandStates();
         }
 
         private void ViewFeedbackHistory() => FeedbackHistoryViewRequested?.Invoke(this, EventArgs.Empty);

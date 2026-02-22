@@ -11,7 +11,7 @@ namespace MURDOC_2024
     /// </summary>
     public partial class MainWindow : Window
     {
-        private MainWindowViewModel ViewModel { get; set; }
+        public MainWindowViewModel ViewModel { get; set; }
 
         public MainWindow()
         {
@@ -21,26 +21,21 @@ namespace MURDOC_2024
                 InitializeComponent();
                 Console.WriteLine("InitializeComponent completed");
 
-                // Wire up FinalPredictionPane event
-                FinalPredictionPaneControl.ROICompleted += OnROICompleted;
-
                 try
                 {
                     ViewModel = new MainWindowViewModel();
                     DataContext = ViewModel;
                     Console.WriteLine("MainWindowViewModel set as DataContext");
 
-                    // Subscribe to ViewModel events for drawing mode
-                    ViewModel.PolygonModeRequested += OnPolygonModeRequested;
-                    ViewModel.FreehandModeRequested += OnFreehandModeRequested;
-                    ViewModel.ClearROIsRequested += OnClearROIsRequested;
-                    ViewModel.ROIMaskExportRequested += OnROIMaskExportRequested;
+                    // Subscribe to ViewModel events for unified edit mode
+                    ViewModel.EnterEditModeRequested += OnEnterEditModeRequested;
+                    ViewModel.ExitEditModeRequested += OnExitEditModeRequested;
+                    ViewModel.PointEditModeChanged += OnPointEditModeChanged;
+                    ViewModel.SaveAllModificationsRequested += OnSaveAllModificationsRequested;
+                    ViewModel.RankBrushChangedRequested += OnRankBrushChanged;
                     ViewModel.ResetDrawingRequested += OnResetDrawingRequested;
 
-                    ViewModel.RankEditModeRequested += OnRankEditModeRequested;
-                    ViewModel.RankBrushChangedRequested += OnRankBrushChanged;
-                    ViewModel.SaveRankMapRequested += OnSaveRankMapRequested;
-                    Console.WriteLine("Subscribed to ViewModel drawing events");
+                    Console.WriteLine("Subscribed to ViewModel unified edit mode events");
                 }
                 catch (Exception viewModelEx)
                 {
@@ -63,35 +58,9 @@ namespace MURDOC_2024
             }
         }
 
-        private void OnROICompleted(object sender, EventArgs e)
-        {
-            try
-            {
-                // Notify EditorControlsVM that ROI was completed
-                ViewModel?.EditorControlsVM?.OnROICompleted();
-                System.Diagnostics.Debug.WriteLine("MainWindow: ROI completed, notified EditorControlsVM");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error handling ROI completion: {ex.Message}");
-            }
-        }
+        #region Unified Edit Mode Event Handlers
 
-        // Add this handler method
-        private void OnResetDrawingRequested(object sender, EventArgs e)
-        {
-            try
-            {
-                FinalPredictionPaneControl.ResetDrawing();
-                System.Diagnostics.Debug.WriteLine("MainWindow: Reset drawing on FinalPredictionPane");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error resetting drawing: {ex.Message}");
-            }
-        }
-        
-        private void OnRankEditModeRequested(object sender, EventArgs e)
+        private void OnEnterEditModeRequested(object sender, EventArgs e)
         {
             try
             {
@@ -99,14 +68,55 @@ namespace MURDOC_2024
                 var brushSize = ViewModel.EditorControlsVM.BrushSize;
                 var brushStrength = ViewModel.EditorControlsVM.BrushStrength;
 
-                FinalPredictionPaneControl.EnableRankBrushMode(mode, brushSize, brushStrength);
-                System.Diagnostics.Debug.WriteLine($"MainWindow: Enabled rank brush mode - {mode}");
+                FinalPredictionPaneControl.EnterUnifiedEditMode(mode, brushSize, brushStrength);
+                System.Diagnostics.Debug.WriteLine("MainWindow: Entered unified edit mode");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error enabling rank edit mode: {ex.Message}");
-                MessageBox.Show($"Could not enable rank editing: {ex.Message}",
+                Console.WriteLine($"Error entering edit mode: {ex.Message}");
+                MessageBox.Show($"Could not enter edit mode: {ex.Message}",
                     "Edit Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OnExitEditModeRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                FinalPredictionPaneControl.ExitUnifiedEditMode();
+                System.Diagnostics.Debug.WriteLine("MainWindow: Exited unified edit mode");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error exiting edit mode: {ex.Message}");
+            }
+        }
+
+        private void OnPointEditModeChanged(object sender, PointEditMode mode)
+        {
+            try
+            {
+                FinalPredictionPaneControl.SetPointEditMode(mode);
+                System.Diagnostics.Debug.WriteLine($"MainWindow: Set point edit mode to {mode}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error changing point edit mode: {ex.Message}");
+            }
+        }
+
+        private void OnSaveAllModificationsRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                FinalPredictionPaneControl.SaveModifiedRankMap();
+                FinalPredictionPaneControl.ExitUnifiedEditMode();
+                System.Diagnostics.Debug.WriteLine("MainWindow: Saved all modifications and exited edit mode");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving modifications: {ex.Message}");
+                throw; // Re-throw so MainWindowViewModel can show error dialog
             }
         }
 
@@ -123,125 +133,37 @@ namespace MURDOC_2024
             }
         }
 
-        private void OnSaveRankMapRequested(object sender, EventArgs e)
+        private void OnResetDrawingRequested(object sender, EventArgs e)
         {
             try
             {
-                FinalPredictionPaneControl.SaveModifiedRankMap();
-                System.Diagnostics.Debug.WriteLine("MainWindow: Saved modified rank map");
+                FinalPredictionPaneControl.ExitUnifiedEditMode();
+                System.Diagnostics.Debug.WriteLine("MainWindow: Reset drawing on FinalPredictionPane");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error saving rank map: {ex.Message}");
-                throw; // Re-throw so MainWindowViewModel can show error dialog
+                Console.WriteLine($"Error resetting drawing: {ex.Message}");
             }
         }
+
+        #endregion
+
+        #region Window Lifecycle
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             Console.WriteLine("MainWindow Loaded event fired");
-            // You can add any initialization code that needs to run after the window is loaded
         }
 
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             Console.WriteLine("MainWindow Closed event fired");
-            // ------------------------------------------------------------------
-            // **CRITICAL CLEANUP FIX**
-            // ------------------------------------------------------------------
+
+            // Critical cleanup
             if (DataContext is IDisposable disposableViewModel)
             {
                 Console.WriteLine("Calling Dispose() on MainWindowViewModel.");
-                disposableViewModel.Dispose(); // This calls PythonEngine.Shutdown()
-            }
-            // ------------------------------------------------------------------
-        }
-
-        #region Drawing Mode Event Handlers
-
-        private void OnPolygonModeRequested(object sender, EventArgs e)
-        {
-            try
-            {
-                // Enable polygon drawing on FinalPredictionPane
-                FinalPredictionPaneControl.EnablePolygonDrawing();
-                System.Diagnostics.Debug.WriteLine("MainWindow: Enabled polygon drawing on FinalPredictionPane");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error enabling polygon mode: {ex.Message}");
-                MessageBox.Show($"Could not enable polygon drawing: {ex.Message}",
-                    "Drawing Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void OnFreehandModeRequested(object sender, EventArgs e)
-        {
-            try
-            {
-                // Enable freehand drawing on FinalPredictionPane
-                FinalPredictionPaneControl.EnableFreehandDrawing();
-                System.Diagnostics.Debug.WriteLine("MainWindow: Enabled freehand drawing on FinalPredictionPane");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error enabling freehand mode: {ex.Message}");
-                MessageBox.Show($"Could not enable freehand drawing: {ex.Message}",
-                    "Drawing Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void OnClearROIsRequested(object sender, EventArgs e)
-        {
-            try
-            {
-                // Check if there are modifications to revert
-                if (ViewModel?.FinalPredictionVM?.HasModifications == true)
-                {
-                    var result = MessageBox.Show(
-                        "Do you want to revert to the original mask?\n\n" +
-                        "This will undo all modifications you've made.",
-                        "Revert Changes",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Question);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        FinalPredictionPaneControl.RestoreOriginalMask();
-                        System.Diagnostics.Debug.WriteLine("MainWindow: Restored original mask");
-                    }
-                }
-                else if (ViewModel?.FinalPredictionVM?.IsDrawingMode == true)
-                {
-                    // In drawing mode but no modifications yet - revert to original outline
-                    FinalPredictionPaneControl.RevertToOriginalMask();
-                    System.Diagnostics.Debug.WriteLine("MainWindow: Reverted to original mask outline");
-                }
-                else
-                {
-                    // Not in drawing mode, no modifications - just clear
-                    FinalPredictionPaneControl.CancelDrawing();
-                    System.Diagnostics.Debug.WriteLine("MainWindow: Cleared ROIs");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error clearing ROIs: {ex.Message}");
-            }
-        }
-
-        private void OnROIMaskExportRequested(object sender, string filename)
-        {
-            try
-            {
-                // Export the current mask from FinalPredictionPane
-                FinalPredictionPaneControl.ExportCurrentMask(filename);
-                System.Diagnostics.Debug.WriteLine($"MainWindow: Exported mask to {filename}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error exporting mask: {ex.Message}");
-                throw; // Let MainWindowViewModel handle the error display
+                disposableViewModel.Dispose();
             }
         }
 
