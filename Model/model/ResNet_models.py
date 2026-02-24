@@ -14,44 +14,54 @@ import os
 from torchvision.utils import save_image
 import datetime
 
-
 class Generator(nn.Module):
     def __init__(self, channel):
         super(Generator, self).__init__()
         self.sal_encoder = Saliency_feat_encoder(channel)
         self.current_filename = ""
+        
+        # MICA parameters
+        self.sensitivity = 1.5  # d' parameter
+        self.bias = 0.0         # β parameter
+    
+    def set_mica_parameters(self, sensitivity, bias):
+        """Set MICA detection parameters"""
+        self.sensitivity = sensitivity
+        self.bias = bias
+    
+    def apply_mica_adjustment(self, predictions):
+        """Apply MICA sensitivity and bias adjustments"""
+        # Apply sensitivity (d') - affects discriminability
+        adjusted = predictions * (self.sensitivity / 1.5)  # Normalize to default
+        
+        # Apply bias (β) - shifts decision threshold
+        threshold_shift = torch.sigmoid(torch.tensor(self.bias * 0.2))
+        adjusted = adjusted + (threshold_shift - 0.5)
+        
+        return adjusted
 
-    def set_filename(self, filename):
-        self.current_filename = filename
-        self.sal_encoder.set_filename(filename)
+    def get_x4_layer(self):
+        # Return the appropriate layer from your model
+        return self.sal_encoder.resnet.layer4_1  # Or whatever layer exists
+    
+    def get_x4_2_layer(self):
+        # Return the appropriate layer from your model
+        return self.sal_encoder.resnet.layer4_2  # Or whatever layer exists
 
     def forward(self, x):
-
         fix_pred, cod_pred1, cod_pred2 = self.sal_encoder(x)
-        fix_pred = F.upsample(fix_pred, size=(x.shape[2], x.shape[3]), mode='bilinear',
-                                        align_corners=True)        
-        cod_pred1 = F.upsample(cod_pred1, size=(x.shape[2], x.shape[3]), mode='bilinear',
-                              align_corners=True)
-        cod_pred2 = F.upsample(cod_pred2, size=(x.shape[2], x.shape[3]), mode='bilinear',
-                              align_corners=True)
+        
+        # Apply MICA adjustments
+        fix_pred = self.apply_mica_adjustment(fix_pred)
+        cod_pred1 = self.apply_mica_adjustment(cod_pred1)
+        cod_pred2 = self.apply_mica_adjustment(cod_pred2)
+        
+        # Upsample as before
+        fix_pred = F.upsample(fix_pred, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=True)
+        cod_pred1 = F.upsample(cod_pred1, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=True)
+        cod_pred2 = F.upsample(cod_pred2, size=(x.shape[2], x.shape[3]), mode='bilinear', align_corners=True)
         
         return fix_pred, cod_pred1, cod_pred2
-    
-    def get_x4_layer(self):
-        return self.sal_encoder.resnet.layer4_1
-
-    def get_x4_2_layer(self):
-        return self.sal_encoder.resnet.layer4_2
-
-    def save_intermediate_images(self, features):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_dir = "output_images"
-        os.makedirs(save_dir, exist_ok=True)
-
-        for i, feature in enumerate(features, 1):
-            for j in range(feature.shape[1]):
-                image_path = os.path.join(save_dir, f"x{i}_channel{j}_{timestamp}.png")
-                save_image(feature[:, j, :, :], image_path)
 
 class PAM_Module(nn.Module):
     """ Position attention module"""

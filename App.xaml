@@ -2,8 +2,16 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:MURDOC_2024"
+             xmlns:converters="clr-namespace:MURDOC_2024.Converters"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <!-- Existing converters -->
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisConverter"/>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+
+        <!-- New converters -->
+        <converters:BoolToCheckmarkConverter x:Key="BoolToCheckmarkConverter"/>
+        <converters:BoolToEditColorConverter x:Key="BoolToEditColorConverter"/>
     </Application.Resources>
 </Application>
