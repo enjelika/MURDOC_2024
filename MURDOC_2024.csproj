@@ -99,6 +99,8 @@
     <Compile Include="Converters\StringToVisibilityConverter.cs" />
     <Compile Include="Model\DetectionFeedback.cs" />
     <Compile Include="Model\DetectionResut.cs" />
+    <Content Include="Model\lora_inference.py" />
+    <Content Include="Model\lora_modules.py" />
     <Compile Include="Model\PointEditMode.cs" />
     <Compile Include="Model\PolygonROI.cs" />
     <Compile Include="Model\RankBrushMode.cs" />
