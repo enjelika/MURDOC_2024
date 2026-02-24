@@ -329,6 +329,9 @@ class LazyResourceManager:
         else:
             cods.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
 
+        from lora_inference import apply_lora_to_model
+        cods = apply_lora_to_model(cods)
+
         cods.eval()
         return cods
 
