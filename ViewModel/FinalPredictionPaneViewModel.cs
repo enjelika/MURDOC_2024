@@ -630,9 +630,10 @@ namespace MURDOC_2024.ViewModel
                 newMask.Freeze();
 
                 BinaryMask = ConvertWriteableToBitmapImage(newMask);
-                HasModifications = true; // MARK AS MODIFIED
+                _originalBinaryMask = BinaryMask;  // ← THIS IS THE KEY FIX
+                HasModifications = true;
 
-                System.Diagnostics.Debug.WriteLine("Updated BinaryMask with new polygon");
+                System.Diagnostics.Debug.WriteLine("Updated BinaryMask AND _originalBinaryMask with new polygon");
 
                 if (RankMap != null)
                 {
@@ -779,11 +780,11 @@ namespace MURDOC_2024.ViewModel
                     SaveBinaryMaskToPNG(maskPath);
                     savedFiles.Add($"Binary Mask: {maskPath}");
 
-                    // CRITICAL: Reload the saved mask back into BinaryMask property
-                    // This ensures subsequent edits start from the saved version
-                    ReloadBinaryMaskFromFile(maskPath);
+                    // Update _originalBinaryMask from current in-memory BinaryMask
+                    // instead of reloading from file (avoids WPF image cache issues)
+                    _originalBinaryMask = BinaryMask;
 
-                    System.Diagnostics.Debug.WriteLine($"Saved and reloaded binary mask: {maskPath}");
+                    System.Diagnostics.Debug.WriteLine($"Saved binary mask and updated original reference: {maskPath}");
                 }
 
                 // Save rank map if modified
@@ -833,12 +834,11 @@ namespace MURDOC_2024.ViewModel
                 bitmap.BeginInit();
                 bitmap.UriSource = uri;
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                 bitmap.EndInit();
                 bitmap.Freeze();
 
                 BinaryMask = bitmap;
-
-                // Important: Mark as original so GetMaskContourPoints works correctly
                 _originalBinaryMask = bitmap;
 
                 System.Diagnostics.Debug.WriteLine("Reloaded binary mask from saved file");
@@ -862,13 +862,12 @@ namespace MURDOC_2024.ViewModel
                 bitmap.BeginInit();
                 bitmap.UriSource = uri;
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                 bitmap.EndInit();
                 bitmap.Freeze();
 
-                // Update RankMap
                 RankMap = bitmap;
 
-                // Update modified rank data from the saved file
                 if (bitmap.Format == PixelFormats.Gray8)
                 {
                     int width = bitmap.PixelWidth;
@@ -878,7 +877,6 @@ namespace MURDOC_2024.ViewModel
                     bitmap.CopyPixels(_modifiedRankData, stride, 0);
                 }
 
-                // Regenerate overlay
                 OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
 
                 System.Diagnostics.Debug.WriteLine("Reloaded rank map from saved file");
