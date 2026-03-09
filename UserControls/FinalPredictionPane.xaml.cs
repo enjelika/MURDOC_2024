@@ -793,14 +793,16 @@ namespace MURDOC_2024.UserControls
 
                     if (result == MessageBoxResult.Yes)
                     {
-                        // Save, then exit
-                        SaveAllChanges();
-                        ExitUnifiedEditMode();
-
+                        // Route through SaveChangesCommand so the full save pipeline
+                        // runs (including RecordImageData for LoRA edit tracking)
                         Application.Current.Dispatcher.Invoke(() =>
                         {
                             var mainWindow = Application.Current.MainWindow as MainWindow;
-                            mainWindow?.ViewModel?.EditorControlsVM?.ExitEditMode();
+                            var saveCmd = mainWindow?.ViewModel?.EditorControlsVM?.SaveChangesCommand;
+                            if (saveCmd != null && saveCmd.CanExecute(null))
+                            {
+                                saveCmd.Execute(null);
+                            }
                         });
                     }
                     else if (result == MessageBoxResult.No)
