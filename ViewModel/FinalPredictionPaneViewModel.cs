@@ -197,6 +197,7 @@ namespace MURDOC_2024.ViewModel
                     _originalBinaryMask = LoadImage(binaryMaskPath);
                     HasModifications = false;
                     _hasRankModifications = false;
+                    _modifiedRankData = null;
 
                     System.Diagnostics.Debug.WriteLine("Created colored overlay");
                 }
@@ -241,8 +242,8 @@ namespace MURDOC_2024.ViewModel
                 int width = OriginalImage.PixelWidth;
                 int height = OriginalImage.PixelHeight;
 
-                // Initialize modified data if first edit
-                if (_modifiedRankData == null)
+                // Initialize modified data if first edit or dimensions changed
+                if (_modifiedRankData == null || _modifiedRankData.Length != width * height)
                 {
                     // RankMap may be different size than OriginalImage - must scale first
                     WriteableBitmap scaled;
