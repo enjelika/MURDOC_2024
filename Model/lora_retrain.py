@@ -121,8 +121,8 @@ class SessionDataset(Dataset):
         self.augment = augment
 
         self.img_dir = os.path.join(session_dir, "img")
-        self.fix_dir = os.path.join(session_dir, "fix_gt")
-        self.bigt_dir = os.path.join(session_dir, "bin_gt")
+        self.fix_dir = os.path.join(session_dir, "fix")
+        self.bigt_dir = os.path.join(session_dir, "bi_gt")
 
         self.samples = self._find_samples()
 

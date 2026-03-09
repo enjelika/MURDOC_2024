@@ -800,8 +800,8 @@ namespace MURDOC_2024.ViewModel
                 Directory.CreateDirectory(sessionFolder);
 
                 // Create subfolders (created here idempotently — safe across multiple images)
-                string biGtFolder = IOPath.Combine(sessionFolder, "bin_gt");
-                string fixFolder = IOPath.Combine(sessionFolder, "fix_gt");
+                string biGtFolder = IOPath.Combine(sessionFolder, "bi_gt");
+                string fixFolder = IOPath.Combine(sessionFolder, "fix");
                 string imgFolder = IOPath.Combine(sessionFolder, "img");
 
                 Directory.CreateDirectory(biGtFolder);
@@ -953,8 +953,8 @@ namespace MURDOC_2024.ViewModel
                 foreach (var sessionFolder in sessionFolders)
                 {
                     // Check if this session has modifications for our image
-                    string biGtPath = IOPath.Combine(sessionFolder, "bin_gt", $"{imageName}.png");
-                    string fixPath = IOPath.Combine(sessionFolder, "fix_gt", $"{imageName}.png");
+                    string biGtPath = IOPath.Combine(sessionFolder, "bi_gt", $"{imageName}.png");
+                    string fixPath = IOPath.Combine(sessionFolder, "fix", $"{imageName}.png");
 
                     bool hasBinaryMask = File.Exists(biGtPath);
                     bool hasRankMap = File.Exists(fixPath);
@@ -1014,7 +1014,7 @@ namespace MURDOC_2024.ViewModel
                     FolderStructure = new
                     {
                         BiGt = "bi_gt/ - Binary ground truth masks",
-                        Fix = "fix_gt/ - Fixation/rank maps",
+                        Fix = "fix/ - Fixation/rank maps",
                         Img = "img/ - Original input images"
                     }
                 };
