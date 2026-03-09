@@ -29,6 +29,10 @@ namespace MURDOC_2024.ViewModel
         private bool _isAddPointsMode;
         private bool _isRemovePointsMode;
 
+        // Top-level editing tool mode
+        private bool _isPolygonEditingMode;
+        private bool _isRankPaintingMode;
+
         // Rank brush state
         private bool _isIncreaseBrushActive;
         private bool _isDecreaseBrushActive;
@@ -54,6 +58,19 @@ namespace MURDOC_2024.ViewModel
         {
             get => _isRemovePointsMode;
             set => SetProperty(ref _isRemovePointsMode, value);
+        }
+
+        // Top-level editing tool mode
+        public bool IsPolygonEditingMode
+        {
+            get => _isPolygonEditingMode;
+            set => SetProperty(ref _isPolygonEditingMode, value);
+        }
+
+        public bool IsRankPaintingMode
+        {
+            get => _isRankPaintingMode;
+            set => SetProperty(ref _isRankPaintingMode, value);
         }
 
         // Rank brush
@@ -165,6 +182,8 @@ namespace MURDOC_2024.ViewModel
 
         // Edit mode commands
         public ICommand EnterEditModeCommand { get; }
+        public ICommand SwitchToPolygonEditingCommand { get; }
+        public ICommand SwitchToRankPaintingCommand { get; }
         public ICommand SetAddPointsModeCommand { get; }
         public ICommand SetRemovePointsModeCommand { get; }
         public ICommand SaveChangesCommand { get; }
@@ -191,6 +210,7 @@ namespace MURDOC_2024.ViewModel
         public event EventHandler EnterEditModeRequested;
         public event EventHandler ExitEditModeRequested;
         public event EventHandler<PointEditMode> PointEditModeChanged;
+        public event EventHandler<string> EditingToolModeChanged;
         public event EventHandler SaveChangesRequested;
 
         // Rank brush events
@@ -213,6 +233,8 @@ namespace MURDOC_2024.ViewModel
 
             // Edit mode commands
             EnterEditModeCommand = new RelayCommand(EnterEditMode);
+            SwitchToPolygonEditingCommand = new RelayCommand(SwitchToPolygonEditing);
+            SwitchToRankPaintingCommand = new RelayCommand(SwitchToRankPainting);
             SetAddPointsModeCommand = new RelayCommand(SetAddPointsMode);
             SetRemovePointsModeCommand = new RelayCommand(SetRemovePointsMode);
             SaveChangesCommand = new RelayCommand(SaveChanges);
@@ -234,7 +256,7 @@ namespace MURDOC_2024.ViewModel
 
         #region Edit Mode Methods
 
-        /// <summary>Activates unified edit mode and defaults to add-points and increase-brush sub-modes.</summary>
+        /// <summary>Activates unified edit mode and defaults to polygon editing sub-mode.</summary>
         private void EnterEditMode()
         {
             IsEditModeActive = true;
@@ -243,8 +265,31 @@ namespace MURDOC_2024.ViewModel
             IsIncreaseBrushActive = true; // Default to increase brush
             IsDecreaseBrushActive = false;
 
+            // Default to polygon editing tool
+            IsPolygonEditingMode = true;
+            IsRankPaintingMode = false;
+
             EnterEditModeRequested?.Invoke(this, EventArgs.Empty);
-            System.Diagnostics.Debug.WriteLine("Entered unified edit mode");
+            EditingToolModeChanged?.Invoke(this, "Polygon");
+            System.Diagnostics.Debug.WriteLine("Entered unified edit mode (Polygon Editing)");
+        }
+
+        /// <summary>Switches the active editing tool to polygon editing mode.</summary>
+        private void SwitchToPolygonEditing()
+        {
+            IsPolygonEditingMode = true;
+            IsRankPaintingMode = false;
+            EditingToolModeChanged?.Invoke(this, "Polygon");
+            System.Diagnostics.Debug.WriteLine("Switched to Polygon Editing mode");
+        }
+
+        /// <summary>Switches the active editing tool to rank painting mode.</summary>
+        private void SwitchToRankPainting()
+        {
+            IsPolygonEditingMode = false;
+            IsRankPaintingMode = true;
+            EditingToolModeChanged?.Invoke(this, "RankPaint");
+            System.Diagnostics.Debug.WriteLine("Switched to Rank Painting mode");
         }
 
         /// <summary>Deactivates edit mode and fires ExitEditModeRequested so the view can clean up overlays.</summary>
@@ -253,6 +298,8 @@ namespace MURDOC_2024.ViewModel
             IsEditModeActive = false;
             IsAddPointsMode = false;
             IsRemovePointsMode = false;
+            IsPolygonEditingMode = false;
+            IsRankPaintingMode = false;
 
             ExitEditModeRequested?.Invoke(this, EventArgs.Empty);
             System.Diagnostics.Debug.WriteLine("Exited edit mode");

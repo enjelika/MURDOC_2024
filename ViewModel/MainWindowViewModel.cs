@@ -103,6 +103,7 @@ namespace MURDOC_2024.ViewModel
         public event EventHandler<PointEditMode> PointEditModeChanged;
         public event EventHandler SaveAllModificationsRequested;
         public event EventHandler<RankBrushEventArgs> RankBrushChangedRequested;
+        public event EventHandler<string> EditingToolModeChanged;
 
         #endregion
 
@@ -170,6 +171,7 @@ namespace MURDOC_2024.ViewModel
             EditorControlsVM.PointEditModeChanged += OnPointEditModeChanged;
             EditorControlsVM.SaveChangesRequested += OnSaveChangesRequested;
             EditorControlsVM.RankBrushChanged += OnRankBrushChanged;
+            EditorControlsVM.EditingToolModeChanged += OnEditingToolModeChanged;
         }
 
         #endregion
@@ -613,6 +615,15 @@ namespace MURDOC_2024.ViewModel
         {
             System.Diagnostics.Debug.WriteLine($"MainWindow: Brush changed - Mode: {e.Mode}, Size: {e.BrushSize}, Strength: {e.BrushStrength}");
             RankBrushChangedRequested?.Invoke(this, e);
+        }
+
+        /// <summary>
+        /// Proxies editing tool mode changes (Polygon vs RankPaint) to MainWindow.
+        /// </summary>
+        private void OnEditingToolModeChanged(object sender, string mode)
+        {
+            System.Diagnostics.Debug.WriteLine($"MainWindow: Editing tool mode changed to {mode}");
+            EditingToolModeChanged?.Invoke(this, mode);
         }
 
         #endregion

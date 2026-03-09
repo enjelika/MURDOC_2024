@@ -12,6 +12,7 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisConverter"/>
         <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+        <converters:BoolToEditColorConverter x:Key="BoolToEditColorConverter"/>
     </UserControl.Resources>
 
     <Border BorderBrush="#CCCCCC" 
@@ -52,6 +53,57 @@
                         </Style>
                     </Button.Style>
                 </Button>
+
+                <!-- Editing Tool Mode Toggle -->
+                <Grid Margin="0,4,0,8"
+                      Visibility="{Binding IsEditModeActive, Converter={StaticResource BoolToVisConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0"
+                        Content="🔷 Polygon Editing"
+                        Command="{Binding SwitchToPolygonEditingCommand}"
+                        IsEnabled="{Binding IsEditModeActive}"
+                        Margin="0,0,3,0"
+                        Padding="6,8"
+                        Background="{Binding IsPolygonEditingMode, Converter={StaticResource BoolToColorConverter}}"
+                        BorderBrush="{Binding IsPolygonEditingMode, Converter={StaticResource BoolToEditColorConverter}}"
+                        BorderThickness="2"
+                        ToolTip="Switch to polygon mask editing">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPolygonEditingMode}" Value="True">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Grid.Column="1"
+                        Content="🎨 Rank Painting"
+                        Command="{Binding SwitchToRankPaintingCommand}"
+                        IsEnabled="{Binding IsEditModeActive}"
+                        Margin="3,0,0,0"
+                        Padding="6,8"
+                        Background="{Binding IsRankPaintingMode, Converter={StaticResource BoolToColorConverter}}"
+                        BorderBrush="{Binding IsRankPaintingMode, Converter={StaticResource BoolToEditColorConverter}}"
+                        BorderThickness="2"
+                        ToolTip="Switch to rank map painting">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRankPaintingMode}" Value="True">
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
 
                 <!-- Polygon Point Editing (always visible, enabled when edit mode active) -->
                 <Border Background="#F5F5F5"

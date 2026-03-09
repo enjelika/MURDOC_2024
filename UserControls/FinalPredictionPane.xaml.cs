@@ -217,6 +217,25 @@ namespace MURDOC_2024.UserControls
         }
 
         /// <summary>
+        /// Switch the active editing tool between polygon editing and rank painting.
+        /// </summary>
+        public void SetEditingToolMode(string mode)
+        {
+            if (mode == "Polygon")
+            {
+                _currentEditSubMode = EditSubMode.PolygonEditing;
+                EditingCanvas.Cursor = Cursors.Hand;
+                System.Diagnostics.Debug.WriteLine("Switched to Polygon Editing tool");
+            }
+            else if (mode == "RankPaint")
+            {
+                _currentEditSubMode = EditSubMode.RankBrushing;
+                EditingCanvas.Cursor = Cursors.Cross;
+                System.Diagnostics.Debug.WriteLine("Switched to Rank Painting tool");
+            }
+        }
+
+        /// <summary>
         /// Update rank brush parameters while in edit mode
         /// </summary>
         public void UpdateRankBrush(RankBrushMode mode, double brushSize, double brushStrength)

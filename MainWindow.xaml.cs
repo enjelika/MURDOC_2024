@@ -34,6 +34,7 @@ namespace MURDOC_2024
                     ViewModel.PointEditModeChanged += OnPointEditModeChanged;
                     ViewModel.SaveAllModificationsRequested += OnSaveAllModificationsRequested;
                     ViewModel.RankBrushChangedRequested += OnRankBrushChanged;
+                    ViewModel.EditingToolModeChanged += OnEditingToolModeChanged;
                     ViewModel.ResetDrawingRequested += OnResetDrawingRequested;
 
                     Console.WriteLine("Subscribed to ViewModel unified edit mode events");
@@ -131,6 +132,19 @@ namespace MURDOC_2024
             catch (Exception ex)
             {
                 Console.WriteLine($"Error updating rank brush: {ex.Message}");
+            }
+        }
+
+        private void OnEditingToolModeChanged(object sender, string mode)
+        {
+            try
+            {
+                FinalPredictionPaneControl.SetEditingToolMode(mode);
+                System.Diagnostics.Debug.WriteLine($"MainWindow: Switched editing tool to {mode}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error switching editing tool mode: {ex.Message}");
             }
         }
 
