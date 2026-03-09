@@ -77,15 +77,11 @@ namespace MURDOC_2024.UserControls
         {
             System.Diagnostics.Debug.WriteLine("=== SaveAllChanges START ===");
 
-            // Apply polygon to binary mask
+            // Apply polygon to binary mask (once)
             bool polyResult = ApplyPolygonChangesIfModified();
             System.Diagnostics.Debug.WriteLine($"Polygon applied: {polyResult}");
 
-            // Save rank map
-            SaveModifiedRankMap();
-            System.Diagnostics.Debug.WriteLine("Rank map saved");
-
-            // Save to LoRA training folders
+            // Save all modifications to LoRA training folders (once)
             ViewModel?.SaveAllModifications();
             System.Diagnostics.Debug.WriteLine("=== SaveAllChanges END ===");
         }

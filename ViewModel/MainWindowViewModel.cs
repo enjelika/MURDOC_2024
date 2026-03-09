@@ -556,7 +556,7 @@ namespace MURDOC_2024.ViewModel
             try
             {
                 bool hadMaskEdits = FinalPredictionVM.HasModifications;
-                bool hadRankEdits = FinalPredictionVM.HasAnyModifications;
+                bool hadRankEdits = FinalPredictionVM.HasRankModifications;
 
                 // Trigger save on FinalPredictionPane (saves to LoRA training folders)
                 SaveAllModificationsRequested?.Invoke(this, EventArgs.Empty);
@@ -1177,6 +1177,31 @@ namespace MURDOC_2024.ViewModel
         /// </summary>
         public void Dispose()
         {
+            // Unsubscribe all EditorControls events
+            if (EditorControlsVM != null)
+            {
+                EditorControlsVM.CorrectionModeToggled -= OnCorrectionModeToggled;
+                EditorControlsVM.FeedbackHistoryViewRequested -= OnFeedbackHistoryViewRequested;
+                EditorControlsVM.FeedbackExportRequested -= OnFeedbackExportRequested;
+                EditorControlsVM.SessionResetRequested -= OnSessionResetRequested;
+                EditorControlsVM.DetectionFeedbackProvided -= OnDetectionFeedbackProvided;
+                EditorControlsVM.EnterEditModeRequested -= OnEnterEditModeRequested;
+                EditorControlsVM.ExitEditModeRequested -= OnExitEditModeRequested;
+                EditorControlsVM.PointEditModeChanged -= OnPointEditModeChanged;
+                EditorControlsVM.SaveChangesRequested -= OnSaveChangesRequested;
+                EditorControlsVM.RankBrushChanged -= OnRankBrushChanged;
+                EditorControlsVM.EditingToolModeChanged -= OnEditingToolModeChanged;
+            }
+
+            if (SessionInfoVM != null)
+            {
+                SessionInfoVM.EndSessionRequested -= OnEndSessionRequested;
+
+                // Stop session timer if still running
+                if (SessionInfoVM.HasActiveSession)
+                    SessionInfoVM.EndSessionInternal();
+            }
+
             _metricsService?.EndSession();
             (_python as IDisposable)?.Dispose();
             GC.SuppressFinalize(this);

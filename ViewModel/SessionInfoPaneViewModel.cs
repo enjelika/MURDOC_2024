@@ -228,10 +228,10 @@ namespace MURDOC_2024.ViewModel
         /// <summary>Forces EndSessionCommand to re-evaluate its CanExecute state.</summary>
         public void UpdateCommandStates()
         {
+            (EndSessionCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 
-    // Data classes for session tracking
     // Data classes for session tracking
     public class ImageSessionData
     {

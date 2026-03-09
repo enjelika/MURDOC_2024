@@ -28,6 +28,12 @@ namespace MURDOC_2024.ViewModel
 
         public bool HasAnyModifications => HasModifications || _hasRankModifications;
 
+        /// <summary>
+        /// Whether the rank map has been modified independently (brush edits only).
+        /// Used by session recording to distinguish mask edits from rank edits.
+        /// </summary>
+        public bool HasRankModifications => _hasRankModifications;
+
         private byte[] _modifiedRankData; // Store modified rank values
         private bool _hasRankModifications = false;
 
@@ -913,18 +919,18 @@ namespace MURDOC_2024.ViewModel
 
                 RankMap = bitmap;
 
-                if (bitmap.Format == PixelFormats.Gray8)
-                {
-                    int width = bitmap.PixelWidth;
-                    int height = bitmap.PixelHeight;
-                    int stride = width;
-                    _modifiedRankData = new byte[height * stride];
-                    bitmap.CopyPixels(_modifiedRankData, stride, 0);
-                }
+                // Always convert to Gray8 for consistent rank data buffer,
+                // even if the PNG reloads as Bgr24 or another format
+                int width = bitmap.PixelWidth;
+                int height = bitmap.PixelHeight;
+                var grayBitmap = new FormatConvertedBitmap(bitmap, PixelFormats.Gray8, null, 0);
+                int stride = width; // Gray8 = 1 byte per pixel
+                _modifiedRankData = new byte[height * stride];
+                grayBitmap.CopyPixels(_modifiedRankData, stride, 0);
 
                 OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
 
-                System.Diagnostics.Debug.WriteLine("Reloaded rank map from saved file");
+                System.Diagnostics.Debug.WriteLine($"Reloaded rank map from saved file ({bitmap.Format} -> Gray8)");
             }
             catch (Exception ex)
             {

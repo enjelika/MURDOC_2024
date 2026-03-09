@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
-using Python.Runtime;
 using System.Diagnostics;
 using Newtonsoft.Json;
 
@@ -9,8 +8,6 @@ namespace MURDOC_2024.Services
 {
     internal sealed class PythonModelService : IPythonService, IDisposable
     {
-        private bool _isInitialized = false;
-
         private double _currentSensitivity = 1.5;  // Default (no change)
         private double _currentBias = 0.0;         // Default (no change)
 
@@ -20,11 +17,8 @@ namespace MURDOC_2024.Services
 
         public PythonModelService()
         {
-            InitializePythonRuntime();
-
-            // -------------------------------------------------------------
-            // **CRITICAL FIX: Add Python Home to the System PATH for all threads**
-            // -------------------------------------------------------------
+            // Add Python Home to the System PATH so Process.Start("python.exe")
+            // resolves to the correct Python 3.9 interpreter on all threads.
             if (Directory.Exists(_pythonHome))
             {
                 string path = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process);
@@ -35,49 +29,6 @@ namespace MURDOC_2024.Services
                     Environment.SetEnvironmentVariable("PATH", _pythonHome + Path.PathSeparator + path, EnvironmentVariableTarget.Process);
                     Console.WriteLine($"[DEBUG] Added {_pythonHome} to PATH for background threads.");
                 }
-            }
-            // -------------------------------------------------------------
-        }
-
-        /// <summary>
-        /// Initializes Python Engine safely for WPF and Python 3.9
-        /// </summary>
-        private void InitializePythonRuntime()
-        {
-            if (_isInitialized)
-                return;
-
-            try
-            {
-                Console.WriteLine("Starting Python runtime initialization...");
-
-                // Python installation paths (use your actual paths)
-                string pythonHome = @"C:\Users\hogue\AppData\Local\Python\Python39";
-                string pythonDll = Path.Combine(pythonHome, "python39.dll");
-
-                if (!File.Exists(pythonDll))
-                    throw new FileNotFoundException($"Python DLL not found at {pythonDll}");
-
-                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", pythonDll);
-                Environment.SetEnvironmentVariable("PYTHONHOME", pythonHome);
-
-                string pythonPath = string.Join(";",
-                    Path.Combine(pythonHome, "Lib"),
-                    Path.Combine(pythonHome, "Lib", "site-packages")
-                );
-
-                Environment.SetEnvironmentVariable("PYTHONPATH", pythonPath);
-
-                // Initialize PythonEngine on UI thread (C# side)
-                PythonEngine.Initialize();
-                _isInitialized = true;
-
-                Console.WriteLine("Python runtime initialized successfully.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error initializing Python engine: " + ex);
-                throw;
             }
         }
 
@@ -234,15 +185,10 @@ namespace MURDOC_2024.Services
             });
         }
 
-        /// <summary>Shuts down the Python Engine and releases all unmanaged resources.</summary>
+        /// <summary>Releases resources. No-op since all Python execution is via subprocess.</summary>
         public void Dispose()
         {
-            if (_isInitialized)
-            {
-                Console.WriteLine("[DEBUG] Shutting down Python Engine."); // Add log
-                PythonEngine.Shutdown();
-                _isInitialized = false;
-            }
+            // All Python execution uses Process.Start, no embedded engine to shut down
         }
     }
 }
