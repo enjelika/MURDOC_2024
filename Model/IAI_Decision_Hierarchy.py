@@ -322,13 +322,17 @@ class LazyResourceManager:
     def _load_cods_model(self):
         cods = Generator(channel=32)
         model_path = "./models/Resnet/Model_50_gen.pth"
-
+    
         if torch.cuda.is_available():
             cods.load_state_dict(torch.load(model_path))
             cods.cuda()
         else:
             cods.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
-
+    
+        # Apply LoRA adapters if available from previous sessions
+        from lora_inference import apply_lora_to_model
+        cods = apply_lora_to_model(cods)
+    
         cods.eval()
         return cods
 

@@ -178,6 +178,7 @@ namespace MURDOC_2024.ViewModel
         /// <summary>
         /// Handles the end session request from SessionInfoVM.
         /// Saves comprehensive session summary JSON and optionally queues for LoRA retraining.
+        /// LoRA retraining requires more than 2 edited images to be worthwhile.
         /// </summary>
         private void OnEndSessionRequested(object sender, EventArgs e)
         {
@@ -196,18 +197,46 @@ namespace MURDOC_2024.ViewModel
                 // Get complete session data
                 var summary = SessionInfoVM.GetSessionSummary();
 
-                // Confirm with user and ask about retraining
-                var result = MessageBox.Show(
-                    $"End session and save summary?\n\n" +
-                    $"Session Duration: {summary.TotalDuration:hh\\:mm\\:ss}\n" +
-                    $"Images Analyzed: {summary.ImagesAnalyzed}\n\n" +
-                    $"Queue for LoRA retraining?\n\n" +
-                    $"Yes = Save & Queue for Retraining\n" +
-                    $"No = Save Summary Only\n" +
-                    $"Cancel = Don't End Session",
-                    "End Session",
-                    MessageBoxButton.YesNoCancel,
-                    MessageBoxImage.Question);
+                // Count images with actual edits (binary mask or rank map)
+                int editedCount = summary.Images.Count(i => i.BinaryMaskEdited || i.RankMapEdited);
+
+                MessageBoxResult result;
+
+                // Only offer LoRA retraining if enough edited images
+                if (editedCount > 2)
+                {
+                    result = MessageBox.Show(
+                        $"End session and save summary?\n\n" +
+                        $"Session Duration: {summary.TotalDuration:hh\\:mm\\:ss}\n" +
+                        $"Images Analyzed: {summary.ImagesAnalyzed}\n" +
+                        $"Images Edited: {editedCount}\n\n" +
+                        $"Queue for LoRA retraining?\n\n" +
+                        $"Yes = Save & Queue for Retraining\n" +
+                        $"No = Save Summary Only\n" +
+                        $"Cancel = Don't End Session",
+                        "End Session",
+                        MessageBoxButton.YesNoCancel,
+                        MessageBoxImage.Question);
+                }
+                else
+                {
+                    result = MessageBox.Show(
+                        $"End session and save summary?\n\n" +
+                        $"Session Duration: {summary.TotalDuration:hh\\:mm\\:ss}\n" +
+                        $"Images Analyzed: {summary.ImagesAnalyzed}\n" +
+                        (editedCount > 0
+                            ? $"Images Edited: {editedCount} (need more than 2 for retraining)\n\n"
+                            : "\n") +
+                        $"OK = Save Summary\n" +
+                        $"Cancel = Don't End Session",
+                        "End Session",
+                        MessageBoxButton.OKCancel,
+                        MessageBoxImage.Question);
+
+                    // Map OK to No (save without retraining)
+                    if (result == MessageBoxResult.OK)
+                        result = MessageBoxResult.No;
+                }
 
                 if (result == MessageBoxResult.Yes || result == MessageBoxResult.No)
                 {
@@ -215,10 +244,21 @@ namespace MURDOC_2024.ViewModel
                     string sessionId = summary.SessionStartTime.ToString("yyyyMMdd_HHmmss");
                     SaveSessionSummary(summary, sessionId);
 
-                    // Queue for LoRA retraining if requested
+                    // Queue and launch LoRA retraining if requested
                     if (result == MessageBoxResult.Yes)
                     {
                         QueueSessionForRetraining(sessionId);
+
+                        // Launch LoRA retraining in background
+                        var startInfo = new ProcessStartInfo
+                        {
+                            FileName = "python",
+                            Arguments = $"Model\\lora_retrain.py --session session_{sessionId}",
+                            WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        Process.Start(startInfo);
                     }
 
                     // End the session (clears tracking data)

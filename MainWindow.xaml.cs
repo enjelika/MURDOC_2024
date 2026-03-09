@@ -1,5 +1,6 @@
 ﻿using MURDOC_2024.Model;
 using MURDOC_2024.Services;
+using MURDOC_2024.UserControls;
 using MURDOC_2024.ViewModel;
 using System;
 using System.Windows;
@@ -109,14 +110,14 @@ namespace MURDOC_2024
         {
             try
             {
-                FinalPredictionPaneControl.SaveModifiedRankMap();
+                FinalPredictionPaneControl.SaveAllChanges();
                 FinalPredictionPaneControl.ExitUnifiedEditMode();
                 System.Diagnostics.Debug.WriteLine("MainWindow: Saved all modifications and exited edit mode");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error saving modifications: {ex.Message}");
-                throw; // Re-throw so MainWindowViewModel can show error dialog
+                throw;
             }
         }
 

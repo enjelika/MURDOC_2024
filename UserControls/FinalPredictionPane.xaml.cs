@@ -69,6 +69,27 @@ namespace MURDOC_2024.UserControls
             _transformGroup.Children.Add(_translateTransform);
         }
 
+        /// <summary>
+        /// Public entry point: apply polygon, save rank, save to LoRA folders.
+        /// Called from MainWindow on Save.
+        /// </summary>
+        public void SaveAllChanges()
+        {
+            System.Diagnostics.Debug.WriteLine("=== SaveAllChanges START ===");
+
+            // Apply polygon to binary mask
+            bool polyResult = ApplyPolygonChangesIfModified();
+            System.Diagnostics.Debug.WriteLine($"Polygon applied: {polyResult}");
+
+            // Save rank map
+            SaveModifiedRankMap();
+            System.Diagnostics.Debug.WriteLine("Rank map saved");
+
+            // Save to LoRA training folders
+            ViewModel?.SaveAllModifications();
+            System.Diagnostics.Debug.WriteLine("=== SaveAllChanges END ===");
+        }
+
         #region Unified Edit Mode (Current)
 
         /// <summary>
@@ -103,7 +124,7 @@ namespace MURDOC_2024.UserControls
         /// <summary>
         /// Apply polygon modifications to the binary mask (if any)
         /// </summary>
-        private bool ApplyPolygonChangesIfModified()
+        public bool ApplyPolygonChangesIfModified()
         {
             // Check if we're in unified edit mode with polygon points
             if (!ViewModel.IsDrawingMode || _drawingService.CurrentPolygon.Count < 3)
@@ -736,34 +757,55 @@ namespace MURDOC_2024.UserControls
             // Exit unified edit mode on right-click
             if (ViewModel?.IsDrawingMode == true || _isRankBrushMode)
             {
-                // Check if there are unsaved changes
                 bool hasPolygonChanges = _drawingService.CurrentPolygon.Count >= 3;
                 bool hasRankChanges = ViewModel.HasAnyModifications;
 
-                string warningMessage = "Exit editing mode without saving?\n\n";
-
-                if (hasPolygonChanges)
+                if (hasPolygonChanges || hasRankChanges)
                 {
-                    warningMessage += "⚠️ You have unsaved polygon edits\n";
+                    string warningMessage = "You have unsaved changes:\n\n";
+                    if (hasPolygonChanges)
+                        warningMessage += "⚠️ Polygon edits\n";
+                    if (hasRankChanges)
+                        warningMessage += "⚠️ Rank map edits\n";
+
+                    warningMessage += "\nSave changes before exiting?";
+
+                    var result = MessageBox.Show(
+                        warningMessage,
+                        "Save Changes?",
+                        MessageBoxButton.YesNoCancel,
+                        MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        // Save, then exit
+                        SaveAllChanges();
+                        ExitUnifiedEditMode();
+
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            var mainWindow = Application.Current.MainWindow as MainWindow;
+                            mainWindow?.ViewModel?.EditorControlsVM?.ExitEditMode();
+                        });
+                    }
+                    else if (result == MessageBoxResult.No)
+                    {
+                        // Exit without saving
+                        ExitUnifiedEditMode();
+
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            var mainWindow = Application.Current.MainWindow as MainWindow;
+                            mainWindow?.ViewModel?.EditorControlsVM?.ExitEditMode();
+                        });
+                    }
+                    // Cancel = stay in edit mode, do nothing
                 }
-                if (hasRankChanges)
+                else
                 {
-                    warningMessage += "⚠️ You have unsaved rank map edits\n";
-                }
-
-                warningMessage += "\nClick 'Save Changes' to save your modifications.";
-
-                var result = MessageBox.Show(
-                    warningMessage,
-                    "Exit Edit Mode",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
+                    // No changes, just exit
                     ExitUnifiedEditMode();
 
-                    // Notify ViewModel to update UI state
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         var mainWindow = Application.Current.MainWindow as MainWindow;

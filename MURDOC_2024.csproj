@@ -99,6 +99,8 @@
     <Compile Include="Converters\StringToVisibilityConverter.cs" />
     <Compile Include="Model\DetectionFeedback.cs" />
     <Compile Include="Model\DetectionResut.cs" />
+    <Content Include="Model\lora_inference.py" />
+    <Content Include="Model\lora_modules.py" />
     <Compile Include="Model\PointEditMode.cs" />
     <Compile Include="Model\PolygonROI.cs" />
     <Compile Include="Model\RankBrushMode.cs" />
@@ -236,6 +238,7 @@
     <Resource Include="Assets\image_placeholder.png" />
     <Content Include="Model\data.py" />
     <Content Include="Model\IAI_Decision_Hierarchy.py" />
+    <Content Include="Model\lora_retrain.py" />
     <Content Include="Model\model\backbone.py" />
     <Content Include="Model\model\HolisticAttention.py" />
     <Content Include="Model\model\ResNet.py" />

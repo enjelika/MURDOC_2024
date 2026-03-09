@@ -226,9 +226,25 @@ namespace MURDOC_2024.ViewModel
                 // Initialize modified data if first edit
                 if (_modifiedRankData == null)
                 {
-                    var grayBitmap = new FormatConvertedBitmap(RankMap, PixelFormats.Gray8, null, 0);
+                    // RankMap may be different size than OriginalImage - must scale first
+                    WriteableBitmap scaled;
+                    if (RankMap.PixelWidth != width || RankMap.PixelHeight != height)
+                    {
+                        var transform = new ScaleTransform(
+                            (double)width / RankMap.PixelWidth,
+                            (double)height / RankMap.PixelHeight);
+                        scaled = new WriteableBitmap(new TransformedBitmap(RankMap, transform));
+                        System.Diagnostics.Debug.WriteLine($"Scaled RankMap from {RankMap.PixelWidth}x{RankMap.PixelHeight} to {width}x{height}");
+                    }
+                    else
+                    {
+                        scaled = new WriteableBitmap(RankMap);
+                    }
+
+                    var grayBitmap = new FormatConvertedBitmap(scaled, PixelFormats.Gray8, null, 0);
                     _modifiedRankData = new byte[width * height];
                     grayBitmap.CopyPixels(_modifiedRankData, width, 0);
+                    System.Diagnostics.Debug.WriteLine($"Initialized _modifiedRankData: {_modifiedRankData.Length} bytes for {width}x{height}");
                 }
 
                 // Apply brush
@@ -630,9 +646,10 @@ namespace MURDOC_2024.ViewModel
                 newMask.Freeze();
 
                 BinaryMask = ConvertWriteableToBitmapImage(newMask);
-                HasModifications = true; // MARK AS MODIFIED
+                _originalBinaryMask = BinaryMask;  // ← THIS IS THE KEY FIX
+                HasModifications = true;
 
-                System.Diagnostics.Debug.WriteLine("Updated BinaryMask with new polygon");
+                System.Diagnostics.Debug.WriteLine("Updated BinaryMask AND _originalBinaryMask with new polygon");
 
                 if (RankMap != null)
                 {
@@ -779,24 +796,30 @@ namespace MURDOC_2024.ViewModel
                     SaveBinaryMaskToPNG(maskPath);
                     savedFiles.Add($"Binary Mask: {maskPath}");
 
-                    // CRITICAL: Reload the saved mask back into BinaryMask property
-                    // This ensures subsequent edits start from the saved version
-                    ReloadBinaryMaskFromFile(maskPath);
+                    // Update _originalBinaryMask from current in-memory BinaryMask
+                    // instead of reloading from file (avoids WPF image cache issues)
+                    _originalBinaryMask = BinaryMask;
 
-                    System.Diagnostics.Debug.WriteLine($"Saved and reloaded binary mask: {maskPath}");
+                    System.Diagnostics.Debug.WriteLine($"Saved binary mask and updated original reference: {maskPath}");
                 }
 
                 // Save rank map if modified
                 if (_hasRankModifications && _modifiedRankData != null && RankMap != null)
                 {
                     string rankPath = IOPath.Combine(fixFolder, $"{imageName}.png");
-                    SaveRankMapAsPNG(rankPath, RankMap.PixelWidth, RankMap.PixelHeight);
-                    savedFiles.Add($"Rank Map: {rankPath}");
+                    SaveRankMapAsPNG(rankPath, OriginalImage.PixelWidth, OriginalImage.PixelHeight);
 
-                    // CRITICAL: Reload the saved rank map back into memory
-                    ReloadRankMapFromFile(rankPath);
-
-                    System.Diagnostics.Debug.WriteLine($"Saved and reloaded rank map: {rankPath}");
+                    // Only reload if save succeeded
+                    if (File.Exists(rankPath))
+                    {
+                        savedFiles.Add($"Rank Map: {rankPath}");
+                        ReloadRankMapFromFile(rankPath);
+                        System.Diagnostics.Debug.WriteLine($"Saved and reloaded rank map: {rankPath}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("Rank map save was skipped due to buffer mismatch");
+                    }
                 }
 
                 // Copy original image
@@ -833,12 +856,11 @@ namespace MURDOC_2024.ViewModel
                 bitmap.BeginInit();
                 bitmap.UriSource = uri;
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                 bitmap.EndInit();
                 bitmap.Freeze();
 
                 BinaryMask = bitmap;
-
-                // Important: Mark as original so GetMaskContourPoints works correctly
                 _originalBinaryMask = bitmap;
 
                 System.Diagnostics.Debug.WriteLine("Reloaded binary mask from saved file");
@@ -862,13 +884,12 @@ namespace MURDOC_2024.ViewModel
                 bitmap.BeginInit();
                 bitmap.UriSource = uri;
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
                 bitmap.EndInit();
                 bitmap.Freeze();
 
-                // Update RankMap
                 RankMap = bitmap;
 
-                // Update modified rank data from the saved file
                 if (bitmap.Format == PixelFormats.Gray8)
                 {
                     int width = bitmap.PixelWidth;
@@ -878,7 +899,6 @@ namespace MURDOC_2024.ViewModel
                     bitmap.CopyPixels(_modifiedRankData, stride, 0);
                 }
 
-                // Regenerate overlay
                 OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
 
                 System.Diagnostics.Debug.WriteLine("Reloaded rank map from saved file");
@@ -1008,6 +1028,32 @@ namespace MURDOC_2024.ViewModel
         /// </summary>
         private void SaveRankMapAsPNG(string filepath, int width, int height)
         {
+            if (_modifiedRankData == null)
+            {
+                System.Diagnostics.Debug.WriteLine("No modified rank data to save");
+                return;
+            }
+
+            // Verify buffer matches requested dimensions
+            int expectedSize = width * height;
+            if (_modifiedRankData.Length != expectedSize)
+            {
+                // Dimensions mismatch - use actual data dimensions
+                int actualWidth = OriginalImage?.PixelWidth ?? width;
+                int actualHeight = OriginalImage?.PixelHeight ?? height;
+                if (_modifiedRankData.Length == actualWidth * actualHeight)
+                {
+                    width = actualWidth;
+                    height = actualHeight;
+                    System.Diagnostics.Debug.WriteLine($"Corrected rank save dimensions to {width}x{height}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"Buffer size mismatch: {_modifiedRankData.Length} vs expected {expectedSize}");
+                    return;
+                }
+            }
+
             var writeable = new WriteableBitmap(width, height, 96, 96, PixelFormats.Gray8, null);
             writeable.WritePixels(new Int32Rect(0, 0, width, height), _modifiedRankData, width, 0);
 
@@ -1018,36 +1064,8 @@ namespace MURDOC_2024.ViewModel
             {
                 encoder.Save(stream);
             }
-        }
 
-        /// <summary>
-        /// Save rank map as CSV with normalized values (0-1)
-        /// Simple format, easy to load in Python with numpy.loadtxt()
-        /// </summary>
-        private void SaveRankMapAsNormalizedCSV(string filepath, int width, int height)
-        {
-            using (var writer = new System.IO.StreamWriter(filepath))
-            {
-                // Write dimensions as first line (comment)
-                writer.WriteLine($"# Rank Map: {width}x{height}");
-                writer.WriteLine($"# Values normalized to range [0, 1]");
-                writer.WriteLine($"# Session: {_sessionId}");
-
-                // Write data row by row
-                for (int y = 0; y < height; y++)
-                {
-                    var row = new List<string>();
-                    for (int x = 0; x < width; x++)
-                    {
-                        int idx = y * width + x;
-                        float normalizedValue = _modifiedRankData[idx] / 255.0f;
-                        row.Add(normalizedValue.ToString("F6")); // 6 decimal places
-                    }
-                    writer.WriteLine(string.Join(",", row));
-                }
-            }
-
-            System.Diagnostics.Debug.WriteLine($"Saved normalized CSV ({width}x{height})");
+            System.Diagnostics.Debug.WriteLine($"Saved rank map: {filepath} ({width}x{height})");
         }
 
         /// <summary>
