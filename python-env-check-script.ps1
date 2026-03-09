@@ -31,7 +31,7 @@ if (-not (Test-Command pip)) {
 
 # List of required libraries
 $requiredLibs = @{
-    "numpy" = "1.26.4"
+    "numpy" = "1.22.4"
     "pandas" = "1.3.2"
     "matplotlib" = "3.4.2"
     "scipy" = "1.7.1"
