@@ -38,13 +38,31 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
-        /// Initialize a new editing session
+        /// Sets the canonical session ID from an external source (e.g. MainWindowViewModel),
+        /// ensuring all images analyzed in a single session share the same folder root.
+        /// Must be called before the first image is loaded.
+        /// </summary>
+        public void SetSessionId(string sessionId)
+        {
+            _sessionId = sessionId;
+            System.Diagnostics.Debug.WriteLine($"[FinalPredictionPane] Session ID set externally: {_sessionId}");
+        }
+
+        /// <summary>
+        /// Initializes a new editing session only if no session ID has been assigned yet.
+        /// Call SetSessionId() from MainWindowViewModel instead of relying on this fallback.
         /// </summary>
         private void InitializeSession()
         {
+            if (!string.IsNullOrEmpty(_sessionId))
+            {
+                System.Diagnostics.Debug.WriteLine($"[FinalPredictionPane] Session already active: {_sessionId} — skipping re-init");
+                return;
+            }
+
             _sessionStartTime = DateTime.Now;
             _sessionId = _sessionStartTime.ToString("yyyyMMdd_HHmmss");
-            System.Diagnostics.Debug.WriteLine($"Initialized editing session: {_sessionId}");
+            System.Diagnostics.Debug.WriteLine($"[FinalPredictionPane] Initialized fallback session: {_sessionId}");
         }
 
         private bool _hasResult;
@@ -176,11 +194,9 @@ namespace MURDOC_2024.ViewModel
                 if (RankMap != null && BinaryMask != null && OriginalImage != null)
                 {
                     OverlayImage = CreateColoredOverlay(RankMap, BinaryMask);
-                    _originalBinaryMask = LoadImage(binaryMaskPath); // KEEP THIS HERE TOO
+                    _originalBinaryMask = LoadImage(binaryMaskPath);
                     HasModifications = false;
                     _hasRankModifications = false;
-
-                    InitializeSession(); // ✅ CORRECT PLACEMENT - After everything loaded
 
                     System.Diagnostics.Debug.WriteLine("Created colored overlay");
                 }
@@ -194,7 +210,9 @@ namespace MURDOC_2024.ViewModel
 
                 _originalImagePath = originalImagePath;
 
-                // Initialize session
+                // Initialize session only if no external session ID was provided.
+                // MainWindowViewModel calls SetSessionId() before the first image loads,
+                // so this acts as a fallback only.
                 InitializeSession();
 
                 // Check if there's an existing session with modifications
@@ -756,11 +774,13 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
-        /// Save all modifications to LoRA training format
+        /// Save all modifications to LoRA training format.
+        /// All images analyzed within a single session share the same root folder,
+        /// identified by the session ID set via SetSessionId() from MainWindowViewModel.
         /// Structure: session_YYYYMMDD_HHMMSS/
-        ///   ├── bi_gt/     (binary masks)
-        ///   ├── fix/       (rank maps)
-        ///   └── img/       (original images)
+        ///   ├── bin_gt/    (edited binary masks)
+        ///   ├── fix_gt/    (edited rank maps)
+        ///   └── img/       (original input images)
         /// </summary>
         public void SaveAllModifications()
         {
@@ -772,14 +792,16 @@ namespace MURDOC_2024.ViewModel
 
             try
             {
-                // Create session folder
+                // All images in a session share the same root folder via _sessionId.
+                // _sessionId is set externally by MainWindowViewModel.SetSessionId()
+                // so that multiple images map to the same training_sessions/session_{id}/ tree.
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
                 string sessionFolder = IOPath.Combine(exeDir, "training_sessions", $"session_{_sessionId}");
                 Directory.CreateDirectory(sessionFolder);
 
-                // Create subfolders
-                string biGtFolder = IOPath.Combine(sessionFolder, "bi_gt");
-                string fixFolder = IOPath.Combine(sessionFolder, "fix");
+                // Create subfolders (created here idempotently — safe across multiple images)
+                string biGtFolder = IOPath.Combine(sessionFolder, "bin_gt");
+                string fixFolder = IOPath.Combine(sessionFolder, "fix_gt");
                 string imgFolder = IOPath.Combine(sessionFolder, "img");
 
                 Directory.CreateDirectory(biGtFolder);
@@ -931,8 +953,8 @@ namespace MURDOC_2024.ViewModel
                 foreach (var sessionFolder in sessionFolders)
                 {
                     // Check if this session has modifications for our image
-                    string biGtPath = IOPath.Combine(sessionFolder, "bi_gt", $"{imageName}.png");
-                    string fixPath = IOPath.Combine(sessionFolder, "fix", $"{imageName}.png");
+                    string biGtPath = IOPath.Combine(sessionFolder, "bin_gt", $"{imageName}.png");
+                    string fixPath = IOPath.Combine(sessionFolder, "fix_gt", $"{imageName}.png");
 
                     bool hasBinaryMask = File.Exists(biGtPath);
                     bool hasRankMap = File.Exists(fixPath);
@@ -992,7 +1014,7 @@ namespace MURDOC_2024.ViewModel
                     FolderStructure = new
                     {
                         BiGt = "bi_gt/ - Binary ground truth masks",
-                        Fix = "fix/ - Fixation/rank maps",
+                        Fix = "fix_gt/ - Fixation/rank maps",
                         Img = "img/ - Original input images"
                     }
                 };

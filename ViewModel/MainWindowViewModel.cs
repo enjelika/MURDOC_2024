@@ -840,13 +840,20 @@ namespace MURDOC_2024.ViewModel
             if (!SessionInfoVM.HasActiveSession)
             {
                 SessionInfoVM.StartSession(imageName);
-                System.Diagnostics.Debug.WriteLine($"Started new session for: {imageName}");
+
+                // Derive the canonical session ID from SessionInfoVM's start time and push it
+                // to FinalPredictionVM so all images in this session write to the same
+                // training_sessions/session_{id}/bin_gt|fix_gt|img/ folder tree.
+                string canonicalSessionId = SessionInfoVM.SessionStartTime.ToString("yyyyMMdd_HHmmss");
+                FinalPredictionVM.SetSessionId(canonicalSessionId);
+
+                System.Diagnostics.Debug.WriteLine($"Started new session: {canonicalSessionId} for image: {imageName}");
             }
             else
             {
-                // Continue session with new image
+                // Continue session with new image — session ID already set, no re-init needed
                 SessionInfoVM.CurrentImageName = imageName;
-                SessionInfoVM.UpdateModificationStatus(false, false); // Reset modification flags
+                SessionInfoVM.UpdateModificationStatus(false, false);
                 System.Diagnostics.Debug.WriteLine($"Continuing session with new image: {imageName}");
             }
         }

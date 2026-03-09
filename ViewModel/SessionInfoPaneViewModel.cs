@@ -13,6 +13,13 @@ namespace MURDOC_2024.ViewModel
         private bool _hasBinaryMaskEdits;
         private bool _hasRankMapEdits;
         private bool _hasActiveSession;
+
+        /// <summary>
+        /// The timestamp when the current session started.
+        /// Used by MainWindowViewModel to derive the canonical session ID
+        /// shared across SessionInfoPaneViewModel and FinalPredictionPaneViewModel.
+        /// </summary>
+        public DateTime SessionStartTime => _sessionStartTime;
         private int _imagesAnalyzed;
         private DispatcherTimer _durationTimer;
 
