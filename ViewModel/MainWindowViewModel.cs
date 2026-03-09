@@ -568,8 +568,8 @@ namespace MURDOC_2024.ViewModel
                 string imageName = Path.GetFileName(SelectedImagePath);
                 SessionInfoVM.RecordImageData(
                     imageName,
-                    FinalPredictionVM.HasModifications,      // Binary mask edited
-                    FinalPredictionVM.HasAnyModifications,   // Rank map edited
+                    hadMaskEdits,                               // Binary mask edited (captured before save)
+                    hadRankEdits,                               // Rank map edited (captured before save)
                     EditorControlsVM.ConfirmedCount,         // Detection feedback
                     EditorControlsVM.RejectedCount,
                     EditorControlsVM.CorrectionCount,
