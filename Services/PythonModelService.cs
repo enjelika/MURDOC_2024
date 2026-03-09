@@ -191,6 +191,7 @@ namespace MURDOC_2024.Services
                 {
                     FileName = pythonExe,
                     Arguments = arguments,
+                    WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

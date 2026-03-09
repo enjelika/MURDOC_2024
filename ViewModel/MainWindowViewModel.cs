@@ -899,6 +899,11 @@ namespace MURDOC_2024.ViewModel
                 // Start performance timing
                 _modelExecutionTimer.Restart();
 
+                // Sync MICA slider values to Python service before running
+                _python.SetDetectionParameters(
+                    MICAControlVM?.Sensitivity ?? 1.5,
+                    MICAControlVM?.ResponseBias ?? 0.0);
+
                 // Run Python AI models
                 iaiMessage = await RunPythonModelAsync(imageToProcess);
 
