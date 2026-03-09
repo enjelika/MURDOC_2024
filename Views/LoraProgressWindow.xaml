@@ -1,0 +1,66 @@
+<Window x:Class="MURDOC_2024.Views.LoraProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LoRA Model Retraining"
+        Width="480" Height="300"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="ToolWindow"
+        Background="#F5F5F5">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="🧠 Retraining Model with Your Edits"
+                       FontSize="15"
+                       FontWeight="Bold"
+                       Foreground="#1565C0"/>
+            <TextBlock Text="The model is adapting to your corrections. Please wait…"
+                       FontSize="11"
+                       Foreground="#555555"
+                       Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Progress Bar -->
+        <ProgressBar Grid.Row="1"
+                     x:Name="ProgressBar"
+                     IsIndeterminate="True"
+                     Height="18"
+                     Margin="0,0,0,12"
+                     Foreground="#1976D2"
+                     Background="#E3F2FD"/>
+
+        <!-- Live Status Log -->
+        <Border Grid.Row="2"
+                Background="#FAFAFA"
+                BorderBrush="#CCCCCC"
+                BorderThickness="1"
+                CornerRadius="3"
+                Margin="0,0,0,12">
+            <ScrollViewer x:Name="LogScroller"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="8">
+                <TextBlock x:Name="StatusLog"
+                           FontFamily="Consolas"
+                           FontSize="11"
+                           Foreground="#333333"
+                           TextWrapping="Wrap"/>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Status line -->
+        <TextBlock Grid.Row="3"
+                   x:Name="StatusLabel"
+                   Text="Initializing…"
+                   FontSize="11"
+                   Foreground="#777777"
+                   HorizontalAlignment="Center"/>
+    </Grid>
+</Window>

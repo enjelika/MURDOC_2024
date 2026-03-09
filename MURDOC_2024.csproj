@@ -110,6 +110,9 @@
     <Compile Include="Services\PolygonDrawingService.cs" />
     <Compile Include="Services\PythonModelService.cs" />
     <Compile Include="Services\RankBrushServices.cs" />
+    <Compile Include="Views\LoraProgressWindow.xaml.cs">
+      <DependentUpon>LoraProgressWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UserControls\EditorControlsPane.xaml.cs">
       <DependentUpon>EditorControlsPane.xaml</DependentUpon>
     </Compile>
@@ -154,6 +157,10 @@
     <Compile Include="ViewModel\SessionInfoPaneViewModel.cs" />
     <Compile Include="ViewModel\ViewModelBase.cs" />
     <Page Include="MainWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\LoraProgressWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
