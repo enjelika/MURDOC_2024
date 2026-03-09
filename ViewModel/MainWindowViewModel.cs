@@ -850,8 +850,15 @@ namespace MURDOC_2024.ViewModel
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in RunModelsCommand: {ex.Message}");
+
+                // Show the full Python traceback if available so the user (or developer)
+                // can see exactly what went wrong without digging through debug output.
+                string detail = ex.Message.Length > 800
+                    ? ex.Message.Substring(0, 800) + "\n…(truncated)"
+                    : ex.Message;
+
                 MessageBox.Show(
-                    $"An error occurred while running the models:\n{ex.Message}",
+                    $"Model execution failed:\n\n{detail}",
                     "Model Execution Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);

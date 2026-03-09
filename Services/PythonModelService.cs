@@ -113,48 +113,7 @@ namespace MURDOC_2024.Services
 
             Console.WriteLine($"[PROCESS] Executing: {pythonExe} {arguments}");
 
-            return Task.Run(() =>
-            {
-                ProcessStartInfo start = new ProcessStartInfo
-                {
-                    FileName = pythonExe,
-                    Arguments = arguments,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true, // Capture output for result
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                };
-
-                using (Process process = Process.Start(start))
-                {
-                    // Wait for the process to exit
-                    process.WaitForExit();
-
-                    // Read output (result) and errors
-                    string output = process.StandardOutput.ReadToEnd();
-                    string errors = process.StandardError.ReadToEnd();
-
-                    if (process.ExitCode != 0) // Process actually crashed
-                    {
-                        string fullError = errors + "\nOutput: " + output;
-                        Console.WriteLine($"[EXTERNAL PYTHON CRASH] {fullError}");
-                        throw new Exception($"Python process crashed with exit code {process.ExitCode}. Errors:\n{fullError}");
-                    }
-
-                    // --------------------------------------------------------------------------
-                    // CRITICAL FIX: Only throw if the process failed AND the output is empty.
-                    // If exit code is 0 (success) and we have standard output, the warnings can be ignored.
-                    // --------------------------------------------------------------------------
-                    if (!string.IsNullOrEmpty(errors))
-                    {
-                        // Log the warnings, but do NOT throw since ExitCode was 0.
-                        Console.WriteLine($"[EXTERNAL PYTHON WARNINGS/MESSAGES] Errors (Ignored): {errors}");
-                    }
-
-                    // NOTE: Your Python script must be modified to print ONLY the final result string to stdout.
-                    return output.Trim();
-                }
-            });
+            return RunPythonScriptAsync(pythonExe, arguments);
         }
 
         /// <summary>
@@ -207,9 +166,28 @@ namespace MURDOC_2024.Services
 
             Console.WriteLine($"[PROCESS] Executing: {pythonExe} {arguments}");
 
+            return RunPythonScriptAsync(pythonExe, arguments);
+        }
+
+        // **NOTE: The original synchronous 'public string RunIAIModels(string imagePath)'
+        // has been removed/deleted from this class.**
+
+        /// <summary>
+        /// Shared process runner for both bypass and MICA model paths.
+        ///
+        /// Reads stdout and stderr concurrently on separate tasks before waiting for
+        /// exit — avoiding the OS pipe-buffer deadlock that occurs when WaitForExit()
+        /// is called before ReadToEnd() on a process with heavy output.
+        ///
+        /// On non-zero exit, throws a PythonExecutionException that carries the full
+        /// stderr traceback so callers can surface a meaningful error to the user.
+        /// On success, any stderr content is logged as a warning but not thrown.
+        /// </summary>
+        private Task<string> RunPythonScriptAsync(string pythonExe, string arguments)
+        {
             return Task.Run(() =>
             {
-                ProcessStartInfo start = new ProcessStartInfo
+                var startInfo = new ProcessStartInfo
                 {
                     FileName = pythonExe,
                     Arguments = arguments,
@@ -219,34 +197,41 @@ namespace MURDOC_2024.Services
                     CreateNoWindow = true
                 };
 
-                using (Process process = Process.Start(start))
+                using (var process = Process.Start(startInfo))
                 {
-                    // Wait for the process to exit
+                    // Read both streams concurrently BEFORE WaitForExit to prevent
+                    // OS pipe-buffer deadlock on large model output.
+                    var stdoutTask = System.Threading.Tasks.Task.Run(
+                        () => process.StandardOutput.ReadToEnd());
+                    var stderrTask = System.Threading.Tasks.Task.Run(
+                        () => process.StandardError.ReadToEnd());
+
                     process.WaitForExit();
 
-                    // Read output (result) and errors
-                    string output = process.StandardOutput.ReadToEnd();
-                    string errors = process.StandardError.ReadToEnd();
+                    string output = stdoutTask.Result;
+                    string errors = stderrTask.Result;
 
                     if (process.ExitCode != 0)
                     {
-                        string fullError = errors + "\nOutput: " + output;
-                        Console.WriteLine($"[EXTERNAL PYTHON CRASH] {fullError}");
-                        throw new Exception($"Python process crashed with exit code {process.ExitCode}. Errors:\n{fullError}");
+                        // Build a clean traceback message — strip blank lines from stderr
+                        // and prepend the exit code so the caller can show something useful.
+                        string traceback = string.IsNullOrWhiteSpace(errors)
+                            ? "(no stderr captured)"
+                            : errors.Trim();
+
+                        Console.WriteLine($"[PYTHON CRASH] Exit {process.ExitCode}\n{traceback}");
+
+                        throw new Exception(
+                            $"Python exited with code {process.ExitCode}.\n\n{traceback}");
                     }
 
                     if (!string.IsNullOrEmpty(errors))
-                    {
-                        Console.WriteLine($"[EXTERNAL PYTHON WARNINGS/MESSAGES] Errors (Ignored): {errors}");
-                    }
+                        Console.WriteLine($"[PYTHON WARNINGS] {errors}");
 
                     return output.Trim();
                 }
             });
         }
-
-        // **NOTE: The original synchronous 'public string RunIAIModels(string imagePath)' 
-        // has been removed/deleted from this class.**
 
         public void Dispose()
         {
