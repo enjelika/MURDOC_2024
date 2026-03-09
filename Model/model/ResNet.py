@@ -9,9 +9,12 @@ def conv3x3(in_planes, out_planes, stride=1):
 
 
 class BasicBlock(nn.Module):
+    """Standard two-layer residual block (3×3 → 3×3) used in ResNet-18/34."""
+
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
+        """Build a BasicBlock with optional downsampling shortcut."""
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -22,16 +25,8 @@ class BasicBlock(nn.Module):
         self.stride = stride
 
     def forward(self, x):
+        """Compute residual addition of two conv-BN-ReLU layers and optional downsampled shortcut."""
         residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        out = self.bn2(out)
-
-        if self.downsample is not None:
             residual = self.downsample(x)
 
         out += residual
@@ -41,9 +36,12 @@ class BasicBlock(nn.Module):
 
 
 class Bottleneck(nn.Module):
+    """Three-layer bottleneck block (1×1 → 3×3 → 1×1) used in ResNet-50/101/152."""
+
     expansion = 4
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
+        """Build a Bottleneck block with optional downsampling shortcut."""
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -57,6 +55,7 @@ class Bottleneck(nn.Module):
         self.stride = stride
 
     def forward(self, x):
+        """Compute residual addition of the bottleneck conv sequence and optional downsampled shortcut."""
         residual = x
 
         out = self.conv1(x)
@@ -80,8 +79,16 @@ class Bottleneck(nn.Module):
 
 
 class B2_ResNet(nn.Module):
+    """Dual-branch ResNet-50 backbone that produces two parallel deep feature streams.
+
+    Branch 1 (layer3_1 / layer4_1) processes the main detection path.
+    Branch 2 (layer3_2 / layer4_2) processes the holistic-attention-guided refinement path.
+    Weights are initialized from ImageNet-pretrained ResNet-50 via initialize_weights().
+    """
+
     # ResNet50 with two branches
     def __init__(self):
+        """Build the shared stem (conv1–layer2) and two independent deep branches."""
         # self.inplanes = 128
         self.inplanes = 64
         super(B2_ResNet, self).__init__()
@@ -109,6 +116,7 @@ class B2_ResNet(nn.Module):
                 m.bias.data.zero_()
 
     def _make_layer(self, block, planes, blocks, stride=1):
+        """Stack `blocks` residual blocks, inserting a downsampling shortcut when needed."""
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -126,6 +134,7 @@ class B2_ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        """Run the shared stem then split into two parallel branches; return (x1, x2) deep features."""
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)

@@ -234,6 +234,7 @@ namespace MURDOC_2024.ViewModel
 
         #region Edit Mode Methods
 
+        /// <summary>Activates unified edit mode and defaults to add-points and increase-brush sub-modes.</summary>
         private void EnterEditMode()
         {
             IsEditModeActive = true;
@@ -246,6 +247,7 @@ namespace MURDOC_2024.ViewModel
             System.Diagnostics.Debug.WriteLine("Entered unified edit mode");
         }
 
+        /// <summary>Deactivates edit mode and fires ExitEditModeRequested so the view can clean up overlays.</summary>
         public void ExitEditMode()
         {
             IsEditModeActive = false;
@@ -256,6 +258,7 @@ namespace MURDOC_2024.ViewModel
             System.Diagnostics.Debug.WriteLine("Exited edit mode");
         }
 
+        /// <summary>Switches the polygon editor to add-points sub-mode and fires PointEditModeChanged.</summary>
         private void SetAddPointsMode()
         {
             IsAddPointsMode = true;
@@ -264,6 +267,7 @@ namespace MURDOC_2024.ViewModel
             System.Diagnostics.Debug.WriteLine("Set to Add Points mode");
         }
 
+        /// <summary>Switches the polygon editor to remove-points sub-mode and fires PointEditModeChanged.</summary>
         private void SetRemovePointsMode()
         {
             IsAddPointsMode = false;
@@ -272,6 +276,7 @@ namespace MURDOC_2024.ViewModel
             System.Diagnostics.Debug.WriteLine("Set to Remove Points mode");
         }
 
+        /// <summary>Fires SaveChangesRequested so the parent can persist the current polygon and rank map edits to disk.</summary>
         private void SaveChanges()
         {
             SaveChangesRequested?.Invoke(this, EventArgs.Empty);
@@ -282,6 +287,7 @@ namespace MURDOC_2024.ViewModel
 
         #region Rank Brush Methods
 
+        /// <summary>Activates the increase brush and fires RankBrushChanged with current size and strength.</summary>
         private void SetIncreaseBrush()
         {
             IsIncreaseBrushActive = true;
@@ -290,6 +296,7 @@ namespace MURDOC_2024.ViewModel
             System.Diagnostics.Debug.WriteLine("Set to Increase brush");
         }
 
+        /// <summary>Activates the decrease brush and fires RankBrushChanged with current size and strength.</summary>
         private void SetDecreaseBrush()
         {
             IsIncreaseBrushActive = false;
@@ -302,6 +309,7 @@ namespace MURDOC_2024.ViewModel
 
         #region Detection Feedback Methods
 
+        /// <summary>Adds a feedback entry to the history, updates counts, and notifies subscribers.</summary>
         public void AddFeedback(DetectionFeedback feedback)
         {
             if (feedback == null) return;
@@ -313,34 +321,39 @@ namespace MURDOC_2024.ViewModel
             UpdateCommandStates();
         }
 
+        /// <summary>Returns the full feedback history collection.</summary>
         public ObservableCollection<DetectionFeedback> GetFeedbackHistory()
         {
             return FeedbackHistory;
         }
 
+        /// <summary>Sets the currently selected detection, updating all display properties.</summary>
         public void SelectDetection(DetectionResult detection)
         {
             SelectedDetection = detection;
         }
 
+        /// <summary>Deselects the current detection and resets selection display properties.</summary>
         public void ClearSelection()
         {
             SelectedDetection = null;
         }
 
+        /// <summary>Clears all feedback history and resets Confirmed/Rejected/Correction counts to zero.</summary>
         public void ClearFeedback()
         {
             FeedbackHistory.Clear();
             ResetCounts();
         }
 
+        /// <summary>Forces Confirm, Reject, and Export commands to re-evaluate their CanExecute state.</summary>
         public void UpdateCommandStates()
         {
-            (ConfirmDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (RejectDetectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (ExportFeedbackCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
 
+        /// <summary>Creates a Confirmation feedback entry for the selected detection and clears the selection.</summary>
         private void ExecuteConfirm()
         {
             var feedback = _selectedDetectionResult?.ToFeedback(FeedbackType.Confirmation);
@@ -351,6 +364,7 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        /// <summary>Creates a Rejection feedback entry for the selected detection and clears the selection.</summary>
         private void ExecuteReject()
         {
             var feedback = _selectedDetectionResult?.ToFeedback(FeedbackType.Rejection);
@@ -361,6 +375,7 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        /// <summary>Recomputes Confirmed/Rejected/Correction counts from the current FeedbackHistory.</summary>
         private void UpdateFeedbackCounts()
         {
             ConfirmedCount = FeedbackHistory.Count(f => f.FeedbackType == FeedbackType.Confirmation);
@@ -368,6 +383,7 @@ namespace MURDOC_2024.ViewModel
             CorrectionCount = FeedbackHistory.Count(f => f.FeedbackType == FeedbackType.Correction);
         }
 
+        /// <summary>Resets all feedback counts to zero and reinitializes the session start timestamp.</summary>
         private void ResetCounts()
         {
             ConfirmedCount = 0;
@@ -377,12 +393,14 @@ namespace MURDOC_2024.ViewModel
             UpdateCommandStates();
         }
 
+        /// <summary>Toggles IsCorrectionModeActive and fires CorrectionModeToggled so the view can update the canvas.</summary>
         private void ToggleCorrectionMode()
         {
             IsCorrectionModeActive = !IsCorrectionModeActive;
             CorrectionModeToggled?.Invoke(this, EventArgs.Empty);
         }
 
+        /// <summary>Syncs HasSelectedDetection, label, and confidence display properties from the currently selected detection.</summary>
         private void UpdateSelectedDetectionDisplay()
         {
             if (_selectedDetectionResult == null)

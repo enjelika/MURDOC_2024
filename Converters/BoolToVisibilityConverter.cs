@@ -5,8 +5,10 @@ using System.Windows.Data;
 
 namespace MURDOC_2024.Converters
 {
+    /// <summary>Converts a bool to <see cref="Visibility"/>: Visible when true, Collapsed when false.</summary>
     public class BoolToVisibilityConverter : IValueConverter
     {
+        /// <summary>Returns <see cref="Visibility.Visible"/> when <paramref name="value"/> is <see langword="true"/>.</summary>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is bool boolValue)
@@ -16,6 +18,7 @@ namespace MURDOC_2024.Converters
             return Visibility.Collapsed;
         }
 
+        /// <summary>Returns <see langword="true"/> when <paramref name="value"/> is <see cref="Visibility.Visible"/>.</summary>
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is Visibility visibility)
@@ -27,10 +30,11 @@ namespace MURDOC_2024.Converters
     }
 
     /// <summary>
-    /// Inverse converter - returns Visible when false
+    /// Inverse converter — returns Visible when false
     /// </summary>
     public class InverseBoolToVisibilityConverter : IValueConverter
     {
+        /// <summary>Returns <see cref="Visibility.Visible"/> when <paramref name="value"/> is <see langword="false"/>.</summary>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is bool boolValue)
@@ -40,6 +44,7 @@ namespace MURDOC_2024.Converters
             return Visibility.Visible;
         }
 
+        /// <summary>Returns <see langword="true"/> when <paramref name="value"/> is not <see cref="Visibility.Visible"/>.</summary>
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is Visibility visibility)

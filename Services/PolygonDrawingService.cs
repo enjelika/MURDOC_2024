@@ -16,6 +16,10 @@ namespace MURDOC_2024.Services
         Eraser
     }
 
+    /// <summary>
+    /// Stateful service managing polygon and freehand drawing operations for the MICA editor.
+    /// Converts completed polygon point lists into binary masks and WPF visual shapes.
+    /// </summary>
     public class PolygonDrawingService
     {
         public DrawingMode CurrentMode { get; set; } = DrawingMode.None;
@@ -25,18 +29,21 @@ namespace MURDOC_2024.Services
         private int _imageWidth;
         private int _imageHeight;
 
+        /// <summary>Sets the reference image dimensions used when converting polygon points to masks.</summary>
         public void SetImageDimensions(int width, int height)
         {
             _imageWidth = width;
             _imageHeight = height;
         }
 
+        /// <summary>Activates the specified drawing mode and clears any previously accumulated points.</summary>
         public void StartDrawing(DrawingMode mode)
         {
             CurrentMode = mode;
             CurrentPolygon.Clear();
         }
 
+        /// <summary>Appends a point to the current polygon if the drawing mode is Polygon.</summary>
         public void AddPoint(Point point)
         {
             if (CurrentMode == DrawingMode.Polygon)
@@ -45,6 +52,7 @@ namespace MURDOC_2024.Services
             }
         }
 
+        /// <summary>Closes the polygon if at least 3 points have been placed, then resets the drawing mode.</summary>
         public void CompletePolygon()
         {
             // Close the polygon if it has at least 3 points
@@ -55,6 +63,7 @@ namespace MURDOC_2024.Services
             }
         }
 
+        /// <summary>Discards all accumulated polygon points and resets the drawing mode to None.</summary>
         public void CancelDrawing()
         {
             CurrentPolygon.Clear();

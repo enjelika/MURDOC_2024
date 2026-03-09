@@ -12,6 +12,11 @@ using System.Collections.ObjectModel;
 
 namespace MURDOC_2024.Controls
 {
+    /// <summary>
+    /// Custom WPF Canvas supporting polygon and freehand ROI drawing for operator region-of-interest selection.
+    /// Left-click adds polygon vertices; right-click or Enter closes the polygon; Escape cancels.
+    /// Completed ROIs are stored in <see cref="ROIs"/> and raise <see cref="ROIAdded"/>.
+    /// </summary>
     public class PolygonROICanvas : Canvas
     {
         private List<Point> _currentPolygonPoints = new List<Point>();
@@ -31,6 +36,9 @@ namespace MURDOC_2024.Controls
             }
         }
 
+        /// <summary>
+        /// Initializes the canvas with a transparent background and wires up mouse and keyboard handlers.
+        /// </summary>
         public PolygonROICanvas()
         {
             Background = Brushes.Transparent;
@@ -40,6 +48,7 @@ namespace MURDOC_2024.Controls
             KeyDown += OnKeyDown;
         }
 
+        /// <summary>Dispatches a left-click to the active drawing mode (polygon vertex or freehand start).</summary>
         private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (_drawMode == ROIDrawMode.Polygon)
@@ -52,6 +61,7 @@ namespace MURDOC_2024.Controls
             }
         }
 
+        /// <summary>Adds a vertex to the current polygon and draws a yellow point marker on the canvas.</summary>
         private void DrawPolygonPoint(Point point)
         {
             _currentPolygonPoints.Add(point);
@@ -83,6 +93,7 @@ namespace MURDOC_2024.Controls
             _isDrawingPolygon = true;
         }
 
+        /// <summary>Closes and finalizes the current polygon when right-clicked with at least 3 points.</summary>
         private void OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
             // Right-click or double-click to finish polygon
@@ -92,6 +103,7 @@ namespace MURDOC_2024.Controls
             }
         }
 
+        /// <summary>Handles Enter (finish polygon) and Escape (cancel drawing) keyboard shortcuts.</summary>
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter && _isDrawingPolygon && _currentPolygonPoints.Count >= 3)
@@ -104,6 +116,10 @@ namespace MURDOC_2024.Controls
             }
         }
 
+        /// <summary>
+        /// Converts the accumulated points into a filled yellow polygon, adds a context menu
+        /// (Delete / Export Mask), creates a <see cref="PolygonROI"/> object, and raises <see cref="ROIAdded"/>.
+        /// </summary>
         private void FinishPolygon()
         {
             if (_currentPolygonPoints.Count < 3) return;
@@ -151,6 +167,7 @@ namespace MURDOC_2024.Controls
             _isDrawingPolygon = false;
         }
 
+        /// <summary>Discards the in-progress polygon and removes all temporary visual elements from the canvas.</summary>
         private void CancelCurrentDrawing()
         {
             _currentPolygonPoints.Clear();
@@ -167,7 +184,7 @@ namespace MURDOC_2024.Controls
             }
         }
 
-        // Freehand drawing support
+        /// <summary>Begins a freehand stroke, capturing the mouse to track continuous movement.</summary>
         private void StartFreehandDrawing(Point point)
         {
             _currentPolygonPoints.Clear();
@@ -186,6 +203,7 @@ namespace MURDOC_2024.Controls
             CaptureMouse();
         }
 
+        /// <summary>Appends points to the freehand polyline while the left button is held.</summary>
         private void OnMouseMove(object sender, MouseEventArgs e)
         {
             if (_drawMode == ROIDrawMode.Freehand && _isDrawingPolygon && e.LeftButton == MouseButtonState.Pressed)
@@ -196,6 +214,7 @@ namespace MURDOC_2024.Controls
             }
         }
 
+        /// <summary>Releases the mouse capture and finalizes the freehand polygon on button release.</summary>
         private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (_drawMode == ROIDrawMode.Freehand && _isDrawingPolygon)
@@ -208,6 +227,7 @@ namespace MURDOC_2024.Controls
             }
         }
 
+        /// <summary>Removes an ROI's visual from the canvas and raises <see cref="ROIRemoved"/>.</summary>
         private void RemoveROI(PolygonROI roi)
         {
             Children.Remove(roi.Visual);
@@ -215,6 +235,7 @@ namespace MURDOC_2024.Controls
             ROIRemoved?.Invoke(this, roi);
         }
 
+        /// <summary>Generates a binary mask for the ROI and prompts the user to save it as a PNG file.</summary>
         private void ExportROIMask(PolygonROI roi)
         {
             var mask = roi.CreateBinaryMask((int)ActualWidth, (int)ActualHeight);
@@ -232,6 +253,7 @@ namespace MURDOC_2024.Controls
             }
         }
 
+        /// <summary>Encodes a <see cref="BitmapSource"/> as PNG and writes it to the specified file path.</summary>
         private void SaveBitmapSourceAsPng(BitmapSource bitmap, string filepath)
         {
             using (var fileStream = new System.IO.FileStream(filepath, System.IO.FileMode.Create))

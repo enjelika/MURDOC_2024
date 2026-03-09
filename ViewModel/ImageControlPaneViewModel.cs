@@ -5,6 +5,10 @@ using System.Windows.Input;
 
 namespace MURDOC_2024.ViewModel
 {
+    /// <summary>
+    /// ViewModel for the image control panel. Manages Browse/Run/Reset commands,
+    /// brightness/contrast/saturation sliders, and delegates actions to the parent ViewModel.
+    /// </summary>
     public class ImageControlViewModel : ViewModelBase
     {
         private readonly Action _runModelsAction;
@@ -162,6 +166,7 @@ namespace MURDOC_2024.ViewModel
         }
 
         // Execute methods
+        /// <summary>Opens a file browser dialog and invokes the image-selected action when a file is chosen.</summary>
         private void ExecuteBrowseCommand()
         {
             // Your browse logic here
@@ -180,11 +185,13 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        /// <summary>Invokes the run-models action supplied by the parent ViewModel.</summary>
         private void ExecuteRunCommand()
         {
             _runModelsAction?.Invoke();
         }
 
+        /// <summary>Resets sliders to zero, clears the selected image path, and re-enables browsing.</summary>
         public void ExecuteResetCommand()
         {
             _sliderBrightness = 0;
@@ -195,33 +202,38 @@ namespace MURDOC_2024.ViewModel
             SelectedImagePath = string.Empty;
         }
 
+        /// <summary>Invokes the sliders-changed action with current brightness, contrast, and saturation values.</summary>
         private void ExecuteSlidersCommand()
         {
             _slidersChangedAction?.Invoke(_sliderBrightness, _sliderContrast, _sliderSaturation);
         }
 
         // CanExecute methods - return bool, not use properties directly
+        /// <summary>Returns true when browsing is enabled.</summary>
         private bool CanBrowse()
         {
             return IsBrowseEnabled;
         }
 
+        /// <summary>Returns true when the run button is enabled (an image is selected).</summary>
         private bool CanRun()
         {
             return IsRunButtonEnabled;
         }
 
+        /// <summary>Returns true when the reset button is enabled.</summary>
         private bool CanReset()
         {
             return IsResetEnabled;
         }
 
+        /// <summary>Returns true when sliders are enabled (an image is selected).</summary>
         private bool CanSliders()
         {
             return IsSlidersEnabled;
         }
 
-        // Method to update command states when parent VM changes running state
+        /// <summary>Forces all four commands to re-evaluate their CanExecute state.</summary>
         public void UpdateCommandStates()
         {
             _browseCommand?.RaiseCanExecuteChanged();
@@ -229,7 +241,7 @@ namespace MURDOC_2024.ViewModel
             _resetCommand?.RaiseCanExecuteChanged();
         }
 
-        // Call this method when the parent's IsRunningModels changes
+        /// <summary>Enables or disables all buttons based on whether models are currently running.</summary>
         public void SetButtonStates(bool isRunning)
         {
             if (isRunning)

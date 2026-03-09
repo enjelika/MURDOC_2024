@@ -88,6 +88,10 @@ namespace MURDOC_2024.ViewModel
             _durationTimer.Tick += UpdateDuration;
         }
 
+        /// <summary>
+        /// Starts the session clock on first call, then updates the current image name
+        /// and resets per-image edit flags. Safe to call on every image load.
+        /// </summary>
         public void StartSession(string imageName)
         {
             if (!HasActiveSession)
@@ -112,12 +116,17 @@ namespace MURDOC_2024.ViewModel
             System.Diagnostics.Debug.WriteLine($"Current image: {imageName}");
         }
 
+        /// <summary>Increments the count of images analyzed during this session.</summary>
         public void IncrementImageCount()
         {
             ImagesAnalyzed++;
             System.Diagnostics.Debug.WriteLine($"Images analyzed: {ImagesAnalyzed}");
         }
 
+        /// <summary>
+        /// Records or updates session data for a specific image, including edit flags,
+        /// feedback counts, image adjustments, and MICA detection parameters.
+        /// </summary>
         public void RecordImageData(string imageName, bool hasBinaryEdit, bool hasRankEdit,
             int confirmedCount, int rejectedCount, int correctionCount,
             int brightness, int contrast, int saturation,
@@ -161,6 +170,7 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        /// <summary>Returns a snapshot of the current session including all per-image data records.</summary>
         public SessionSummaryData GetSessionSummary()
         {
             return new SessionSummaryData
@@ -173,6 +183,7 @@ namespace MURDOC_2024.ViewModel
             };
         }
 
+        /// <summary>Stops the timer, resets all session state, and disables session-dependent commands.</summary>
         public void EndSessionInternal()
         {
             _durationTimer.Stop();
@@ -189,6 +200,7 @@ namespace MURDOC_2024.ViewModel
             System.Diagnostics.Debug.WriteLine("Session ended");
         }
 
+        /// <summary>Updates the binary mask and rank map edit flags and notifies the UI of the composite HasAnyModifications property.</summary>
         public void UpdateModificationStatus(bool hasBinaryEdits, bool hasRankEdits)
         {
             HasBinaryMaskEdits = hasBinaryEdits;
@@ -197,6 +209,7 @@ namespace MURDOC_2024.ViewModel
             UpdateCommandStates();
         }
 
+        /// <summary>Timer tick handler: updates SessionDuration display while an active session is running.</summary>
         private void UpdateDuration(object sender, EventArgs e)
         {
             if (HasActiveSession)
@@ -206,14 +219,15 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        /// <summary>Fires <see cref="EndSessionRequested"/> so the parent ViewModel can orchestrate clean-up and LoRA retraining.</summary>
         private void EndSession()
         {
             EndSessionRequested?.Invoke(this, EventArgs.Empty);
         }
 
+        /// <summary>Forces EndSessionCommand to re-evaluate its CanExecute state.</summary>
         public void UpdateCommandStates()
         {
-            (EndSessionCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 

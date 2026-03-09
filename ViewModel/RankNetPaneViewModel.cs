@@ -71,6 +71,7 @@ namespace MURDOC_2024.ViewModel
         // ----------------------------------------------------
         // LOAD RESULTS FROM PYTHON OUTPUT
         // ----------------------------------------------------
+        /// <summary>Loads all RankNet offramp feature maps and output prediction images from disk.</summary>
         public void LoadResults(string offrampsFolder, string outputsFolder)
         {
             X1 = LoadOrPlaceholder(Path.Combine(offrampsFolder, "x1.png"));
@@ -90,6 +91,7 @@ namespace MURDOC_2024.ViewModel
             CamouflageGradCAM = LoadOrPlaceholder(Path.Combine(outputsFolder, "gradcam_fix.png"));
         }
 
+        /// <summary>Resets all image properties to the placeholder.</summary>
         public void Clear()
         {
             PlaceholderAll();
@@ -98,6 +100,8 @@ namespace MURDOC_2024.ViewModel
         // ----------------------------------------------------
         // INTERNAL HELPERS
         // ----------------------------------------------------
+
+        /// <summary>Returns the image at <paramref name="path"/> if it exists, otherwise the placeholder.</summary>
         private BitmapImage LoadOrPlaceholder(string path)
         {
             if (File.Exists(path))
@@ -106,6 +110,7 @@ namespace MURDOC_2024.ViewModel
             return new BitmapImage(new Uri(_placeholder));
         }
 
+        /// <summary>Sets all twelve image properties to the placeholder bitmap.</summary>
         private void PlaceholderAll()
         {
             X1 = new BitmapImage(new Uri(_placeholder));

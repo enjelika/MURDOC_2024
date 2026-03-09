@@ -67,6 +67,10 @@ namespace MURDOC_2024.Services
             return adjusted;
         }
 
+        /// <summary>
+        /// Loads a bitmap from <paramref name="filePath"/> fully into memory with file handle released immediately.
+        /// The returned <see cref="BitmapImage"/> is frozen for safe cross-thread access.
+        /// </summary>
         public BitmapImage LoadBitmapFully(string filePath)
         {
             if (!File.Exists(filePath))
@@ -85,6 +89,10 @@ namespace MURDOC_2024.Services
             }
         }
 
+        /// <summary>
+        /// Encodes <paramref name="bitmap"/> as JPEG and writes it to a unique temp file under the application Temp directory.
+        /// Returns the full path to the saved file, or <see langword="null"/> if <paramref name="bitmap"/> is null.
+        /// </summary>
         public string SaveBitmapToTemp(BitmapImage bitmap)
         {
             if (bitmap == null)

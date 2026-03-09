@@ -38,6 +38,7 @@ namespace MURDOC_2024.ViewModel
         // ----------------------------------------------------
         // INTERNAL HELPERS
         // ----------------------------------------------------
+        /// <summary>Returns the image at <paramref name="path"/> if it exists, otherwise the placeholder.</summary>
         private BitmapImage LoadOrPlaceholder(string path)
         {
             if (File.Exists(path))
@@ -46,14 +47,20 @@ namespace MURDOC_2024.ViewModel
             return new BitmapImage(new Uri(_placeholder));
         }
 
+        /// <summary>Resets all output properties to the placeholder image and default text.</summary>
         private void PlaceholderAll()
         {
             DetectionImage = new BitmapImage(new Uri(_placeholder));
             DetectionText = "No detection results yet.";
         }
 
+        /// <summary>Gets or sets the file path of the most recently loaded detection image.</summary>
         public string DetectionImagePath { get; set; }
 
+        /// <summary>
+        /// Loads the EfficientDet-D7 detection image and text results for a given image name.
+        /// Searches detectionFolder first, then outputsFolder for the text file.
+        /// </summary>
         public void LoadResults(string detectionFolder, string outputsFolder, string imageName)
         {
             // PNG detection image - use the helper method
@@ -71,10 +78,9 @@ namespace MURDOC_2024.ViewModel
                 : "No detections.";
         }
 
+        /// <summary>Resets the detection image and text to their placeholder defaults and notifies the UI.</summary>
         public void Clear()
         {
-            PlaceholderAll();
-            OnPropertyChanged(nameof(DetectionImage));
             OnPropertyChanged(nameof(DetectionText));
         }
 

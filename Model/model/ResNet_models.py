@@ -15,7 +15,14 @@ from torchvision.utils import save_image
 import datetime
 
 class Generator(nn.Module):
+    """Top-level MICA detection model.
+
+    Wraps Saliency_feat_encoder and applies MICA sensitivity/bias adjustments
+    to the three output prediction maps before bilinear upsampling to input resolution.
+    """
+
     def __init__(self, channel):
+        """Initialize the Generator with a Saliency_feat_encoder and default MICA parameters."""
         super(Generator, self).__init__()
         self.sal_encoder = Saliency_feat_encoder(channel)
         self.current_filename = ""
@@ -41,14 +48,17 @@ class Generator(nn.Module):
         return adjusted
 
     def get_x4_layer(self):
+        """Return the branch-1 deep layer (layer4_1) for Grad-CAM hook attachment."""
         # Return the appropriate layer from your model
         return self.sal_encoder.resnet.layer4_1  # Or whatever layer exists
     
     def get_x4_2_layer(self):
+        """Return the branch-2 deep layer (layer4_2) for Grad-CAM hook attachment."""
         # Return the appropriate layer from your model
         return self.sal_encoder.resnet.layer4_2  # Or whatever layer exists
 
     def forward(self, x):
+        """Run encoder, apply MICA adjustments, and upsample all predictions to input size."""
         fix_pred, cod_pred1, cod_pred2 = self.sal_encoder(x)
         
         # Apply MICA adjustments
@@ -99,7 +109,10 @@ class PAM_Module(nn.Module):
 
 
 class Classifier_Module(nn.Module):
+    """ASPP-style multi-scale classifier that sums outputs from parallel dilated convolutions."""
+
     def __init__(self,dilation_series,padding_series,NoLabels, input_channel):
+        """Build parallel dilated Conv2d branches for each (dilation, padding) pair."""
         super(Classifier_Module, self).__init__()
         self.conv2d_list = nn.ModuleList()
         for dilation,padding in zip(dilation_series,padding_series):
@@ -108,6 +121,7 @@ class Classifier_Module(nn.Module):
             m.weight.data.normal_(0, 0.01)
 
     def forward(self, x):
+        """Sum outputs from all dilated convolution branches."""
         out = self.conv2d_list[0](x)
         for i in range(len(self.conv2d_list)-1):
             out += self.conv2d_list[i+1](x)
@@ -115,7 +129,10 @@ class Classifier_Module(nn.Module):
 
 ## Channel Attention (CA) Layer
 class CALayer(nn.Module):
+    """Channel Attention Layer: recalibrates channel-wise feature responses via squeeze-and-excitation."""
+
     def __init__(self, channel, reduction=16):
+        """Build global average pooling followed by two 1×1 convolutions with Sigmoid gating."""
         super(CALayer, self).__init__()
         # global average pooling: feature --> point
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
@@ -128,19 +145,27 @@ class CALayer(nn.Module):
         )
 
     def forward(self, x):
+        """Scale input feature map by learned per-channel attention weights."""
         y = self.avg_pool(x)
         y = self.conv_du(y)
         return x * y
 
 ## Residual Channel Attention Block (RCAB)
 class RCAB(nn.Module):
+    """Residual Channel Attention Block (RCAB).
+
+    Two conv layers with optional BN and activation, followed by channel attention,
+    with a residual skip connection. Reference: Zhang et al., ECCV 2018.
+    Input/output: B×C×H×W.
+    """
+
     # paper: Image Super-Resolution Using Very DeepResidual Channel Attention Networks
     # input: B*C*H*W
     # output: B*C*H*W
     def __init__(
         self, n_feat, kernel_size=3, reduction=16,
         bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
-
+        """Build the RCAB body: two conv layers, optional BN/activation, then CALayer."""
         super(RCAB, self).__init__()
         modules_body = []
         for i in range(2):
@@ -152,16 +177,21 @@ class RCAB(nn.Module):
         self.res_scale = res_scale
 
     def default_conv(self, in_channels, out_channels, kernel_size, bias=True):
+        """Return a Conv2d with symmetric padding so spatial size is preserved."""
         return nn.Conv2d(in_channels, out_channels, kernel_size,padding=(kernel_size // 2), bias=bias)
 
     def forward(self, x):
+        """Apply body (conv + CA) then add residual skip connection."""
         res = self.body(x)
         #res = self.body(x).mul(self.res_scale)
         res += x
         return res
 
 class BasicConv2d(nn.Module):
+    """Conv2d + BatchNorm2d fused building block (no activation)."""
+
     def __init__(self, in_planes, out_planes, kernel_size, stride=1, padding=0, dilation=1):
+        """Build a Conv-BN pair with the given spatial parameters."""
         super(BasicConv2d, self).__init__()
         self.conv_bn = nn.Sequential(
             nn.Conv2d(in_planes, out_planes,
@@ -171,12 +201,16 @@ class BasicConv2d(nn.Module):
         )
 
     def forward(self, x):
+        """Apply Conv-BN and return result."""
         x = self.conv_bn(x)
         return x
 
 
 class Triple_Conv(nn.Module):
+    """Three sequential BasicConv2d layers: 1×1 channel reduction followed by two 3×3 refinements."""
+
     def __init__(self, in_channel, out_channel):
+        """Build the 1×1 → 3×3 → 3×3 conv-BN sequence."""
         super(Triple_Conv, self).__init__()
         self.reduce = nn.Sequential(
             BasicConv2d(in_channel, out_channel, 1),
@@ -185,11 +219,19 @@ class Triple_Conv(nn.Module):
         )
 
     def forward(self, x):
+        """Pass input through the three-stage conv-BN reduction."""
         return self.reduce(x)
 
 class Saliency_feat_decoder(nn.Module):
+    """ResNet-based decoder for camouflage (saliency) prediction.
+
+    Fuses four encoder feature levels (x1–x4) through progressive RCAB blocks and
+    dilated classifier modules, producing a single-channel saliency prediction map.
+    """
+
     # resnet based encoder decoder
     def __init__(self, channel):
+        """Build the multi-scale fusion decoder with RCAB blocks and dilated classifiers."""
         super(Saliency_feat_decoder, self).__init__()
         self.relu = nn.ReLU(inplace=True)
         self.upsample8 = nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True)
@@ -215,11 +257,12 @@ class Saliency_feat_decoder(nn.Module):
 
 
     def _make_pred_layer(self, block, dilation_series, padding_series, NoLabels, input_channel):
+        """Instantiate a prediction layer (Classifier_Module) with the given dilation config."""
         return block(dilation_series, padding_series, NoLabels, input_channel)
 
 
     def forward(self, x1,x2,x3,x4):
-
+        """Progressively fuse four feature levels (coarse-to-fine) and predict a saliency map."""
         conv1_feat = self.conv1(x1)
         conv2_feat = self.conv2(x2)
         conv3_feat = self.conv3(x3)
@@ -249,8 +292,15 @@ class Saliency_feat_decoder(nn.Module):
         return sal_pred
 
 class Fix_feat_decoder(nn.Module):
+    """ResNet-based decoder for fixation prediction.
+
+    Upsamples all four encoder levels to the finest resolution, concatenates them,
+    applies RCAB channel attention, then produces a single-channel fixation map.
+    """
+
     # resnet based encoder decoder
     def __init__(self, channel):
+        """Build the flat-fusion fixation decoder with RCAB and dilated classifiers."""
         super(Fix_feat_decoder, self).__init__()
         self.relu = nn.ReLU(inplace=True)
         self.upsample8 = nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True)
@@ -269,10 +319,12 @@ class Fix_feat_decoder(nn.Module):
 
 
     def _make_pred_layer(self, block, dilation_series, padding_series, NoLabels, input_channel):
+        """Instantiate a prediction layer (Classifier_Module) with the given dilation config."""
         return block(dilation_series, padding_series, NoLabels, input_channel)
 
 
     def forward(self, x1,x2,x3,x4):
+        """Upsample all encoder levels to x1 resolution, concatenate, and predict fixation map."""
         conv1_feat = self.conv1(x1)
         conv2_feat = self.conv2(x2)
         conv3_feat = self.conv3(x3)
@@ -294,8 +346,16 @@ class Fix_feat_decoder(nn.Module):
 
 
 class Saliency_feat_encoder(nn.Module):
+    """Full encoder that combines B2_ResNet backbone with fixation and saliency decoders.
+
+    Runs the shared ResNet stem, produces initial fixation and saliency predictions,
+    then uses the Holistic Attention module to guide a refined second-pass through
+    the deeper ResNet branches (layer3_2 / layer4_2).
+    """
+
     # resnet based encoder decoder
     def __init__(self, channel):
+        """Build backbone, decoders, and holistic attention; load ImageNet weights at train time."""
         super(Saliency_feat_encoder, self).__init__()
         self.resnet = B2_ResNet()
         self.relu = nn.ReLU(inplace=True)
@@ -315,9 +375,14 @@ class Saliency_feat_encoder(nn.Module):
             self.initialize_weights()
     
     def set_filename(self, filename):
+        """Set the current image filename used as the offramp output subdirectory name."""
         self.current_filename = filename
 
     def forward(self, x):
+        """Run two-pass inference: initial predictions → holistic attention → refined predictions.
+
+        Returns (fix_pred, init_pred, ref_pred) each upsampled 4× to near-input resolution.
+        """
         x = self.resnet.conv1(x)
         x = self.resnet.bn1(x)
         x = self.resnet.relu(x)
@@ -350,6 +415,7 @@ class Saliency_feat_encoder(nn.Module):
         return self.upsample4(fix_pred),self.upsample4(init_pred),self.upsample4(ref_pred)
 
     def initialize_weights(self):
+        """Load ImageNet-pretrained ResNet-50 weights, mapping dual-branch keys to single-branch names."""
         res50 = models.resnet50(pretrained=True)
         pretrained_dict = res50.state_dict()
         all_params = {}
@@ -369,6 +435,10 @@ class Saliency_feat_encoder(nn.Module):
         self.resnet.load_state_dict(all_params)
   
     def save_feature_maps(self, feature_map, feature_name):
+        """Save a channel-averaged, min-max normalized feature map as a viridis PNG for visualization.
+
+        Output path: offramp_output_images/{current_filename}/{feature_name}.png
+        """
         # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = self.current_filename
         save_dir = f"offramp_output_images/{filename}"

@@ -3,6 +3,7 @@ import torch
 import numpy as np
 
 def clip_gradient(optimizer, grad_clip):
+    """Clip gradients of all parameters in an optimizer to prevent exploding gradients."""
     for group in optimizer.param_groups:
         for param in group['params']:
             if param.grad is not None:
@@ -10,12 +11,14 @@ def clip_gradient(optimizer, grad_clip):
 
 
 def adjust_lr(optimizer, init_lr, epoch, decay_rate=0.1, decay_epoch=5):
+    """Multiply the learning rate by decay_rate every decay_epoch epochs."""
     decay = decay_rate ** (epoch // decay_epoch)
     for param_group in optimizer.param_groups:
         param_group['lr'] *= decay
 
 
 def truncated_normal_(tensor, mean=0, std=1):
+    """Fill a tensor in-place with values drawn from a truncated normal distribution (±2σ)."""
     size = tensor.shape
     tmp = tensor.new_empty(size + (4,)).normal_()
     valid = (tmp < 2) & (tmp > -2)
@@ -24,6 +27,7 @@ def truncated_normal_(tensor, mean=0, std=1):
     tensor.data.mul_(std).add_(mean)
 
 def init_weights(m):
+    """Initialize Conv2d/ConvTranspose2d weights with Kaiming normal and truncated-normal bias."""
     if type(m) == nn.Conv2d or type(m) == nn.ConvTranspose2d:
         nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
         #nn.init.normal_(m.weight, std=0.001)
@@ -31,12 +35,14 @@ def init_weights(m):
         truncated_normal_(m.bias, mean=0, std=0.001)
 
 def init_weights_orthogonal_normal(m):
+    """Initialize Conv2d/ConvTranspose2d with orthogonal weights and truncated-normal bias."""
     if type(m) == nn.Conv2d or type(m) == nn.ConvTranspose2d:
         nn.init.orthogonal_(m.weight)
         truncated_normal_(m.bias, mean=0, std=0.001)
         #nn.init.normal_(m.bias, std=0.001)
 
 def l2_regularisation(m):
+    """Compute the sum of L2 norms of all parameters in a module (for weight decay loss terms)."""
     l2_reg = None
 
     for W in m.parameters():
@@ -47,11 +53,15 @@ def l2_regularisation(m):
     return l2_reg
 
 class AvgMeter(object):
+    """Running average meter that also tracks the most recent `num` loss values for a windowed mean."""
+
     def __init__(self, num=40):
+        """Initialize with a sliding window of size `num` (default 40)."""
         self.num = num
         self.reset()
 
     def reset(self):
+        """Reset all accumulated statistics to zero."""
         self.val = 0
         self.avg = 0
         self.sum = 0
@@ -59,6 +69,7 @@ class AvgMeter(object):
         self.losses = []
 
     def update(self, val, n=1):
+        """Add `val` (weighted by `n`) to the running total and append to the loss history."""
         self.val = val
         self.sum += val * n
         self.count += n
@@ -66,6 +77,7 @@ class AvgMeter(object):
         self.losses.append(val)
 
     def show(self):
+        """Return the mean of the most recent `num` loss values as a scalar tensor."""
         a = len(self.losses)
         b = np.maximum(a-self.num, 0)
         c = self.losses[b:]

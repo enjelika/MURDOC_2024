@@ -7,6 +7,10 @@ using Newtonsoft.Json;
 
 namespace MURDOC_2024.Services
 {
+    /// <summary>
+    /// Tracks operator interaction events, per-image task durations, and session-level metrics
+    /// for the MICA human-AI teaming study. Exports data as JSON or CSV.
+    /// </summary>
     public class PerformanceMetricsService
     {
         private Stopwatch _sessionTimer;
@@ -17,6 +21,7 @@ namespace MURDOC_2024.Services
         private List<InteractionEvent> _interactions;
         private List<TaskMetrics> _tasks;
 
+        /// <summary>Initializes internal collections and stopwatch instances.</summary>
         public PerformanceMetricsService()
         {
             _interactions = new List<InteractionEvent>();
@@ -27,6 +32,7 @@ namespace MURDOC_2024.Services
 
         #region Session Management
 
+        /// <summary>Starts the session timer and logs a SessionStart event.</summary>
         public void StartSession()
         {
             _sessionStart = DateTime.Now;
@@ -35,6 +41,7 @@ namespace MURDOC_2024.Services
             LogInteraction("SessionStart", null);
         }
 
+        /// <summary>Stops the session timer and logs a SessionEnd event with total duration.</summary>
         public void EndSession()
         {
             _sessionTimer.Stop();
@@ -44,6 +51,7 @@ namespace MURDOC_2024.Services
             });
         }
 
+        /// <summary>Returns the elapsed time since the session started.</summary>
         public TimeSpan GetSessionDuration()
         {
             return _sessionTimer.Elapsed;
@@ -53,6 +61,7 @@ namespace MURDOC_2024.Services
 
         #region Task Tracking
 
+        /// <summary>Starts timing a new per-image task, ending any previous task automatically.</summary>
         public void StartTask(string imagePath)
         {
             // End previous task if running
@@ -67,6 +76,7 @@ namespace MURDOC_2024.Services
             LogInteraction("TaskStart", new { ImagePath = imagePath });
         }
 
+        /// <summary>Stops the task timer and saves a <see cref="TaskMetrics"/> entry for the current image.</summary>
         public void EndTask()
         {
             if (!_taskTimer.IsRunning)
@@ -96,6 +106,7 @@ namespace MURDOC_2024.Services
 
         #region Interaction Logging
 
+        /// <summary>Records a generic interaction event with session/task timestamps and optional payload data.</summary>
         public void LogInteraction(string eventType, object data = null)
         {
             var interaction = new InteractionEvent
@@ -112,16 +123,19 @@ namespace MURDOC_2024.Services
         }
 
         // Specific interaction types
+        /// <summary>Logs an ImageLoad event with the file path and measured load time in seconds.</summary>
         public void LogImageLoad(string imagePath, double loadTime)
         {
             LogInteraction("ImageLoad", new { ImagePath = imagePath, LoadTime = loadTime });
         }
 
+        /// <summary>Logs a ModelExecution event with the elapsed inference time in seconds.</summary>
         public void LogModelRun(double executionTime)
         {
             LogInteraction("ModelExecution", new { ExecutionTime = executionTime });
         }
 
+        /// <summary>Logs a DetectionClick event identifying which detection the operator selected.</summary>
         public void LogDetectionClick(string detectionId, string label, double confidence)
         {
             LogInteraction("DetectionClick", new
@@ -132,6 +146,7 @@ namespace MURDOC_2024.Services
             });
         }
 
+        /// <summary>Logs a Feedback event (Confirmation, Rejection, or Correction) for a given detection.</summary>
         public void LogFeedback(string feedbackType, string detectionId)
         {
             LogInteraction("Feedback", new
@@ -141,11 +156,13 @@ namespace MURDOC_2024.Services
             });
         }
 
+        /// <summary>Logs an ROIDrawing event recording the drawing mode and number of points placed.</summary>
         public void LogROIDrawing(string mode, int pointCount)
         {
             LogInteraction("ROIDrawing", new { Mode = mode, PointCount = pointCount });
         }
 
+        /// <summary>Logs a ParameterChange event capturing the parameter name and its old and new values.</summary>
         public void LogParameterChange(string parameter, object oldValue, object newValue)
         {
             LogInteraction("ParameterChange", new
@@ -193,6 +210,7 @@ namespace MURDOC_2024.Services
             return report;
         }
 
+        /// <summary>Calculates average model execution time from all ModelExecution events in the log.</summary>
         private double CalculateAverageExecutionTime()
         {
             var executions = _interactions
@@ -218,6 +236,7 @@ namespace MURDOC_2024.Services
             return count > 0 ? sum / count : 0;
         }
 
+        /// <summary>Calculates average elapsed time from task start to first DetectionClick or Feedback event.</summary>
         private double CalculateAverageTimeToFirstInteraction()
         {
             var timeToFirst = new List<double>();
@@ -244,6 +263,7 @@ namespace MURDOC_2024.Services
 
         #region Export
 
+        /// <summary>Serializes the full report, task list, and interaction log to a formatted JSON file.</summary>
         public void ExportMetrics(string filePath)
         {
             var export = new
@@ -257,6 +277,7 @@ namespace MURDOC_2024.Services
             File.WriteAllText(filePath, json);
         }
 
+        /// <summary>Writes all interaction events to a CSV file with columns: Timestamp, SessionTime, TaskTime, EventType, ImagePath, Data.</summary>
         public void ExportCSV(string filePath)
         {
             using (var writer = new StreamWriter(filePath))

@@ -23,6 +23,7 @@ namespace MURDOC_2024.ViewModel
             PreviewImage = _placeholderImage;
         }
 
+        /// <summary>Attempts to load the placeholder image from application resources; falls back to a generated gray bitmap.</summary>
         private BitmapImage LoadPlaceholderImage()
         {
             try
@@ -48,6 +49,7 @@ namespace MURDOC_2024.ViewModel
             }
         }
 
+        /// <summary>Generates a 300×300 solid light-gray <see cref="BitmapImage"/> as a fallback placeholder.</summary>
         private BitmapImage CreateDefaultPlaceholder()
         {
             // Create a simple 300x300 gray bitmap as fallback
@@ -85,6 +87,7 @@ namespace MURDOC_2024.ViewModel
             return result;
         }
 
+        /// <summary>Updates the preview to the image at <paramref name="path"/>, falling back to the placeholder on error or missing file.</summary>
         public void UpdatePreview(string path)
         {
             try

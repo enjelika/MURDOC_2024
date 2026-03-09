@@ -26,7 +26,17 @@ class LoRAConv2d(nn.Module):
     """LoRA adapter wrapping a frozen Conv2d."""
 
     def __init__(self, original_conv, rank=4, alpha=4.0):
-        super().__init__()
+        """Wrap a frozen Conv2d with trainable low-rank A and B adapter convolutions.
+
+        Parameters
+        ----------
+        original_conv : nn.Conv2d
+            The pre-trained convolution to freeze and augment.
+        rank : int
+            Inner dimension of the LoRA factorization (default 4).
+        alpha : float
+            Scaling factor; effective weight = alpha/rank * lora_B(lora_A(x)).
+        """
         self.original_conv = original_conv
         self.rank = rank
         self.scaling = alpha / rank
@@ -52,6 +62,7 @@ class LoRAConv2d(nn.Module):
         nn.init.zeros_(self.lora_B.weight)
 
     def forward(self, x):
+        """Compute frozen conv output plus scaled LoRA residual."""
         return self.original_conv(x) + self.lora_B(self.lora_A(x)) * self.scaling
 
 
@@ -60,6 +71,7 @@ class LoRAConv2d(nn.Module):
 # ============================================================================
 
 def _replace_module(parent, name, new_module):
+    """Traverse a dotted attribute path on `parent` and replace the leaf with `new_module`."""
     parts = name.split(".")
     current = parent
     for part in parts[:-1]:
@@ -68,6 +80,7 @@ def _replace_module(parent, name, new_module):
 
 
 def _inject_lora(decoder, rank=4, alpha=4.0):
+    """Replace every Conv2d in `decoder` with a LoRAConv2d and return the mapping of name → layer."""
     lora_layers = {}
     for name, module in list(decoder.named_modules()):
         if isinstance(module, nn.Conv2d):
@@ -78,6 +91,10 @@ def _inject_lora(decoder, rank=4, alpha=4.0):
 
 
 def _load_lora_state(lora_layers, path):
+    """Copy saved lora_A/lora_B weights from a checkpoint into the injected LoRA layers.
+
+    Returns (number_of_layers_loaded, metadata_dict).
+    """
     checkpoint = torch.load(path, map_location="cpu")
     state = checkpoint.get("lora_state_dict", {})
     loaded = 0

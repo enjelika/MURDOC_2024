@@ -6,6 +6,10 @@ using MURDOC_2024.Model;
 
 namespace MURDOC_2024.Services
 {
+    /// <summary>
+    /// Service that applies circular brush strokes to rank map byte arrays.
+    /// Supports Increase and Decrease modes with configurable size and Gaussian falloff strength.
+    /// </summary>
     public class RankBrushService
     {
         public RankBrushMode CurrentMode { get; set; }

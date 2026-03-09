@@ -234,6 +234,7 @@ namespace MURDOC_2024.Services
             });
         }
 
+        /// <summary>Shuts down the Python Engine and releases all unmanaged resources.</summary>
         public void Dispose()
         {
             if (_isInitialized)

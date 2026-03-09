@@ -12,6 +12,7 @@ namespace MURDOC_2024.ViewModel
             set => SetProperty(ref _inputImage, value);
         }
 
+        /// <summary>Loads an image from <paramref name="imagePath"/> into <see cref="InputImage"/>, or clears it if the path is empty.</summary>
         public void LoadImage(string imagePath)
         {
             if (string.IsNullOrEmpty(imagePath))
