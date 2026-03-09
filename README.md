@@ -93,7 +93,7 @@ This dissertation research investigates the understanding-trust gap in AI-assist
 ### Technical Contributions
 - Mixed-Initiative Loop: Bidirectional interaction supporting user guidance and AI suggestions
 - Signal Detection Controls: Adjustable d' (sensitivity) and β (response bias) parameters
-- LoRA-Enhanced Synthesis: Controlled generation of synthetic camouflage for evaluation
+- LoRA Retraining Pipeline: Session-end fine-tuning of RankNet saliency decoder from user edits (`lora_modules.py`, `lora_retrain.py`, `lora_inference.py`)
 - Session Analytics: Comprehensive data collection for human-AI teaming analysis
 
 ## Version History
@@ -102,11 +102,9 @@ This dissertation research investigates the understanding-trust gap in AI-assist
 
 ## Known Issues:
 Version 2.0
-- LoRA model retraining pipeline not yet implemented (session data structure prepared for future integration)
 - Session tracking across application restarts requires manual session folder inspection
 
 ## Planned Features
-- LoRA Training Pipeline: Automated model fine-tuning using collected session data
 - Multi-User Collaboration: Team-based analysis and collective trust calibration
 - Adaptive Automation: Trust-aware system behavior adjustments
 - Multimodal Detection: Integration of thermal and motion-based camouflage cues
