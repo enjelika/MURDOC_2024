@@ -91,7 +91,7 @@ namespace MURDOC_2024.Views
         /// </summary>
         private void SessionGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (SessionGrid.SelectedItem is not SessionEntry session)
+            if (!(SessionGrid.SelectedItem is SessionEntry session))
                 return;
 
             var data = session.JsonData;
@@ -159,7 +159,7 @@ namespace MURDOC_2024.Views
         /// </summary>
         private void ImageGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ImageGrid.SelectedItem is not ImageEntry imageEntry)
+            if (!(ImageGrid.SelectedItem is ImageEntry imageEntry))
                 return;
 
             if (string.IsNullOrEmpty(_selectedSessionFolder))
