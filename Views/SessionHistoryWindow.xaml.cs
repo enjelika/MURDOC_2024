@@ -142,6 +142,44 @@ namespace MURDOC_2024.Views
                 }
             }
 
+            // Fallback: if JSON has no per-image data, scan session folder for images
+            if (imageEntries.Count == 0 && Directory.Exists(_selectedSessionFolder))
+            {
+                var discoveredImages = new HashSet<string>();
+
+                // Scan bi_gt, fix, img subfolders for image files
+                foreach (var subfolder in new[] { "bi_gt", "fix", "img" })
+                {
+                    string folder = Path.Combine(_selectedSessionFolder, subfolder);
+                    if (Directory.Exists(folder))
+                    {
+                        foreach (var file in Directory.GetFiles(folder))
+                        {
+                            string name = Path.GetFileNameWithoutExtension(file);
+                            discoveredImages.Add(name);
+                        }
+                    }
+                }
+
+                foreach (var name in discoveredImages.OrderBy(n => n))
+                {
+                    string biGtPath = Path.Combine(_selectedSessionFolder, "bi_gt", $"{name}.png");
+                    string fixPath = Path.Combine(_selectedSessionFolder, "fix", $"{name}.png");
+
+                    imageEntries.Add(new ImageEntry
+                    {
+                        ImageName = name,
+                        MaskEdited = File.Exists(biGtPath) ? "✓" : "—",
+                        RankEdited = File.Exists(fixPath) ? "✓" : "—",
+                        Sensitivity = "—",
+                        ResponseBias = "—",
+                        Confirmed = 0,
+                        Rejected = 0,
+                        Corrections = 0
+                    });
+                }
+            }
+
             ImageGrid.ItemsSource = imageEntries;
 
             // Reset image viewer
@@ -166,63 +204,84 @@ namespace MURDOC_2024.Views
                 return;
 
             string imageName = Path.GetFileNameWithoutExtension(imageEntry.ImageName);
+            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
             ImageViewerHeader.Text = $"Preview: {imageEntry.ImageName}";
             ImageViewerGrid.Visibility = Visibility.Visible;
 
             int loaded = 0;
 
-            // Load original image (check session img folder, then outputs folder)
+            // Load original image
             OriginalImageView.Source = null;
-            string origPath = FindOriginalImage(imageName);
+            string origPath = FindFile(new[]
+            {
+                Path.Combine(_selectedSessionFolder, "img", $"{imageName}.jpg"),
+                Path.Combine(_selectedSessionFolder, "img", $"{imageName}.png"),
+                Path.Combine(_selectedSessionFolder, "img", $"{imageName}.bmp"),
+            }, imageName, "img");
             if (origPath != null)
             {
                 OriginalImageView.Source = LoadImageSafe(origPath);
                 loaded++;
             }
 
-            // Load binary mask from bi_gt folder
+            // Load binary mask: session bi_gt first, then outputs folder
             BinaryMaskView.Source = null;
-            string maskPath = Path.Combine(_selectedSessionFolder, "bi_gt", $"{imageName}.png");
-            if (File.Exists(maskPath))
+            string maskPath = FindFile(new[]
+            {
+                Path.Combine(_selectedSessionFolder, "bi_gt", $"{imageName}.png"),
+                Path.Combine(exeDir, "outputs", imageName, "binary_image.png"),
+                Path.Combine(exeDir, "outputs", imageName, "binary_image_modified.png"),
+            });
+            if (maskPath != null)
             {
                 BinaryMaskView.Source = LoadImageSafe(maskPath);
                 loaded++;
             }
 
-            // Load rank map from fix folder
+            // Load rank map: session fix first, then outputs folder
             RankMapView.Source = null;
-            string rankPath = Path.Combine(_selectedSessionFolder, "fix", $"{imageName}.png");
-            if (File.Exists(rankPath))
+            string rankPath = FindFile(new[]
+            {
+                Path.Combine(_selectedSessionFolder, "fix", $"{imageName}.png"),
+                Path.Combine(exeDir, "outputs", imageName, "fixation_image.png"),
+            });
+            if (rankPath != null)
             {
                 RankMapView.Source = LoadImageSafe(rankPath);
                 loaded++;
             }
 
             ImageStatusLabel.Text = $"{loaded}/3 images available";
+            System.Diagnostics.Debug.WriteLine($"Image preview for {imageName}: {loaded}/3 loaded" +
+                $"\n  Original: {origPath ?? "(not found)"}" +
+                $"\n  Mask: {maskPath ?? "(not found)"}" +
+                $"\n  Rank: {rankPath ?? "(not found)"}");
         }
 
         /// <summary>
-        /// Searches for the original image in the session img folder first,
-        /// then falls back to the outputs folder.
+        /// Returns the first path that exists from the candidates list.
+        /// Optionally searches a folder in the session directory with wildcard matching.
         /// </summary>
-        private string FindOriginalImage(string imageName)
+        private string FindFile(string[] candidates, string imageName = null, string sessionSubfolder = null)
         {
-            if (!string.IsNullOrEmpty(_selectedSessionFolder))
+            // Check explicit paths first
+            foreach (var path in candidates)
             {
-                // Check session img folder (any extension)
-                string imgFolder = Path.Combine(_selectedSessionFolder, "img");
-                if (Directory.Exists(imgFolder))
+                if (File.Exists(path))
+                    return path;
+            }
+
+            // Wildcard search in session subfolder (e.g., img/animal-59.*)
+            if (imageName != null && sessionSubfolder != null && !string.IsNullOrEmpty(_selectedSessionFolder))
+            {
+                string folder = Path.Combine(_selectedSessionFolder, sessionSubfolder);
+                if (Directory.Exists(folder))
                 {
-                    var match = Directory.GetFiles(imgFolder, $"{imageName}.*").FirstOrDefault();
+                    var match = Directory.GetFiles(folder, $"{imageName}.*").FirstOrDefault();
                     if (match != null) return match;
                 }
             }
-
-            // Fallback: check outputs folder for the original
-            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-            string outputOriginal = Path.Combine(exeDir, "outputs", imageName, "original.png");
-            if (File.Exists(outputOriginal)) return outputOriginal;
 
             return null;
         }
