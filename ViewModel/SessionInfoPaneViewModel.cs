@@ -71,8 +71,10 @@ namespace MURDOC_2024.ViewModel
         }
 
         public ICommand EndSessionCommand { get; }
+        public ICommand ViewSessionHistoryCommand { get; }
 
         public event EventHandler EndSessionRequested;
+        public event EventHandler ViewSessionHistoryRequested;
 
         public SessionInfoPaneViewModel()
         {
@@ -80,6 +82,7 @@ namespace MURDOC_2024.ViewModel
 
             // CHANGED: Only require active session, not modifications
             EndSessionCommand = new RelayCommand(EndSession, () => HasActiveSession);
+            ViewSessionHistoryCommand = new RelayCommand(ViewSessionHistory);
 
             _durationTimer = new DispatcherTimer
             {
@@ -223,6 +226,12 @@ namespace MURDOC_2024.ViewModel
         private void EndSession()
         {
             EndSessionRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>Fires <see cref="ViewSessionHistoryRequested"/> to open the session history window.</summary>
+        private void ViewSessionHistory()
+        {
+            ViewSessionHistoryRequested?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>Forces EndSessionCommand to re-evaluate its CanExecute state.</summary>

@@ -156,6 +156,7 @@ namespace MURDOC_2024.ViewModel
             // Session tracking
             SessionInfoVM = new SessionInfoPaneViewModel();
             SessionInfoVM.EndSessionRequested += OnEndSessionRequested;
+            SessionInfoVM.ViewSessionHistoryRequested += OnViewSessionHistoryRequested;
 
             // Detection feedback and editing controls
             EditorControlsVM = new EditorControlsPaneViewModel();
@@ -395,6 +396,30 @@ namespace MURDOC_2024.ViewModel
                 FinalPredictionVM.HasModifications,
                 FinalPredictionVM.HasAnyModifications
             );
+        }
+
+        /// <summary>
+        /// Opens the Session History window showing all past session summaries.
+        /// </summary>
+        private void OnViewSessionHistoryRequested(object sender, EventArgs e)
+        {
+            try
+            {
+                var historyWindow = new SessionHistoryWindow
+                {
+                    Owner = Application.Current.MainWindow
+                };
+                historyWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error opening session history: {ex.Message}");
+                MessageBox.Show(
+                    $"Could not open session history:\n{ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         #endregion
@@ -1196,6 +1221,7 @@ namespace MURDOC_2024.ViewModel
             if (SessionInfoVM != null)
             {
                 SessionInfoVM.EndSessionRequested -= OnEndSessionRequested;
+                SessionInfoVM.ViewSessionHistoryRequested -= OnViewSessionHistoryRequested;
 
                 // Stop session timer if still running
                 if (SessionInfoVM.HasActiveSession)

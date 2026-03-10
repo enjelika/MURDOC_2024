@@ -113,6 +113,9 @@
     <Compile Include="Views\LoraProgressWindow.xaml.cs">
       <DependentUpon>LoraProgressWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\SessionHistoryWindow.xaml.cs">
+      <DependentUpon>SessionHistoryWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="UserControls\EditorControlsPane.xaml.cs">
       <DependentUpon>EditorControlsPane.xaml</DependentUpon>
     </Compile>
@@ -161,6 +164,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\LoraProgressWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\SessionHistoryWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

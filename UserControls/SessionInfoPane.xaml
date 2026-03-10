@@ -102,6 +102,18 @@
                        Margin="0,20,0,20"
                        Visibility="{Binding HasActiveSession, Converter={StaticResource InverseBoolToVisConverter}}"/>
 
+            <!-- Session History Button (always visible) -->
+            <Separator Margin="0,8,0,8" Background="#E0E0E0"/>
+
+            <Button Content="📋 View Session History"
+                    Command="{Binding ViewSessionHistoryCommand}"
+                    Padding="8,8"
+                    Background="#E3F2FD"
+                    BorderBrush="#2196F3"
+                    BorderThickness="1"
+                    FontSize="12"
+                    ToolTip="View details and images from past sessions"/>
+
         </StackPanel>
     </Border>
 </UserControl>
