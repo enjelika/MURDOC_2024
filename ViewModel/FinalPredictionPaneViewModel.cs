@@ -944,6 +944,14 @@ namespace MURDOC_2024.ViewModel
         /// </summary>
         private void LoadExistingSessionIfAvailable(string imageName)
         {
+            // Don't override a session ID that was set externally by MainWindowViewModel.
+            // This prevents a new session's images from being saved into the old session folder.
+            if (!string.IsNullOrEmpty(_sessionId))
+            {
+                System.Diagnostics.Debug.WriteLine($"[FinalPredictionPane] Session ID already set ({_sessionId}), skipping existing session scan");
+                return;
+            }
+
             try
             {
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;

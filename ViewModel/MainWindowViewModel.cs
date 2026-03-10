@@ -179,6 +179,7 @@ namespace MURDOC_2024.ViewModel
             EditorControlsVM.SaveChangesRequested += OnSaveChangesRequested;
             EditorControlsVM.RankBrushChanged += OnRankBrushChanged;
             EditorControlsVM.EditingToolModeChanged += OnEditingToolModeChanged;
+            EditorControlsVM.ViewSessionHistoryRequested += OnViewSessionHistoryRequested;
         }
 
         #endregion
@@ -1273,6 +1274,7 @@ namespace MURDOC_2024.ViewModel
                 EditorControlsVM.SaveChangesRequested -= OnSaveChangesRequested;
                 EditorControlsVM.RankBrushChanged -= OnRankBrushChanged;
                 EditorControlsVM.EditingToolModeChanged -= OnEditingToolModeChanged;
+                EditorControlsVM.ViewSessionHistoryRequested -= OnViewSessionHistoryRequested;
             }
 
             if (SessionInfoVM != null)

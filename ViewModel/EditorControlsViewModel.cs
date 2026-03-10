@@ -201,6 +201,7 @@ namespace MURDOC_2024.ViewModel
         public ICommand ViewFeedbackHistoryCommand { get; }
         public ICommand ExportFeedbackCommand { get; }
         public ICommand ResetSessionCommand { get; }
+        public ICommand ViewSessionHistoryCommand { get; }
 
         #endregion
 
@@ -221,6 +222,7 @@ namespace MURDOC_2024.ViewModel
         public event EventHandler FeedbackHistoryViewRequested;
         public event EventHandler FeedbackExportRequested;
         public event EventHandler SessionResetRequested;
+        public event EventHandler ViewSessionHistoryRequested;
         public event EventHandler<DetectionFeedback> DetectionFeedbackProvided;
 
         #endregion
@@ -252,6 +254,7 @@ namespace MURDOC_2024.ViewModel
             ViewFeedbackHistoryCommand = new RelayCommand(ViewFeedbackHistory);
             ExportFeedbackCommand = new RelayCommand(ExportFeedback, () => FeedbackHistory.Count > 0);
             ResetSessionCommand = new RelayCommand(ResetSession);
+            ViewSessionHistoryCommand = new RelayCommand(ViewSessionHistory);
         }
 
         #region Edit Mode Methods
@@ -469,6 +472,7 @@ namespace MURDOC_2024.ViewModel
         private void ViewFeedbackHistory() => FeedbackHistoryViewRequested?.Invoke(this, EventArgs.Empty);
         private void ExportFeedback() => FeedbackExportRequested?.Invoke(this, EventArgs.Empty);
         private void ResetSession() => SessionResetRequested?.Invoke(this, EventArgs.Empty);
+        private void ViewSessionHistory() => ViewSessionHistoryRequested?.Invoke(this, EventArgs.Empty);
 
         #endregion
     }

@@ -61,10 +61,13 @@ namespace MURDOC_2024.Views
 
             try
             {
+                // Build script path relative to exe directory (same pattern as PythonModelService)
+                string scriptPath = System.IO.Path.Combine(workingDirectory, @"..\..\..\Model\lora_retrain.py");
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "python",
-                    Arguments = $"Model\\lora_retrain.py --session session_{_sessionId}",
+                    Arguments = $"\"{scriptPath}\" --session session_{_sessionId}",
                     WorkingDirectory = workingDirectory,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
