@@ -87,7 +87,7 @@
                    Panel.ZIndex="0">
                     
                     <!-- Editor Controls -->
-                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}" Margin="0,56"/>
+                    <controls:EditorControlsPane DataContext="{Binding EditorControlsVM}" Margin="0,45"/>
 
                 </StackPanel>
 
