@@ -9,6 +9,7 @@ namespace MURDOC_2024.Model
     public enum PointEditMode
     {
         Add,
-        Remove
+        Remove,
+        Erase
     }
 }

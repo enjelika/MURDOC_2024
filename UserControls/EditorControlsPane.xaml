@@ -120,23 +120,32 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
                             <Button Grid.Column="0" 
-                                Content="➕ Add Points" 
+                                Content="➕ Add" 
                                 Command="{Binding SetAddPointsModeCommand}"
                                 IsEnabled="{Binding IsEditModeActive}"
-                                Margin="0,0,3,0"
+                                Margin="0,0,2,0"
                                 Background="{Binding IsAddPointsMode, Converter={StaticResource BoolToColorConverter}}"
                                 ToolTip="Click on polygon to add new points"/>
 
                             <Button Grid.Column="1" 
-                                Content="➖ Remove Points" 
+                                Content="➖ Remove" 
                                 Command="{Binding SetRemovePointsModeCommand}"
                                 IsEnabled="{Binding IsEditModeActive}"
-                                Margin="3,0,0,0"
+                                Margin="2,0,2,0"
                                 Background="{Binding IsRemovePointsMode, Converter={StaticResource BoolToColorConverter}}"
                                 ToolTip="Click on existing points to remove them"/>
+
+                            <Button Grid.Column="2" 
+                                Content="🧹 Eraser" 
+                                Command="{Binding SetEraserModeCommand}"
+                                IsEnabled="{Binding IsEditModeActive}"
+                                Margin="2,0,0,0"
+                                Background="{Binding IsEraserMode, Converter={StaticResource BoolToColorConverter}}"
+                                ToolTip="Drag to erase multiple points at once"/>
                         </Grid>
                     </StackPanel>
                 </Border>

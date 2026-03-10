@@ -28,6 +28,7 @@ namespace MURDOC_2024.ViewModel
         private bool _isEditModeActive;
         private bool _isAddPointsMode;
         private bool _isRemovePointsMode;
+        private bool _isEraserMode;
 
         // Top-level editing tool mode
         private bool _isPolygonEditingMode;
@@ -58,6 +59,12 @@ namespace MURDOC_2024.ViewModel
         {
             get => _isRemovePointsMode;
             set => SetProperty(ref _isRemovePointsMode, value);
+        }
+
+        public bool IsEraserMode
+        {
+            get => _isEraserMode;
+            set => SetProperty(ref _isEraserMode, value);
         }
 
         // Top-level editing tool mode
@@ -186,6 +193,7 @@ namespace MURDOC_2024.ViewModel
         public ICommand SwitchToRankPaintingCommand { get; }
         public ICommand SetAddPointsModeCommand { get; }
         public ICommand SetRemovePointsModeCommand { get; }
+        public ICommand SetEraserModeCommand { get; }
         public ICommand SaveChangesCommand { get; }
 
         // Rank brush commands
@@ -239,6 +247,7 @@ namespace MURDOC_2024.ViewModel
             SwitchToRankPaintingCommand = new RelayCommand(SwitchToRankPainting);
             SetAddPointsModeCommand = new RelayCommand(SetAddPointsMode);
             SetRemovePointsModeCommand = new RelayCommand(SetRemovePointsMode);
+            SetEraserModeCommand = new RelayCommand(SetEraserMode);
             SaveChangesCommand = new RelayCommand(SaveChanges);
 
             // Rank brush commands
@@ -265,6 +274,7 @@ namespace MURDOC_2024.ViewModel
             IsEditModeActive = true;
             IsAddPointsMode = true; // Default to add points
             IsRemovePointsMode = false;
+            IsEraserMode = false;
             IsIncreaseBrushActive = true; // Default to increase brush
             IsDecreaseBrushActive = false;
 
@@ -301,6 +311,7 @@ namespace MURDOC_2024.ViewModel
             IsEditModeActive = false;
             IsAddPointsMode = false;
             IsRemovePointsMode = false;
+            IsEraserMode = false;
             IsPolygonEditingMode = false;
             IsRankPaintingMode = false;
 
@@ -313,6 +324,7 @@ namespace MURDOC_2024.ViewModel
         {
             IsAddPointsMode = true;
             IsRemovePointsMode = false;
+            IsEraserMode = false;
             PointEditModeChanged?.Invoke(this, PointEditMode.Add);
             System.Diagnostics.Debug.WriteLine("Set to Add Points mode");
         }
@@ -322,8 +334,19 @@ namespace MURDOC_2024.ViewModel
         {
             IsAddPointsMode = false;
             IsRemovePointsMode = true;
+            IsEraserMode = false;
             PointEditModeChanged?.Invoke(this, PointEditMode.Remove);
             System.Diagnostics.Debug.WriteLine("Set to Remove Points mode");
+        }
+
+        /// <summary>Switches the polygon editor to eraser sub-mode for bulk point removal by dragging.</summary>
+        private void SetEraserMode()
+        {
+            IsAddPointsMode = false;
+            IsRemovePointsMode = false;
+            IsEraserMode = true;
+            PointEditModeChanged?.Invoke(this, PointEditMode.Erase);
+            System.Diagnostics.Debug.WriteLine("Set to Eraser mode");
         }
 
         /// <summary>Fires SaveChangesRequested so the parent can persist the current polygon and rank map edits to disk.</summary>

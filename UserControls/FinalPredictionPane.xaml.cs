@@ -44,6 +44,10 @@ namespace MURDOC_2024.UserControls
         private Ellipse _draggedMarker;
         private PointEditMode _currentPointEditMode = PointEditMode.Add;
 
+        // Eraser state
+        private bool _isErasing;
+        private const double EraserRadius = 15.0; // pixels on canvas
+
         // Rank editing state
         private bool _isRankBrushMode;
         private RankBrushMode _currentBrushMode;
@@ -179,6 +183,7 @@ namespace MURDOC_2024.UserControls
             // Disable rank brush
             _isRankBrushMode = false;
             _isRankPainting = false;
+            _isErasing = false;
 
             // Clear sub-mode
             _currentEditSubMode = EditSubMode.None;
@@ -207,7 +212,12 @@ namespace MURDOC_2024.UserControls
 
             // Switch to polygon editing sub-mode
             _currentEditSubMode = EditSubMode.PolygonEditing;
-            EditingCanvas.Cursor = Cursors.Hand; // Hand cursor for point editing
+
+            // Set cursor based on mode
+            if (mode == PointEditMode.Erase)
+                EditingCanvas.Cursor = Cursors.No; // Circle-slash cursor for eraser
+            else
+                EditingCanvas.Cursor = Cursors.Hand;
 
             System.Diagnostics.Debug.WriteLine($"Point edit mode set to: {mode} (Polygon editing active)");
         }
@@ -426,6 +436,17 @@ namespace MURDOC_2024.UserControls
             }
 
             // =================================================================
+            // ERASER DRAG (remove points while dragging)
+            // =================================================================
+            if (_isErasing && _currentPointEditMode == PointEditMode.Erase)
+            {
+                Point canvasPoint = e.GetPosition(EditingCanvas);
+                ErasePointsNear(canvasPoint);
+                e.Handled = true;
+                return;
+            }
+
+            // =================================================================
             // PANNING (works in both modes if Space is held)
             // =================================================================
             if (_isPanning)
@@ -603,7 +624,17 @@ namespace MURDOC_2024.UserControls
                 }
                 else if (_currentEditSubMode == EditSubMode.PolygonEditing)
                 {
-                    // POLYGON POINT EDITING
+                    // ERASER MODE: Start drag-erasing
+                    if (_currentPointEditMode == PointEditMode.Erase)
+                    {
+                        _isErasing = true;
+                        ErasePointsNear(canvasPoint);
+                        EditingCanvas.CaptureMouse();
+                        e.Handled = true;
+                        return;
+                    }
+
+                    // POLYGON POINT EDITING (Add/Remove)
                     HandlePolygonPointClick(canvasPoint);
                     e.Handled = true;
                     return;
@@ -714,6 +745,42 @@ namespace MURDOC_2024.UserControls
             }
         }
 
+        /// <summary>
+        /// Removes all polygon points within EraserRadius of the given canvas position.
+        /// Called on mouse down and during mouse drag in Erase mode.
+        /// </summary>
+        private void ErasePointsNear(Point canvasPoint)
+        {
+            bool changed = false;
+
+            // Iterate backward so removals don't shift indices
+            for (int i = _polygonPointMarkers.Count - 1; i >= 0; i--)
+            {
+                // Protect minimum 3 points
+                if (_polygonPointMarkers.Count <= 3)
+                    break;
+
+                var marker = _polygonPointMarkers[i];
+                double markerX = Canvas.GetLeft(marker) + 5;
+                double markerY = Canvas.GetTop(marker) + 5;
+
+                double distance = Math.Sqrt(
+                    Math.Pow(canvasPoint.X - markerX, 2) +
+                    Math.Pow(canvasPoint.Y - markerY, 2));
+
+                if (distance <= EraserRadius)
+                {
+                    EditingCanvas.Children.Remove(marker);
+                    _polygonPointMarkers.RemoveAt(i);
+                    _drawingService.CurrentPolygon.RemoveAt(i);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+                UpdatePolyline();
+        }
+
         private void EditingCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             // Stop rank painting
@@ -722,6 +789,16 @@ namespace MURDOC_2024.UserControls
                 _isRankPainting = false;
                 EditingCanvas.ReleaseMouseCapture();
                 System.Diagnostics.Debug.WriteLine("Stopped rank painting");
+                e.Handled = true;
+                return;
+            }
+
+            // Stop erasing
+            if (_isErasing)
+            {
+                _isErasing = false;
+                EditingCanvas.ReleaseMouseCapture();
+                System.Diagnostics.Debug.WriteLine("Stopped erasing");
                 e.Handled = true;
                 return;
             }
