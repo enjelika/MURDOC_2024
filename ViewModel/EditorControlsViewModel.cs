@@ -284,6 +284,7 @@ namespace MURDOC_2024.ViewModel
 
             EnterEditModeRequested?.Invoke(this, EventArgs.Empty);
             EditingToolModeChanged?.Invoke(this, "Polygon");
+            PointEditModeChanged?.Invoke(this, PointEditMode.Add);
             System.Diagnostics.Debug.WriteLine("Entered unified edit mode (Polygon Editing)");
         }
 
@@ -292,7 +293,17 @@ namespace MURDOC_2024.ViewModel
         {
             IsPolygonEditingMode = true;
             IsRankPaintingMode = false;
+
+            // Restore whichever polygon sub-mode is flagged, defaulting to Add
+            PointEditMode activeMode = IsEraserMode ? PointEditMode.Erase
+                : IsRemovePointsMode ? PointEditMode.Remove
+                : PointEditMode.Add;
+
+            if (!IsAddPointsMode && !IsRemovePointsMode && !IsEraserMode)
+                IsAddPointsMode = true;
+
             EditingToolModeChanged?.Invoke(this, "Polygon");
+            PointEditModeChanged?.Invoke(this, activeMode);
             System.Diagnostics.Debug.WriteLine("Switched to Polygon Editing mode");
         }
 
