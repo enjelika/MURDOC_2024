@@ -46,11 +46,26 @@ namespace MURDOC_2024.Views
                 return;
             }
 
-            var summaryFiles = Directory.GetFiles(_sessionsDir, "*_summary.json")
-                .OrderByDescending(f => File.GetLastWriteTime(f))
-                .ToArray();
+            // Collect summary JSON files from both locations:
+            // New: training_sessions/session_{id}/session_summary.json
+            // Old: training_sessions/session_{id}_summary.json (backward compat)
+            var summaryFiles = new List<string>();
 
-            foreach (var file in summaryFiles)
+            // New location: inside each session folder
+            foreach (var dir in Directory.GetDirectories(_sessionsDir, "session_*"))
+            {
+                string insideSummary = Path.Combine(dir, "session_summary.json");
+                if (File.Exists(insideSummary))
+                    summaryFiles.Add(insideSummary);
+            }
+
+            // Old location: alongside session folders (backward compat)
+            summaryFiles.AddRange(Directory.GetFiles(_sessionsDir, "*_summary.json"));
+
+            // Deduplicate by SessionId
+            var seenIds = new HashSet<string>();
+
+            foreach (var file in summaryFiles.OrderByDescending(f => File.GetLastWriteTime(f)))
             {
                 try
                 {
@@ -72,6 +87,10 @@ namespace MURDOC_2024.Views
                                       + (obj["Statistics"]?["TotalCorrections"]?.Value<int>() ?? 0),
                         JsonData = obj
                     };
+
+                    // Skip if we already loaded this session (new location takes priority)
+                    if (!seenIds.Add(entry.SessionId))
+                        continue;
 
                     _sessions.Add(entry);
                 }

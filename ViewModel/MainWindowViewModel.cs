@@ -293,10 +293,10 @@ namespace MURDOC_2024.ViewModel
             try
             {
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string sessionsDir = Path.Combine(exeDir, "training_sessions");
-                Directory.CreateDirectory(sessionsDir);
+                string sessionFolder = Path.Combine(exeDir, "training_sessions", $"session_{sessionId}");
+                Directory.CreateDirectory(sessionFolder);
 
-                string sessionFile = Path.Combine(sessionsDir, $"session_{sessionId}_summary.json");
+                string sessionFile = Path.Combine(sessionFolder, "session_summary.json");
 
                 // Create comprehensive summary object for JSON serialization
                 var summaryObject = new
