@@ -334,27 +334,6 @@
                     </Button>
                 </Grid>
 
-                <!-- Add Correction Button -->
-                <Button Command="{Binding EnableCorrectionModeCommand}"
-                    Padding="8,10"
-                    Margin="0,0,0,8"
-                    Background="#FFF3E0"
-                    BorderBrush="#FFB74D"
-                    BorderThickness="2"
-                    ToolTip="Draw polygon around object the system missed">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <TextBlock Text="➕ " 
-                  FontWeight="Bold" 
-                  Foreground="#FF9800"
-                  FontSize="14"
-                  VerticalAlignment="Center"/>
-                        <TextBlock Text="Add Missed Object" 
-                  FontWeight="Bold" 
-                  Foreground="#FF9800"
-                  VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-
                 <!-- Feedback Stats (Read-only summary) -->
                 <Border Background="#F0F0F0" 
                     Padding="8" 

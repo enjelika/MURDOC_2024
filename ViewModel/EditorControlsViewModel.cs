@@ -14,7 +14,6 @@ namespace MURDOC_2024.ViewModel
         private int _confirmedCount;
         private int _rejectedCount;
         private int _correctionCount;
-        private bool _isCorrectionModeActive;
         private DateTime _sessionStartTime;
 
         // Selection state
@@ -171,12 +170,6 @@ namespace MURDOC_2024.ViewModel
 
         public int TotalInteractions => ConfirmedCount + RejectedCount + CorrectionCount;
 
-        public bool IsCorrectionModeActive
-        {
-            get => _isCorrectionModeActive;
-            set => SetProperty(ref _isCorrectionModeActive, value);
-        }
-
         public DateTime SessionStartTime
         {
             get => _sessionStartTime;
@@ -205,7 +198,6 @@ namespace MURDOC_2024.ViewModel
         // Detection feedback commands
         public ICommand ConfirmDetectionCommand { get; }
         public ICommand RejectDetectionCommand { get; }
-        public ICommand EnableCorrectionModeCommand { get; }
         public ICommand ViewFeedbackHistoryCommand { get; }
         public ICommand ExportFeedbackCommand { get; }
         public ICommand ResetSessionCommand { get; }
@@ -226,7 +218,6 @@ namespace MURDOC_2024.ViewModel
         public event EventHandler<RankBrushEventArgs> RankBrushChanged;
 
         // Feedback events
-        public event EventHandler CorrectionModeToggled;
         public event EventHandler FeedbackHistoryViewRequested;
         public event EventHandler FeedbackExportRequested;
         public event EventHandler SessionResetRequested;
@@ -259,7 +250,6 @@ namespace MURDOC_2024.ViewModel
             // Detection feedback commands
             ConfirmDetectionCommand = new RelayCommand(ExecuteConfirm, () => HasSelectedDetection);
             RejectDetectionCommand = new RelayCommand(ExecuteReject, () => HasSelectedDetection);
-            EnableCorrectionModeCommand = new RelayCommand(ToggleCorrectionMode);
             ViewFeedbackHistoryCommand = new RelayCommand(ViewFeedbackHistory);
             ExportFeedbackCommand = new RelayCommand(ExportFeedback, () => FeedbackHistory.Count > 0);
             ResetSessionCommand = new RelayCommand(ResetSession);
@@ -475,13 +465,6 @@ namespace MURDOC_2024.ViewModel
             CorrectionCount = 0;
             _sessionStartTime = DateTime.Now;
             UpdateCommandStates();
-        }
-
-        /// <summary>Toggles IsCorrectionModeActive and fires CorrectionModeToggled so the view can update the canvas.</summary>
-        private void ToggleCorrectionMode()
-        {
-            IsCorrectionModeActive = !IsCorrectionModeActive;
-            CorrectionModeToggled?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>Syncs HasSelectedDetection, label, and confidence display properties from the currently selected detection.</summary>

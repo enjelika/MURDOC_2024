@@ -168,7 +168,6 @@ namespace MURDOC_2024.ViewModel
             EditorControlsVM = new EditorControlsPaneViewModel();
 
             // Subscribe to all EditorControls events
-            EditorControlsVM.CorrectionModeToggled += OnCorrectionModeToggled;
             EditorControlsVM.FeedbackHistoryViewRequested += OnFeedbackHistoryViewRequested;
             EditorControlsVM.FeedbackExportRequested += OnFeedbackExportRequested;
             EditorControlsVM.SessionResetRequested += OnSessionResetRequested;
@@ -478,18 +477,6 @@ namespace MURDOC_2024.ViewModel
         #endregion
 
         #region Detection Feedback Event Handlers
-
-        /// <summary>
-        /// Handles correction mode toggle from EditorControls.
-        /// Logs interaction for metrics tracking.
-        /// </summary>
-        private void OnCorrectionModeToggled(object sender, EventArgs e)
-        {
-            bool isActive = EditorControlsVM.IsCorrectionModeActive;
-            System.Diagnostics.Debug.WriteLine($"Correction mode: {(isActive ? "ACTIVE" : "INACTIVE")}");
-
-            _metricsService.LogInteraction("CorrectionModeToggled", new { Active = isActive });
-        }
 
         /// <summary>
         /// Displays feedback history summary dialog.
@@ -1263,7 +1250,6 @@ namespace MURDOC_2024.ViewModel
             // Unsubscribe all EditorControls events
             if (EditorControlsVM != null)
             {
-                EditorControlsVM.CorrectionModeToggled -= OnCorrectionModeToggled;
                 EditorControlsVM.FeedbackHistoryViewRequested -= OnFeedbackHistoryViewRequested;
                 EditorControlsVM.FeedbackExportRequested -= OnFeedbackExportRequested;
                 EditorControlsVM.SessionResetRequested -= OnSessionResetRequested;
