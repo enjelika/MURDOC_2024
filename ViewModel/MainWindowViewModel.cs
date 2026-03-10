@@ -37,6 +37,12 @@ namespace MURDOC_2024.ViewModel
         // Detection tracking for current image
         private List<DetectionResult> _currentDetections;
 
+        // Per-image feedback baseline: captures cumulative counts when each image starts,
+        // so we can compute per-image deltas when recording
+        private int _imageStartConfirmed;
+        private int _imageStartRejected;
+        private int _imageStartCorrections;
+
         #endregion
 
         #region Properties
@@ -202,18 +208,10 @@ namespace MURDOC_2024.ViewModel
                 // Snapshot the current image's latest state before building summary
                 if (!string.IsNullOrEmpty(SessionInfoVM.CurrentImageName))
                 {
-                    SessionInfoVM.RecordImageData(
+                    RecordCurrentImageSnapshot(
                         SessionInfoVM.CurrentImageName,
                         FinalPredictionVM.HasModifications,
-                        FinalPredictionVM.HasRankModifications,
-                        EditorControlsVM.ConfirmedCount,
-                        EditorControlsVM.RejectedCount,
-                        EditorControlsVM.CorrectionCount,
-                        ImageControlVM.Brightness,
-                        ImageControlVM.Contrast,
-                        ImageControlVM.Saturation,
-                        MICAControlVM.Sensitivity,
-                        MICAControlVM.ResponseBias
+                        FinalPredictionVM.HasRankModifications
                     );
                 }
 
@@ -417,6 +415,42 @@ namespace MURDOC_2024.ViewModel
         }
 
         /// <summary>
+        /// Records current image data to the session with per-image feedback deltas.
+        /// Computes feedback counts relative to the baseline captured when this image started.
+        /// </summary>
+        private void RecordCurrentImageSnapshot(string imageName, bool hasMaskEdits, bool hasRankEdits)
+        {
+            int perImageConfirmed = EditorControlsVM.ConfirmedCount - _imageStartConfirmed;
+            int perImageRejected = EditorControlsVM.RejectedCount - _imageStartRejected;
+            int perImageCorrections = EditorControlsVM.CorrectionCount - _imageStartCorrections;
+
+            SessionInfoVM.RecordImageData(
+                imageName,
+                hasMaskEdits,
+                hasRankEdits,
+                perImageConfirmed,
+                perImageRejected,
+                perImageCorrections,
+                ImageControlVM.Brightness,
+                ImageControlVM.Contrast,
+                ImageControlVM.Saturation,
+                MICAControlVM.Sensitivity,
+                MICAControlVM.ResponseBias
+            );
+        }
+
+        /// <summary>
+        /// Resets the per-image feedback baseline to the current cumulative counts.
+        /// Called when a new image starts being worked on.
+        /// </summary>
+        private void ResetPerImageFeedbackBaseline()
+        {
+            _imageStartConfirmed = EditorControlsVM.ConfirmedCount;
+            _imageStartRejected = EditorControlsVM.RejectedCount;
+            _imageStartCorrections = EditorControlsVM.CorrectionCount;
+        }
+
+        /// <summary>
         /// Opens the Session History window showing all past session summaries.
         /// </summary>
         private void OnViewSessionHistoryRequested(object sender, EventArgs e)
@@ -609,19 +643,7 @@ namespace MURDOC_2024.ViewModel
 
                 // Record complete image data for session summary
                 string imageName = Path.GetFileName(SelectedImagePath);
-                SessionInfoVM.RecordImageData(
-                    imageName,
-                    hadMaskEdits,                               // Binary mask edited (captured before save)
-                    hadRankEdits,                               // Rank map edited (captured before save)
-                    EditorControlsVM.ConfirmedCount,         // Detection feedback
-                    EditorControlsVM.RejectedCount,
-                    EditorControlsVM.CorrectionCount,
-                    ImageControlVM.Brightness,               // Image adjustment parameters
-                    ImageControlVM.Contrast,
-                    ImageControlVM.Saturation,
-                    MICAControlVM.Sensitivity,               // Detection parameters
-                    MICAControlVM.ResponseBias
-                );
+                RecordCurrentImageSnapshot(imageName, hadMaskEdits, hadRankEdits);
 
                 // Exit edit mode after successful save
                 EditorControlsVM.ExitEditMode();
@@ -864,18 +886,10 @@ namespace MURDOC_2024.ViewModel
             // Snapshot current image's feedback data before switching
             if (SessionInfoVM.HasActiveSession && !string.IsNullOrEmpty(SessionInfoVM.CurrentImageName))
             {
-                SessionInfoVM.RecordImageData(
+                RecordCurrentImageSnapshot(
                     SessionInfoVM.CurrentImageName,
                     FinalPredictionVM.HasModifications,
-                    FinalPredictionVM.HasRankModifications,
-                    EditorControlsVM.ConfirmedCount,
-                    EditorControlsVM.RejectedCount,
-                    EditorControlsVM.CorrectionCount,
-                    ImageControlVM.Brightness,
-                    ImageControlVM.Contrast,
-                    ImageControlVM.Saturation,
-                    MICAControlVM.Sensitivity,
-                    MICAControlVM.ResponseBias
+                    FinalPredictionVM.HasRankModifications
                 );
             }
 
@@ -907,6 +921,9 @@ namespace MURDOC_2024.ViewModel
                 SessionInfoVM.UpdateModificationStatus(false, false);
                 System.Diagnostics.Debug.WriteLine($"Continuing session with new image: {imageName}");
             }
+
+            // Reset per-image feedback baseline for the new image
+            ResetPerImageFeedbackBaseline();
         }
 
         /// <summary>
@@ -999,19 +1016,7 @@ namespace MURDOC_2024.ViewModel
 
                     // Record baseline image data (no edits yet, captures detection parameters)
                     string imageName = Path.GetFileName(SelectedImagePath);
-                    SessionInfoVM.RecordImageData(
-                        imageName,
-                        false,                                   // No mask edits yet
-                        false,                                   // No rank edits yet
-                        EditorControlsVM.ConfirmedCount,
-                        EditorControlsVM.RejectedCount,
-                        EditorControlsVM.CorrectionCount,
-                        ImageControlVM.Brightness,
-                        ImageControlVM.Contrast,
-                        ImageControlVM.Saturation,
-                        MICAControlVM.Sensitivity,
-                        MICAControlVM.ResponseBias
-                    );
+                    RecordCurrentImageSnapshot(imageName, false, false);
                 });
             }
             catch (Exception ex)
