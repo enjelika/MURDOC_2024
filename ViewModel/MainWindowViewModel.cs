@@ -199,6 +199,24 @@ namespace MURDOC_2024.ViewModel
                     return;
                 }
 
+                // Snapshot the current image's latest state before building summary
+                if (!string.IsNullOrEmpty(SessionInfoVM.CurrentImageName))
+                {
+                    SessionInfoVM.RecordImageData(
+                        SessionInfoVM.CurrentImageName,
+                        FinalPredictionVM.HasModifications,
+                        FinalPredictionVM.HasRankModifications,
+                        EditorControlsVM.ConfirmedCount,
+                        EditorControlsVM.RejectedCount,
+                        EditorControlsVM.CorrectionCount,
+                        ImageControlVM.Brightness,
+                        ImageControlVM.Contrast,
+                        ImageControlVM.Saturation,
+                        MICAControlVM.Sensitivity,
+                        MICAControlVM.ResponseBias
+                    );
+                }
+
                 var summary = SessionInfoVM.GetSessionSummary();
                 int editedCount = summary.Images.Count(i => i.BinaryMaskEdited || i.RankMapEdited);
 
@@ -843,6 +861,24 @@ namespace MURDOC_2024.ViewModel
         /// </summary>
         private void OnImageSelected(string path)
         {
+            // Snapshot current image's feedback data before switching
+            if (SessionInfoVM.HasActiveSession && !string.IsNullOrEmpty(SessionInfoVM.CurrentImageName))
+            {
+                SessionInfoVM.RecordImageData(
+                    SessionInfoVM.CurrentImageName,
+                    FinalPredictionVM.HasModifications,
+                    FinalPredictionVM.HasRankModifications,
+                    EditorControlsVM.ConfirmedCount,
+                    EditorControlsVM.RejectedCount,
+                    EditorControlsVM.CorrectionCount,
+                    ImageControlVM.Brightness,
+                    ImageControlVM.Contrast,
+                    ImageControlVM.Saturation,
+                    MICAControlVM.Sensitivity,
+                    MICAControlVM.ResponseBias
+                );
+            }
+
             SelectedImagePath = path;
             InputImageVM.LoadImage(path);
             MICAControlVM.OnImageSelected(path);
@@ -960,6 +996,22 @@ namespace MURDOC_2024.ViewModel
 
                     // Increment session image counter
                     SessionInfoVM.IncrementImageCount();
+
+                    // Record baseline image data (no edits yet, captures detection parameters)
+                    string imageName = Path.GetFileName(SelectedImagePath);
+                    SessionInfoVM.RecordImageData(
+                        imageName,
+                        false,                                   // No mask edits yet
+                        false,                                   // No rank edits yet
+                        EditorControlsVM.ConfirmedCount,
+                        EditorControlsVM.RejectedCount,
+                        EditorControlsVM.CorrectionCount,
+                        ImageControlVM.Brightness,
+                        ImageControlVM.Contrast,
+                        ImageControlVM.Saturation,
+                        MICAControlVM.Sensitivity,
+                        MICAControlVM.ResponseBias
+                    );
                 });
             }
             catch (Exception ex)
