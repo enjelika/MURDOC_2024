@@ -343,7 +343,6 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
@@ -365,18 +364,6 @@
                       FontSize="14"
                       HorizontalAlignment="Center"/>
                             <TextBlock Text="{Binding RejectedCount, Mode=OneWay}" 
-                      FontWeight="Bold"
-                      FontSize="12"
-                      HorizontalAlignment="Center"/>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="➕" 
-                      Foreground="#FF9800" 
-                      FontWeight="Bold"
-                      FontSize="14"
-                      HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding CorrectionCount, Mode=OneWay}" 
                       FontWeight="Bold"
                       FontSize="12"
                       HorizontalAlignment="Center"/>
